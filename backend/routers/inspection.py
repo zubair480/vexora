@@ -55,15 +55,10 @@ def bridge_band():
         bridge = importlib.import_module("backend.vexo_bridge")
     except Exception:
         return None
-    for name in ("current_band", "get_band", "connected_band"):
-        getter = getattr(bridge, name, None)
-        if callable(getter):
-            try:
-                return getter()
-            except Exception:
-                return None
-    holder = getattr(bridge, "bridge", None)
-    return getattr(holder, "band", None) if holder is not None else getattr(bridge, "band", None)
+    try:
+        return bridge.get_bridge().band          # None until the bridge has connected
+    except Exception:
+        return None
 
 
 @router.post("/report")
