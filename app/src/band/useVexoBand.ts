@@ -14,7 +14,7 @@ const GESTURES: GestureKind[] = ['tap', 'double-tap', 'free-fall', 'tilt', 'orie
 
 export interface VexoBand {
   state: BandState;
-  connect: (source: Exclude<BandSource, 'mock'>) => Promise<void>;
+  connect: (source: Exclude<BandSource, 'mock' | 'backend'>) => Promise<void>;
   disconnect: () => Promise<void>;
   identify: () => Promise<void>;
 }
@@ -44,7 +44,7 @@ export function useVexoBand(mock: BandState): VexoBand {
     setState(mock);
   }, [mock]);
 
-  const connect = useCallback(async (source: Exclude<BandSource, 'mock'>) => {
+  const connect = useCallback(async (source: Exclude<BandSource, 'mock' | 'backend'>) => {
     if (BAND_NUMBER === null) {
       setState((s) => ({ ...s, error: 'Set your band number first: BAND_NUMBER in app/src/band/config.ts (it is written on the band\'s bag).' }));
       return;
