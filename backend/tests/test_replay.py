@@ -73,9 +73,12 @@ def test_run_blocking_publishes_everything_as_replay(captured, test_bus):
                                  "recorded_source": "synthetic", "speed": 1.0}
     assert disconnected.payload["reason"] == "replay-finished"
     assert connected.shift_id == config.current_shift()["shift_id"]
-    quality = next(e for e in events if e.type == "sensor_quality").payload
-    assert quality == {"configured_hz": 50.0, "effective_hz": 50.0, "missing_samples": 0,
-                       "completeness": 1.0, "saturated": False, "stale": False}
+    quality = [e for e in events if e.type == "sensor_quality"][-1].payload   # measured, not copied from meta
+    assert quality["effective_hz"] == pytest.approx(50.0, abs=0.1) and quality["configured_hz"] == 50.0
+    assert {k: quality[k] for k in ("missing_samples", "completeness", "saturated", "stale",
+                                    "missing_samples_known")} == {
+        "missing_samples": 0, "completeness": 1.0, "saturated": False, "stale": False,
+        "missing_samples_known": True}
 
     status = source.status()
     assert status["running"] is False and status["samples_sent"] == status["samples_total"] == 300
@@ -115,8 +118,10 @@ def test_recorded_gap_is_replayed_as_a_gap(captured, test_bus, tmp_path, monkeyp
     # a recording made from a real band is still labelled replay when played back
     assert all(b.source == "replay" for b in batches) and all(e.source == "replay" for e in events)
     assert events[0].payload["recorded_source"] == "band" and events[0].payload["band_name"] == "test-band"
-    quality = next(e for e in events if e.type == "sensor_quality").payload
-    assert quality["completeness"] == pytest.approx(0.9) and quality["missing_samples"] == 10
+    quality = [e.payload for e in events if e.type == "sensor_quality"]
+    # the recorded gap is announced as stale with no rate claimed, then the stream is live again
+    assert any(q["stale"] and q["effective_hz"] == 0.0 for q in quality)
+    assert quality[-1]["stale"] is False and quality[-1]["effective_hz"] == pytest.approx(50.0, abs=0.5)
 
 
 def test_missing_meta_and_missing_n(captured, test_bus, tmp_path, monkeypatch):

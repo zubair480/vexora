@@ -169,6 +169,38 @@ def test_tracker_saturation_and_empty_state():
     assert q.snapshot(now=100.0)["saturated"] is True and q.saturated_samples == 1
 
 
+def test_tracker_gap_is_returned_even_if_samples_came_before_reconnected():
+    q = QualityTracker(50)
+    q.add(5, 100.0)
+    q.gap_started(100.2, "link-lost")
+    q.add(0, 104.0)                        # the new link's first sample closes the gap...
+    q.add(1, 104.02)
+    gap = q.gap_ended(104.05)              # ...and the "reconnected" event still gets it
+    assert gap == {"start": 100.0, "end": 104.0, "reason": "link-lost"}
+    q.add(2, 104.04)
+    assert q.missing == 0 and q.counter_resets == 0 and len(q.gaps) == 1
+
+
+def test_tracker_without_counter_does_not_claim_full_completeness():
+    q = QualityTracker(50)                 # firmware 1.0: n is None, loss cannot be counted
+    for i in range(50):
+        q.add(None, 100 + i / 25)          # only half the readings arrive
+    snap = q.snapshot(now=100 + 49 / 25)
+    assert snap["missing_samples_known"] is False and snap["missing_samples"] == 0
+    assert snap["effective_hz"] == pytest.approx(25, abs=0.2)
+    assert snap["completeness"] == pytest.approx(0.5, abs=0.01)
+
+
+def test_tracker_duplicate_counter_and_clock_step_back():
+    q = QualityTracker(50)
+    q.add(3, 100.0)
+    q.add(3, 100.02)                       # same n twice is not a counter restart
+    assert q.counter_resets == 0 and q.missing == 0
+    for i in range(10):
+        q.add(4 + i, 50.0 + i / 50)        # computer clock stepped back: rate measured afresh
+    assert q.effective_hz(now=50.0 + 9 / 50) == pytest.approx(50, abs=0.5)
+
+
 # ---------------------------------------------------------------- start
 def test_start_refuses_without_band_number(monkeypatch):
     monkeypatch.setattr(config, "load_env", lambda: None)
@@ -455,3 +487,17 @@ def test_no_band_number_literal_in_band_code():
         text = path.read_text(encoding="utf-8")
         assert not re.search(r"Vexo-HACK-\d|VEXO_BAND\s*=\s*\d|Band\.connect\(\s*\d|band_number\s*=\s*\d", text), path
         assert "os.environ" not in text or "VEXO_BAND" not in text, path
+
+
+def test_after_a_final_disconnect_the_bridge_lets_go_and_can_connect_again(team, imu):
+    bus, _, events = imu
+    band = FakeBand()
+    bridge = started(band)
+    band.emit("disconnect", reason="lost", reconnect="gave-up")
+    bridge._drain()
+    status = bridge.status()
+    assert bridge.band is None and status["source"] is None and status["connected"] is False
+    again = FakeBand()
+    bridge._connect = lambda number, transport, auto_reconnect=True: again
+    assert bridge.start()["connected"] is True       # not "already-running"
+    bridge.stop()

@@ -18,6 +18,7 @@ import numpy as np
 from . import config, event_bus
 from .models import Event, ImuBatch, ImuSample
 from .recorder import valid_session_id
+from .vexo_bridge import QualityTracker   # pure: importing it never touches the kit or a band
 
 SOURCE = "replay"
 
@@ -117,15 +118,12 @@ class ReplaySource:
                 "label": self._meta.get("label"), "recorded_source": self._meta.get("source"),
                 "speed": self.speed}
 
-    def _quality_payload(self) -> dict:
-        meta = self._meta
-        missing = meta.get("missing_samples")
-        received = meta.get("samples") or len(self._data)
-        known = isinstance(missing, (int, float)) and meta.get("missing_samples_known", True)
-        completeness = received / (received + missing) if known and received + missing > 0 else 1.0
-        return {"configured_hz": meta.get("configured_hz"), "effective_hz": meta.get("effective_hz"),
-                "missing_samples": missing, "completeness": completeness,
-                "saturated": False, "stale": False}
+    def _quality_payload(self, tracker: QualityTracker, now: float) -> dict:
+        """Measured from the samples replayed so far (same tracker as the live bridge), not copied
+        from meta.json. Saturation is not judged: the recording does not carry the sensor range."""
+        snap = tracker.snapshot(now)
+        return {k: snap[k] for k in ("configured_hz", "effective_hz", "missing_samples", "completeness",
+                                     "saturated", "stale", "missing_samples_known")}
 
     def _chunks(self) -> list[tuple[int, int]]:
         """Index ranges, each covering 1/batch_hz seconds of recorded time."""
@@ -150,9 +148,15 @@ class ReplaySource:
                 clock_start = time.monotonic()
                 offset = 0.0          # recorded seconds already replayed in earlier loops
                 next_quality = 0.0
+                tracker = QualityTracker(float(meta.get("configured_hz") or 0.0))
+                last_rel = None
                 while True:
                     for lo, hi in chunks:
                         rel = offset + float(times[lo]) - base
+                        if last_rel is not None and rel - last_rel > tracker.stale_after:
+                            # a recorded gap is replayed as a gap: say the stream is stale meanwhile
+                            self._event("sensor_quality", self._quality_payload(
+                                tracker, wall_start + last_rel + tracker.stale_after + 0.5))
                         if realtime:
                             wait = clock_start + rel / self.speed - time.monotonic()
                             if wait > 0 and self._stop.wait(wait):
@@ -166,13 +170,16 @@ class ReplaySource:
                                       float(r[6]), float(r[7]), float(r[8]))
                             for r in data[lo:hi]
                         ]
+                        for s in samples:
+                            tracker.add(s.n, s.time, False, s.time)
+                        last_rel = samples[-1].time - wall_start
                         event_bus.bus.publish_imu(ImuBatch(samples=samples,
-                                                           configured_hz=meta.get("configured_hz"),
-                                                           effective_hz=meta.get("effective_hz"),
+                                                           configured_hz=tracker.configured_hz,
+                                                           effective_hz=tracker.effective_hz(samples[-1].time),
                                                            source=SOURCE))
                         self._sent += len(samples)
                         if rel >= next_quality:
-                            self._event("sensor_quality", self._quality_payload())
+                            self._event("sensor_quality", self._quality_payload(tracker, samples[-1].time))
                             next_quality = math.floor(rel) + 1.0
                     if self._stop.is_set() or not self.loop:
                         break

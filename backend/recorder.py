@@ -20,9 +20,9 @@ from .models import LABELS, ImuBatch
 CSV_HEADER = ["n", "t", "time", "ax", "ay", "az", "gx", "gy", "gz"]
 META_KEYS = ["session_id", "label", "tool_id", "band_name", "wearer", "configured_hz", "effective_hz",
              "missing_samples", "started_at", "ended_at", "source", "notes"]
-SESSION_ID_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.-]{0,80}$")
+SESSION_ID_RE = re.compile(r"^[A-Za-z0-9](?:[A-Za-z0-9_.-]{0,79}[A-Za-z0-9_-])?$")   # no trailing dot (Windows)
 SEGMENT_GAP_S = 1.0   # a longer silence between two samples is a link gap, not a slow rate
-UNITS = {"n": "sample counter", "t": "band clock", "time": "epoch seconds",
+UNITS = {"n": "sample counter", "t": "band clock, milliseconds", "time": "epoch seconds",
          "ax,ay,az": "g", "gx,gy,gz": "deg/s"}
 
 
