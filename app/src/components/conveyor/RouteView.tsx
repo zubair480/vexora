@@ -31,7 +31,8 @@ function useElementSize<T extends HTMLElement>() {
 }
 
 /** Distance from the head pulley, rounded to 5 m. StationList uses the same rule. */
-const metresFromHead = (position: number, lengthM: number) => Math.round((position * lengthM) / 5) * 5;
+const metresFromHead = (position: number, lengthM: number | null) =>
+  lengthM == null ? null : Math.round((position * lengthM) / 5) * 5;
 
 export function RouteView({
   conveyor,
@@ -39,7 +40,8 @@ export function RouteView({
   onSelectDefect,
 }: {
   conveyor: Conveyor;
-  defect: Defect;
+  /** null = no open defect: no callout or halo. */
+  defect: Defect | null;
   /** Called when the defect callout is clicked or activated from the keyboard. */
   onSelectDefect?: () => void;
 }) {
@@ -53,7 +55,9 @@ export function RouteView({
 
   const stations = [...conveyor.stations].sort((a, b) => a.position - b.position);
   const defectStation =
-    stations.find((s) => s.id === defect.stationId) ?? stations.find((s) => s.status === 'defect') ?? null;
+    defect == null
+      ? null
+      : (stations.find((s) => s.id === defect.stationId) ?? stations.find((s) => s.status === 'defect') ?? null);
 
   const density: ChipDensity = width === 0 || width >= 860 ? 'full' : width >= 520 ? 'compact' : 'icon';
   const compact = density !== 'full';
@@ -68,7 +72,8 @@ export function RouteView({
   const baseH = width * (VB.h / VB.w);
   const spare = width && height ? height - baseH : 0;
   const showStats = spare >= STATS_H + GAP;
-  const showProfile = spare >= STATS_H + PROFILE_H + 2 * GAP + 40;
+  const hasVibration = conveyor.stations.some((s) => s.vibrationDelta != null);
+  const showProfile = hasVibration && spare >= STATS_H + PROFILE_H + 2 * GAP + 40;
   const sceneAvail = height - (showStats ? STATS_H + GAP : 0) - (showProfile ? PROFILE_H + GAP : 0);
   const vbH = width && height ? Math.min(H_MAX, Math.max(VB.h, sceneAvail / scale)) : VB.h;
   const boxH = vbH * scale;
@@ -85,7 +90,7 @@ export function RouteView({
     return () => window.removeEventListener('keydown', onKey);
   }, [activeId]);
 
-  const lengthLabel = `${conveyor.lengthM.toLocaleString('en-US')} m`;
+  const lengthLabel = conveyor.lengthM != null ? `${conveyor.lengthM.toLocaleString('en-US')} m` : null;
 
   return (
     <div
@@ -124,7 +129,7 @@ export function RouteView({
           />
         ))}
 
-        {defectStation && (
+        {defect && defectStation && (
           <DefectCallout
             ref={calloutRef}
             station={defectStation}
@@ -144,22 +149,22 @@ export function RouteView({
           aria-hidden
         >
           <span className="h-px w-5 bg-ink-3/50" />
-          {compact ? 'Head' : 'Head · 0 m'}
+          {compact || lengthLabel == null ? 'Head' : 'Head · 0 m'}
         </div>
         <div
           className="pointer-events-none absolute bottom-[4%] flex items-center gap-2 text-[11px] tabular-nums text-ink-3"
           style={{ right: `${100 - pctX(X1)}%` }}
           aria-hidden
         >
-          {compact ? lengthLabel : `Tail · ${lengthLabel}`}
+          {lengthLabel == null ? 'Tail' : compact ? lengthLabel : `Tail · ${lengthLabel}`}
           <span className="h-px w-5 bg-ink-3/50" />
         </div>
       </div>
       {showProfile && <VibrationProfile stations={stations} idPrefix={idPrefix} />}
       {showStats && <RouteStats conveyor={conveyor} />}
       <p className="sr-only">
-        {conveyor.id}, {lengthLabel}, {conveyor.idlers} idlers. Stations:{' '}
-        {stations.map((s) => `${s.name} ${s.role} ${s.status}${s.note ? ` (${s.note})` : ''}`).join('; ')}.
+        {[conveyor.id, lengthLabel, conveyor.idlers != null ? `${conveyor.idlers} idlers` : null].filter(Boolean).join(', ')}. Stations:{' '}
+        {stations.map((s) => [s.name, s.role, s.status].filter(Boolean).join(' ') + (s.note ? ` (${s.note})` : '')).join('; ')}.
       </p>
     </div>
   );

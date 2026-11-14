@@ -21,22 +21,24 @@ function Tile({ label, value, sub, children }: { label: string; value: string; s
 export const RouteStats = forwardRef<HTMLDivElement, { conveyor: Conveyor }>(function RouteStats({ conveyor }, ref) {
   const counts = { ok: 0, attention: 0, defect: 0 };
   for (const s of conveyor.stations) counts[s.status] += 1;
-  const flagged = counts.attention + counts.defect;
-  const health = Math.max(0, Math.min(100, conveyor.beltHealth));
-  const healthTone = health >= 85 ? 'bg-ok' : health >= 60 ? 'bg-warn' : 'bg-bad';
+  // Null means "no real source": show a dash, never a guessed number.
+  const health = conveyor.beltHealth == null ? null : Math.max(0, Math.min(100, conveyor.beltHealth));
+  const healthTone = health == null ? '' : health >= 85 ? 'bg-ok' : health >= 60 ? 'bg-warn' : 'bg-bad';
+  const num = (v: number | null, unit = '') => (v == null ? '—' : `${v.toLocaleString('en-US')}${unit}`);
 
   return (
     <div ref={ref} className="grid grid-cols-4 gap-2.5" aria-label={`${conveyor.id} route summary`}>
-      <Tile label="Belt health" value={`${health}%`}>
-        <div className="mt-1.5 h-1 overflow-hidden rounded-full bg-line" aria-hidden>
-          <div className={clsx('h-full rounded-full', healthTone)} style={{ width: `${health}%` }} />
-        </div>
+      <Tile label="Belt health" value={health == null ? '—' : `${health}%`} sub={health == null ? 'not measured' : undefined}>
+        {health != null && (
+          <div className="mt-1.5 h-1 overflow-hidden rounded-full bg-line" aria-hidden>
+            <div className={clsx('h-full rounded-full', healthTone)} style={{ width: `${health}%` }} />
+          </div>
+        )}
       </Tile>
-      <Tile label="Route length" value={`${conveyor.lengthM.toLocaleString('en-US')} m`} sub="head → tail" />
+      <Tile label="Route length" value={num(conveyor.lengthM, ' m')} sub="head → tail" />
       <Tile
         label="Idlers"
-        value={conveyor.idlers.toLocaleString('en-US')}
-        sub={flagged ? `${flagged} flagged` : 'all nominal'}
+        value={num(conveyor.idlers)}
       />
       <Tile
         label="Stations"
