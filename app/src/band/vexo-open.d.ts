@@ -74,3 +74,17 @@ declare module 'vexo-open' {
 
   export function bandName(number: number): string;
 }
+
+// The kit dashboard's Deepgram link (reference/vexo-open-kit/dashboard/speech/deepgram.js).
+declare module 'vexo-deepgram' {
+  export interface DeepgramLink {
+    start(callbacks: {
+      onText: (t: { final: boolean; text: string; end: number | null }) => void;
+      onState?: (state: 'listening' | 'off') => void;
+      onError?: (problem: string) => void;
+    }): void;
+    packet(opus: Uint8Array): void;
+    stop(): void;
+  }
+  export function deepgramLink(options: { key: string }): DeepgramLink;
+}

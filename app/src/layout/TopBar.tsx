@@ -4,6 +4,7 @@ import { Pill } from '../components/ui/primitives';
 import type { DataMode } from '../api/useShift';
 import { BAND_NUMBER } from '../band/config';
 import type { VexoBand } from '../band/useVexoBand';
+import { VoiceReport } from './VoiceReport';
 import type { Conveyor } from '../data/types';
 
 /** Where the numbers on screen come from. Replay and demo data are always labelled. */
@@ -71,6 +72,7 @@ export function TopBar({ conveyor, mode, replay, vexo }: { conveyor: Conveyor; m
         </nav>
       </div>
       <div className="flex items-center gap-3">
+        <div className="relative"><VoiceReport vexo={vexo} /></div>
         <BandButton vexo={vexo} />
         <SourcePill mode={mode} replay={replay} />
         <span className="hidden text-sm text-ink-2 sm:block">

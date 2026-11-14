@@ -38,6 +38,7 @@ export interface VexoBand {
   connect: (source: Exclude<BandSource, 'mock' | 'backend'>) => Promise<void>;
   disconnect: () => Promise<void>;
   identify: () => Promise<void>;
+  listen: (onPacket: (opus: Uint8Array) => void) => Promise<() => Promise<void>>;
 }
 
 function post(path: string, body: unknown): Promise<Response> {
@@ -211,7 +212,21 @@ export function useVexoBand(mock: BandState): VexoBand {
     await band.current?.identify().catch(() => {});
   }, []);
 
+  /** Turn the band's microphone on and hand each Opus packet to `onPacket`. Returns a stop function.
+   *  While the microphone is on the band's light is solid blue (kit rule 4). */
+  const listen = useCallback(async (onPacket: (opus: Uint8Array) => void): Promise<() => Promise<void>> => {
+    const b = band.current;
+    if (!b) throw new Error('Connect the band first (Connect Bluetooth).');
+    const handler = (a: unknown) => onPacket((a as { opus: Uint8Array }).opus);
+    b.on('audio', handler);
+    await b.configure({ audio: true });
+    return async () => {
+      b.off('audio', handler as (e: never) => void);
+      await b.configure({ audio: false }).catch(() => {});
+    };
+  }, []);
+
   useEffect(() => () => { band.current?.disconnect().catch(() => {}); }, []);
 
-  return { state, phase, forwarding, connect, disconnect, identify };
+  return { state, phase, forwarding, connect, disconnect, identify, listen };
 }
