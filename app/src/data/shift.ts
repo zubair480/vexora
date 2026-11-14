@@ -1,18 +1,28 @@
 // Mock shift data. No backend and no band connection yet (see design/BRIEF.md, "Data").
 import { ACTION_VALUE, LIMIT_VALUE, havPoints } from '../lib/hav';
-import type { SensorSample, ShiftData } from './types';
+import { BAND_NUMBER, MOTION_RATE, WINDOW_SECONDS } from '../band/config';
+import { G, windowRms } from '../band/motion';
+import type { MotionSample, ShiftData } from './types';
 
-function sensorWindow(n = 120): SensorSample[] {
-  // Deterministic pseudo-noise so the charts look alive but never change between renders.
-  const out: SensorSample[] = [];
-  for (let i = 0; i < n; i++) {
-    const t = i * 0.5;
-    const accel = 1.2 * Math.sin(i * 0.9) * Math.cos(i * 0.31) + 0.35 * Math.sin(i * 2.7);
+/** Canned SDK `motion` samples (g and °/s), deterministic so renders never change. */
+export function mockMotion(n = MOTION_RATE * WINDOW_SECONDS, t0 = 0): MotionSample[] {
+  const out: MotionSample[] = [];
+  const start = Date.UTC(2026, 0, 27, 10, 20);
+  for (let k = 0; k < n; k++) {
+    const i = k + t0;
+    const dev = (1.2 * Math.sin(i * 0.9) * Math.cos(i * 0.31) + 0.35 * Math.sin(i * 2.7)) / G;   // g around 1
     const gyro = 38 * Math.sin(i * 0.7 + 1) * Math.cos(i * 0.23) + 12 * Math.sin(i * 3.1);
-    out.push({ t, accel: +accel.toFixed(2), gyro: +gyro.toFixed(1) });
+    const t = Math.round((i * 1000) / MOTION_RATE);
+    out.push({
+      t, time: start + t, n: i,
+      ax: +(0.02 * Math.sin(i * 0.5)).toFixed(4), ay: +(0.02 * Math.cos(i * 0.4)).toFixed(4), az: +(1 + dev).toFixed(4),
+      gx: +(gyro * 0.2).toFixed(1), gy: +(gyro * 0.1).toFixed(1), gz: +gyro.toFixed(1),
+    });
   }
   return out;
 }
+
+const motion = mockMotion();
 
 const tool = {
   id: 'tool-iw01',
@@ -80,13 +90,20 @@ export const shift: ShiftData = {
     secondaryCta: 'View Details',
   },
   band: {
-    name: 'Vexo band',
+    source: 'mock',
+    number: BAND_NUMBER,
+    name: 'Vexo band (demo data)',
     connected: true,
+    reconnecting: false,
     live: true,
-    battery: 92,
-    accelRms: 1.24,
-    gyroRms: 37.6,
-    samples: sensorWindow(),
+    firmware: '1.1.0',
+    motionRate: MOTION_RATE,
+    battery: { percent: 92, state: 'battery', charging: false },
+    rssi: -55,
+    lastGesture: null,
+    samples: motion,
+    ...windowRms(motion),
+    error: null,
   },
   events: [
     { id: 'e1', kind: 'walking', start: '08:02', end: '08:06', title: 'Walking', detail: 'To Head Pulley' },

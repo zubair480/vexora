@@ -9,6 +9,7 @@ import { LiveSensorCard } from './components/ops/LiveSensorCard';
 import { WorkerStatusCard } from './components/ops/WorkerStatusCard';
 import { WorkOrderCard } from './components/ops/WorkOrderCard';
 import { ShiftTimeline } from './components/timeline/ShiftTimeline';
+import { useVexoBand } from './band/useVexoBand';
 import { shift } from './data/shift';
 import { HeroHeader } from './layout/HeroHeader';
 import { Sidebar } from './layout/Sidebar';
@@ -16,6 +17,7 @@ import { TopBar } from './layout/TopBar';
 
 export default function App() {
   const d = shift;
+  const vexo = useVexoBand(d.band);   // SDK-backed; canned data until someone connects
   return (
     <div className="flex min-h-full">
       <Sidebar />
@@ -38,7 +40,7 @@ export default function App() {
 
           <div className="grid grid-cols-12 gap-5">
             <div className="col-span-12 md:col-span-6 xl:col-span-3"><WorkerStatusCard workers={d.workers} /></div>
-            <div className="col-span-12 md:col-span-6 xl:col-span-5"><LiveSensorCard band={d.band} /></div>
+            <div className="col-span-12 md:col-span-6 xl:col-span-5"><LiveSensorCard band={vexo.state} controls={vexo} /></div>
             <div className="col-span-12 md:col-span-6 xl:col-span-4"><ActiveToolCard tool={d.tool} /></div>
             <div className="col-span-12 md:col-span-6 xl:col-span-6"><DefectCard defect={d.defect} /></div>
             <div className="col-span-12 xl:col-span-6"><WorkOrderCard workOrder={d.workOrder} /></div>
