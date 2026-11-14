@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'">
+<title>Taps - Vexo Open example</title>
+<link rel="icon" href="../../dashboard/icon.png">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<h1>Taps</h1>
+<p>One tap turns the light green. A double tap turns it pink. The pretend band taps itself every few seconds.</p>
+<p>Double-tap your band, then press Connect and pick it from the list.
+No band? Tick "Pretend band".</p>
+<p class="row">
+  <label>Band number <input id="number" inputmode="numeric" maxlength="3" placeholder="42"></label>
+  <label><input id="pretend" type="checkbox"> Pretend band</label>
+  <button id="connect">Connect</button>
+  <button id="disconnect" disabled>Disconnect</button>
+</p>
+<p id="message" role="status"></p>
+<p id="needs-server"><b>Connect does nothing?</b> This page was opened as a file (by double-click), so the browser blocks its program.
+Open it through the web server on your own computer: in a terminal, in your project folder
+(the folder that holds <code>vexo-open-kit</code>), run
+<code>python3 -m http.server 8000 --bind 127.0.0.1</code> (on Windows type <code>python</code>),
+then open <code>http://localhost:8000/vexo-open-kit/examples/web/taps.html</code>
+(8000, or the port you started it with) in Chrome or Edge.</p>
+<p id="light-row" hidden><span id="light"></span> The pretend band's light is <span id="light-text">off</span>.</p>
+<pre id="log"></pre>
+<script type="module" src="taps.js"></script>
+</body>
+</html>

@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'">
+<title>Reaction game - Vexo Open project</title>
+<link rel="icon" href="../shared/icon.png">
+<link rel="stylesheet" href="../shared/style.css">
+</head>
+<body>
+<h1>Reaction game</h1>
+<p>Tap the band to start a round. Its light turns red: wait. When it turns green, tap as fast as you can.
+The best time is saved on the band itself.</p>
+<div class="card row">
+  <label>Band number <input id="number" inputmode="numeric" maxlength="13" placeholder="XX"></label>
+  <select id="link" aria-label="How to connect">
+    <option value="ble">Bluetooth</option>
+    <option value="serial">USB cable</option>
+    <option value="pretend">Pretend band (no hardware)</option>
+  </select>
+  <button id="connect">Connect</button>
+  <button id="disconnect" disabled>Disconnect</button>
+</div>
+<p id="needs-server"><b>Connect does nothing?</b> This page was opened as a file (by double-click), so the browser blocks its program.
+Open it through the web server on your own computer: in a terminal, in your project folder
+(<code>my-project</code>, the folder that holds <code>vexo-open-kit</code>), run
+<code>python3 -m http.server 8000 --bind 127.0.0.1</code> (on Windows type <code>python</code>),
+then open <code>http://localhost:8000/vexo-open-kit/projects/reaction-game/</code>
+(8000, or the port you started it with) in Chrome or Edge. Copied this page into your own folder? The
+command is the same; open <code>http://localhost:8000/reaction-game/</code>.</p>
+<p id="message" role="status">Double-tap your band, type its number and press Connect. No band? Choose "Pretend band".</p>
+<div class="card row pretend-only" hidden>
+  <span><span id="light"></span> The pretend band's light is <span id="light-text">off</span>.</span>
+  <button id="pretend-tap" disabled>Tap the pretend band</button>
+  <button id="pretend-drop" disabled>Lose the link</button>
+</div>
+<div class="card">
+  <p id="status" class="big">Not connected</p>
+  <p>Best on this band: <strong id="best">-</strong> <button id="forget" disabled>Forget the best time</button></p>
+  <p class="soft">Last rounds:</p>
+  <ol id="rounds"></ol>
+</div>
+<script type="module" src="game.js"></script>
+</body>
+</html>

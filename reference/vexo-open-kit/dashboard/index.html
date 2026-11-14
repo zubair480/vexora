@@ -1,0 +1,180 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<title>Vexo Open dashboard</title>
+<link rel="icon" href="icon.png">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header class="top">
+  <div>
+    <div class="eyebrow">Vexo Open</div>
+    <h1 id="band-name">No band chosen</h1>
+  </div>
+  <div id="status" class="status" data-state="idle" role="status" aria-live="polite">Not connected</div>
+</header>
+
+<main>
+  <p id="needs-server" class="notice"><b>Nothing on this page works?</b> It was opened as a file (by double-click), so the browser blocks its program. Open it through the web server on your own computer: in a terminal, in your project folder (the folder that holds <b>vexo-open-kit</b>), run <code>python3 -m http.server 8000 --bind 127.0.0.1</code> (on Windows type <code>python</code>). Then type <code id="needs-server-address">localhost:8000/vexo-open-kit/dashboard/</code> (8000, or the port you started it with) in the address bar of Chrome or Edge.</p>
+  <section id="pick" class="panel" hidden>
+    <h2>Which band?</h2>
+    <form id="pick-form">
+      <label for="pick-number">Type the number written on your band's bag</label>
+      <div class="row">
+        <input id="pick-number" class="number" inputmode="numeric" pattern="[0-9]{1,3}" maxlength="3" placeholder="42" autocomplete="off" required>
+        <button type="submit">Go</button>
+      </div>
+    </form>
+    <p id="pick-message" class="message" data-kind="error" role="status" aria-live="polite"></p>
+  </section>
+
+  <section id="connect" class="panel">
+    <div id="no-ble" class="notice" hidden></div>
+    <ol id="connect-steps" class="steps">
+      <li><b>Double-tap</b> your band to wake it up.</li>
+      <li>Press <b>Connect</b> and pick <b id="step-name">your band</b> from the list.</li>
+      <li>Watch the band <b>flash</b>.</li>
+    </ol>
+    <div class="row wrap">
+      <button id="btn-ble" class="primary">Connect</button>
+      <button id="btn-serial">Connect by USB cable</button>
+      <button id="btn-sim" class="quiet">Try without a band</button>
+      <button id="btn-cancel" hidden>Cancel</button>
+      <button id="btn-disconnect" hidden>Disconnect</button>
+      <button id="sim-drop" class="quiet" hidden>Lose the link</button>
+    </div>
+    <p id="serial-note" class="hint" hidden></p>
+    <p id="usb-help" class="hint"><b>By USB cable:</b> the browser shows a list of every port on this computer, not only bands. Pick <b>Vexo Open band</b>. Its port is called <b>cu.usbmodem…</b> on a Mac, <b>COM</b> and a number on Windows (there the name can be "USB Serial Device"), <b>ttyACM…</b> on Linux. Not "Bluetooth-Incoming-Port" and not "debug-console". No band in the list? Try another cable: some only charge.</p>
+    <p id="message" class="message" role="status" aria-live="polite"></p>
+    <div id="taken" class="taken" hidden>
+      <p id="taken-text" class="message" data-kind="error" role="status" aria-live="polite"></p>
+      <button id="take-back">Take it back</button>
+    </div>
+  </section>
+
+  <div id="panels" class="grid" data-live="false">
+    <section class="panel wide">
+      <h2>Motion</h2>
+      <div class="legend">
+        <span class="key x">x <b id="ax">–</b></span>
+        <span class="key y">y <b id="ay">–</b></span>
+        <span class="key z">z <b id="az">–</b></span>
+        <span class="unit" id="motion-unit">g</span>
+        <label class="check" for="gyro-toggle"><input type="checkbox" id="gyro-toggle"> Show turning (gyro)</label>
+      </div>
+      <canvas id="graph" height="180" role="img" aria-label="Live acceleration graph, x y and z"></canvas>
+      <div class="row wrap">
+        <label for="motion-rate">Samples per second</label>
+        <select id="motion-rate" class="shrink" disabled></select>
+      </div>
+      <div class="row wrap">
+        <label for="motion-sensors">Sensors</label>
+        <select id="motion-sensors" class="shrink" disabled></select>
+      </div>
+      <p class="hint" id="motion-stats">Arriving: <b id="motion-measured">–</b> samples per second. Lost samples: <b id="motion-lost">–</b></p>
+      <p id="motion-note" class="hint note" role="status" aria-live="polite"></p>
+      <p class="hint" id="motion-hint">Connect a band to choose how fast it sends motion.</p>
+    </section>
+
+    <section class="panel">
+      <h2>Events</h2>
+      <ul id="events" class="events"><li class="empty">Tap the band to see events here.</li></ul>
+      <div class="row wrap" id="sim-tools" hidden>
+        <button id="sim-tap">Tap</button>
+        <span class="hint inline">Taps the pretend band.</span>
+        <button id="sim-take" class="quiet">Another program takes motion</button>
+        <button id="sim-leave" class="quiet">That program ends</button>
+        <span class="hint inline">A second program on the band's other link: watch what this page says.</span>
+      </div>
+    </section>
+
+    <section class="panel">
+      <h2>Microphone</h2>
+      <p id="sim-mic-note" class="notice" hidden></p>
+      <div class="row">
+        <label class="check" for="meter-switch"><input type="checkbox" role="switch" id="meter-switch" disabled> Loudness meter</label>
+      </div>
+      <div class="meter-label" id="mic-label">Loudness</div>
+      <div class="meter" aria-hidden="true"><div id="mic-bar"></div></div>
+      <p class="hint" id="mic-note"></p>
+      <div class="row">
+        <label class="check" for="audio-switch"><input type="checkbox" role="switch" id="audio-switch" disabled> Stream audio</label>
+      </div>
+      <p class="hint" id="audio-stats" role="status" aria-live="polite">Audio is off.</p>
+      <p class="hint">Both switches turn the microphone on. While it is on, the band shows a solid blue light and the LED controls are locked. Loudness meter sends only how loud it is. Stream audio makes the band send compressed sound (Opus). This page counts it; it is played or turned into text only if you switch on Listen or Live transcript below. The sound is not saved. It is not sent anywhere either, unless you switch on Live transcript below: that sends it to Deepgram, a speech-to-text company.</p>
+      <!-- speech: start. Optional Listen and Live transcript; the code is in speech/ -->
+      <h2 class="sub">Listen and live transcript <span class="tag">optional example</span></h2>
+      <p id="speech-problem" class="notice" hidden></p>
+      <div class="row wrap">
+        <label class="check" for="listen-switch"><input type="checkbox" role="switch" id="listen-switch" disabled> Listen</label>
+        <label class="check" for="transcript-switch"><input type="checkbox" role="switch" id="transcript-switch" disabled> Live transcript</label>
+      </div>
+      <p class="hint" id="listen-status" role="status" aria-live="polite">Listen is off.</p>
+      <p class="hint" id="transcript-status" role="status" aria-live="polite">Live transcript is off.</p>
+      <p id="speech-consent" class="notice sending" role="status" aria-live="polite" hidden></p>
+      <div id="transcript" class="transcript" tabindex="0" role="log" aria-label="Live transcript" hidden><span id="transcript-empty" class="empty">The words appear here as people speak.</span><span id="transcript-final"></span><span id="transcript-live" class="live"></span></div>
+      <div class="row wrap">
+        <label for="speech-key">Deepgram key for Live transcript</label>
+        <input type="password" id="speech-key" class="key" autocomplete="off" autocapitalize="off" spellcheck="false" maxlength="200" placeholder="paste your team's key">
+        <button id="speech-key-forget" class="quiet" disabled>Forget key</button>
+      </div>
+      <p class="hint" id="speech-key-status" role="status" aria-live="polite"></p>
+      <p class="hint note" id="speech-warning"></p>
+      <p class="hint" id="speech-note"></p>
+      <p class="hint">Switching either one on also switches Stream audio on. Listen plays the band's microphone through this computer's speakers.</p>
+      <!-- speech: end -->
+    </section>
+
+    <section class="panel">
+      <h2>Steps</h2>
+      <div class="big"><span id="steps">–</span><small>steps</small></div>
+      <p class="hint" id="steps-detail">Waiting for the band.</p>
+      <p class="hint" id="steps-note"></p>
+    </section>
+    <section class="panel">
+      <h2>Battery</h2>
+      <div class="big"><span id="battery">–</span><small>%</small></div>
+      <p class="hint" id="battery-detail">Waiting for the band.</p>
+      <h2 class="sub">Signal</h2>
+      <div class="readout"><span id="rssi">–</span> <small>dBm</small> <span id="signal-words" class="hint inline"></span></div>
+      <h2 class="sub">Chip temperature</h2>
+      <div class="readout"><span id="temperature">–</span> <small>°C</small></div>
+      <p class="hint" id="temperature-note"></p>
+    </section>
+
+    <section class="panel">
+      <h2>LED</h2>
+      <div class="row wrap">
+        <input type="color" id="led-colour" value="#00a0ff" aria-label="LED colour" disabled>
+        <span id="swatches" class="swatches"></span>
+      </div>
+      <div class="row wrap">
+        <label for="led-brightness">Brightness</label>
+        <input type="range" id="led-brightness" min="5" max="100" step="5" value="100" disabled>
+      </div>
+      <div class="row wrap">
+        <label for="led-pattern">Pattern</label>
+        <select id="led-pattern" disabled></select>
+      </div>
+      <div class="row wrap">
+        <button id="led-off" disabled>Off</button>
+        <button id="identify" disabled>Flash my band</button>
+      </div>
+      <p id="led-note" class="hint note" role="status" aria-live="polite"></p>
+      <div id="sim-led" class="sim-led" hidden><span id="sim-led-dot" data-pattern="off"></span> <span>pretend band's LED: <b id="sim-led-text">off</b></span></div>
+    </section>
+  </div>
+</main>
+
+<footer id="footer-note">
+  Everything on this page runs in your browser. Nothing is sent anywhere.
+</footer>
+<script src="file-help.js"></script>
+<script type="module" src="app.js"></script>
+<noscript><p class="notice">This page needs JavaScript.</p></noscript>
+</body>
+</html>

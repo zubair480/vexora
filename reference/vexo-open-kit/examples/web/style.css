@@ -1,0 +1,20 @@
+/* One small style sheet for all example pages. */
+:root { color-scheme: light dark; }
+body { font: 16px/1.5 system-ui, sans-serif; max-width: 640px; margin: 24px auto; padding: 0 16px; }
+h1 { font-size: 24px; margin: 0 0 8px; }
+.row { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; }
+input, button { font: inherit; padding: 6px 10px; }
+#number { width: 4em; }
+#message { min-height: 1.5em; font-weight: 600; }
+/* The "opened as a file" help. It shows up after one second, unless the page's program has
+   started by then: kit.js hides it. A page opened by double-click cannot start its program. */
+#needs-server { visibility: hidden; animation: show-help 0s 1s forwards; border: 2px solid #c62828; border-radius: 6px; padding: 8px 12px; }
+#needs-server[hidden] { display: none; }
+@keyframes show-help { to { visibility: visible; } }
+#light { display: inline-block; width: 20px; height: 20px; border-radius: 50%; border: 1px solid gray; vertical-align: middle; }
+canvas { width: 100%; height: auto; border: 1px solid gray; }
+pre { min-height: 6em; }
+.x b, .y b, .z b { display: inline-block; min-width: 3.2em; font-variant-numeric: tabular-nums; }
+.x { color: #d95f02; }
+.y { color: #1b9e77; }
+.z { color: #7570b3; }

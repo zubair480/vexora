@@ -1,0 +1,1592 @@
+{
+ "about": "Shared test vectors for Vexo Open clients, derived from contract.md. Every library must encode and decode these identically. All hex is lower case with no separators. In 'args', 'data' and stream values the fields 'opus' and 'value' are raw bytes written as hex; 'name' is ASCII text. encode: build the command frame from name + seq + args and compare with hex. decode: parse hex and compare with value. Each entry under 'invalid' must be rejected (decode returns nothing) without raising an error.",
+ "contract_revision": "2026-11-12",
+ "name_prefix": "Vexo-HACK-",
+ "uuids": {
+  "service": "254f0001-df82-4a9c-a2b5-563a0f6b2021",
+  "rx": "254f0002-df82-4a9c-a2b5-563a0f6b2021",
+  "tx": "254f0003-df82-4a9c-a2b5-563a0f6b2021"
+ },
+ "names": [
+  {
+   "number": 0,
+   "name": "Vexo-HACK-00"
+  },
+  {
+   "number": 7,
+   "name": "Vexo-HACK-07"
+  },
+  {
+   "number": 42,
+   "name": "Vexo-HACK-42"
+  },
+  {
+   "number": 999,
+   "name": "Vexo-HACK-999"
+  }
+ ],
+ "opcodes": {
+  "GET_INFO": 1,
+  "GET_NAME": 2,
+  "SET_BAND_NUMBER": 3,
+  "IDENTIFY": 4,
+  "RESTART": 5,
+  "SLEEP": 6,
+  "TIME_SET": 7,
+  "TIME_GET": 8,
+  "STREAM_START": 16,
+  "STREAM_STOP": 17,
+  "STREAM_GET": 18,
+  "STREAM_SET_INTERVAL": 19,
+  "STREAM_GET_INTERVAL": 20,
+  "IMU_SET": 32,
+  "IMU_GET": 33,
+  "EVENT_SET": 34,
+  "EVENT_GET": 35,
+  "MOTION2_SET": 36,
+  "MOTION2_GET": 37,
+  "MIC_SET_GAIN": 48,
+  "MIC_GET": 49,
+  "RADIO_SET_TX_POWER": 64,
+  "RADIO_GET": 65,
+  "LED_SET": 80,
+  "LED_GET": 81,
+  "TEMP_SET_INTERVAL": 96,
+  "BATTERY_GET": 97,
+  "STORE_INFO": 112,
+  "STORE_PUT": 113,
+  "STORE_GET": 114,
+  "STORE_DEL": 115,
+  "STORE_WIPE": 116
+ },
+ "statuses": [
+  "OK",
+  "UNKNOWN_OPCODE",
+  "BAD_LENGTH",
+  "BAD_ARG",
+  "BUSY",
+  "NOT_AVAILABLE",
+  "DENIED",
+  "NOT_FOUND",
+  "NO_SPACE",
+  "IO_ERROR"
+ ],
+ "stream_bits": {
+  "motion": 0,
+  "event": 1,
+  "activity": 2,
+  "audio": 3,
+  "battery": 4,
+  "temp": 5,
+  "link": 6,
+  "mic_level": 7,
+  "motion2": 8
+ },
+ "cobs": [
+  {
+   "decoded": "",
+   "encoded": "01"
+  },
+  {
+   "decoded": "00",
+   "encoded": "0101"
+  },
+  {
+   "decoded": "0000",
+   "encoded": "010101"
+  },
+  {
+   "decoded": "010001",
+   "encoded": "02010201"
+  },
+  {
+   "decoded": "11220033",
+   "encoded": "0311220233"
+  },
+  {
+   "decoded": "11223344",
+   "encoded": "0511223344"
+  },
+  {
+   "decoded": "11000000",
+   "encoded": "0211010101"
+  },
+  {
+   "decoded": "0102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f303132333435363738393a3b3c3d3e3f404142434445464748494a4b4c4d4e4f505152535455565758595a5b5c5d5e5f606162636465666768696a6b6c6d6e6f707172737475767778797a7b7c7d7e7f808182838485868788898a8b8c8d8e8f909192939495969798999a9b9c9d9e9fa0a1a2a3a4a5a6a7a8a9aaabacadaeafb0b1b2b3b4b5b6b7b8b9babbbcbdbebfc0c1c2c3c4c5c6c7c8c9cacbcccdcecfd0d1d2d3d4d5d6d7d8d9dadbdcdddedfe0e1e2e3e4e5e6e7e8e9eaebecedeeeff0f1f2f3f4f5f6f7f8f9fafbfcfdfe",
+   "encoded": "ff0102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f303132333435363738393a3b3c3d3e3f404142434445464748494a4b4c4d4e4f505152535455565758595a5b5c5d5e5f606162636465666768696a6b6c6d6e6f707172737475767778797a7b7c7d7e7f808182838485868788898a8b8c8d8e8f909192939495969798999a9b9c9d9e9fa0a1a2a3a4a5a6a7a8a9aaabacadaeafb0b1b2b3b4b5b6b7b8b9babbbcbdbebfc0c1c2c3c4c5c6c7c8c9cacbcccdcecfd0d1d2d3d4d5d6d7d8d9dadbdcdddedfe0e1e2e3e4e5e6e7e8e9eaebecedeeeff0f1f2f3f4f5f6f7f8f9fafbfcfdfe"
+  },
+  {
+   "decoded": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f303132333435363738393a3b3c3d3e3f404142434445464748494a4b4c4d4e4f505152535455565758595a5b5c5d5e5f606162636465666768696a6b6c6d6e6f707172737475767778797a7b7c7d7e7f808182838485868788898a8b8c8d8e8f909192939495969798999a9b9c9d9e9fa0a1a2a3a4a5a6a7a8a9aaabacadaeafb0b1b2b3b4b5b6b7b8b9babbbcbdbebfc0c1c2c3c4c5c6c7c8c9cacbcccdcecfd0d1d2d3d4d5d6d7d8d9dadbdcdddedfe0e1e2e3e4e5e6e7e8e9eaebecedeeeff0f1f2f3f4f5f6f7f8f9fafbfcfdfe",
+   "encoded": "01ff0102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f303132333435363738393a3b3c3d3e3f404142434445464748494a4b4c4d4e4f505152535455565758595a5b5c5d5e5f606162636465666768696a6b6c6d6e6f707172737475767778797a7b7c7d7e7f808182838485868788898a8b8c8d8e8f909192939495969798999a9b9c9d9e9fa0a1a2a3a4a5a6a7a8a9aaabacadaeafb0b1b2b3b4b5b6b7b8b9babbbcbdbebfc0c1c2c3c4c5c6c7c8c9cacbcccdcecfd0d1d2d3d4d5d6d7d8d9dadbdcdddedfe0e1e2e3e4e5e6e7e8e9eaebecedeeeff0f1f2f3f4f5f6f7f8f9fafbfcfdfe"
+  },
+  {
+   "decoded": "0102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f303132333435363738393a3b3c3d3e3f404142434445464748494a4b4c4d4e4f505152535455565758595a5b5c5d5e5f606162636465666768696a6b6c6d6e6f707172737475767778797a7b7c7d7e7f808182838485868788898a8b8c8d8e8f909192939495969798999a9b9c9d9e9fa0a1a2a3a4a5a6a7a8a9aaabacadaeafb0b1b2b3b4b5b6b7b8b9babbbcbdbebfc0c1c2c3c4c5c6c7c8c9cacbcccdcecfd0d1d2d3d4d5d6d7d8d9dadbdcdddedfe0e1e2e3e4e5e6e7e8e9eaebecedeeeff0f1f2f3f4f5f6f7f8f9fafbfcfdfe00",
+   "encoded": "ff0102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f303132333435363738393a3b3c3d3e3f404142434445464748494a4b4c4d4e4f505152535455565758595a5b5c5d5e5f606162636465666768696a6b6c6d6e6f707172737475767778797a7b7c7d7e7f808182838485868788898a8b8c8d8e8f909192939495969798999a9b9c9d9e9fa0a1a2a3a4a5a6a7a8a9aaabacadaeafb0b1b2b3b4b5b6b7b8b9babbbcbdbebfc0c1c2c3c4c5c6c7c8c9cacbcccdcecfd0d1d2d3d4d5d6d7d8d9dadbdcdddedfe0e1e2e3e4e5e6e7e8e9eaebecedeeeff0f1f2f3f4f5f6f7f8f9fafbfcfdfe0101"
+  },
+  {
+   "decoded": "0102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f303132333435363738393a3b3c3d3e3f404142434445464748494a4b4c4d4e4f505152535455565758595a5b5c5d5e5f606162636465666768696a6b6c6d6e6f707172737475767778797a7b7c7d7e7f808182838485868788898a8b8c8d8e8f909192939495969798999a9b9c9d9e9fa0a1a2a3a4a5a6a7a8a9aaabacadaeafb0b1b2b3b4b5b6b7b8b9babbbcbdbebfc0c1c2c3c4c5c6c7c8c9cacbcccdcecfd0d1d2d3d4d5d6d7d8d9dadbdcdddedfe0e1e2e3e4e5e6e7e8e9eaebecedeeeff0f1f2f3f4f5f6f7f8f9fafbfcfdfe01",
+   "encoded": "ff0102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f303132333435363738393a3b3c3d3e3f404142434445464748494a4b4c4d4e4f505152535455565758595a5b5c5d5e5f606162636465666768696a6b6c6d6e6f707172737475767778797a7b7c7d7e7f808182838485868788898a8b8c8d8e8f909192939495969798999a9b9c9d9e9fa0a1a2a3a4a5a6a7a8a9aaabacadaeafb0b1b2b3b4b5b6b7b8b9babbbcbdbebfc0c1c2c3c4c5c6c7c8c9cacbcccdcecfd0d1d2d3d4d5d6d7d8d9dadbdcdddedfe0e1e2e3e4e5e6e7e8e9eaebecedeeeff0f1f2f3f4f5f6f7f8f9fafbfcfdfe0201"
+  },
+  {
+   "decoded": "01010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101",
+   "encoded": "f501010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101"
+  },
+  {
+   "decoded": "010001",
+   "encoded": "02010201"
+  },
+  {
+   "decoded": "10faffffff0a0a00000000e8030000000000000a00f6ffe9030100ffff64001400ecffea030200feffc8001e00e2ffeb030300fdff2c012800d8ffec030400fcff90013200ceffed030500fbfff4013c00c4ffee030600faff58024600baffef030700f9ffbc025000b0fff0030800f8ff20035a00a6fff1030900f7ff8403",
+   "encoded": "0810faffffff0a0a01010103e8030101010101020a06f6ffe9030104ffff64021406ecffea030204feffc8021e06e2ffeb030306fdff2c012806d8ffec030406fcff90013206ceffed030506fbfff4013c06c4ffee030606faff58024606baffef030706f9ffbc025006b0fff0030806f8ff20035a06a6fff1030905f7ff8403"
+  }
+ ],
+ "usb_stream": {
+  "note": "Bytes as they could arrive right after opening the port. Rules: drop everything up to the first 00; an empty packet (two 00 in a row) is skipped; a packet that is not valid COBS (here 05 01 02: the code byte points past the end) is dropped silently; the trailing bytes are an unfinished packet and yield nothing yet. Feed these bytes in chunks of any size: the result must be the same.",
+  "bytes": "37990002020201020102010103012a04ff07f40440e2010100000403010e0005010200051040e201082802f40118fcfa027d0330f8010680c1803e0107204ee0b1ffff000502290901000202020102",
+  "frames": [
+   "020001000100010000012a00ff07f40040e20100",
+   "03010e",
+   "1040e201002802f40118fcfa007d0030f8000080c1803e0100204ee0b1ffff",
+   "02290901"
+  ]
+ },
+ "commands": [
+  {
+   "name": "GET_INFO",
+   "seq": 0,
+   "args": {},
+   "hex": "010001"
+  },
+  {
+   "name": "GET_NAME",
+   "seq": 1,
+   "args": {},
+   "hex": "010102"
+  },
+  {
+   "name": "SET_BAND_NUMBER",
+   "seq": 2,
+   "args": {
+    "number": 42
+   },
+   "hex": "0102032a005658"
+  },
+  {
+   "name": "IDENTIFY",
+   "seq": 4,
+   "args": {
+    "seconds": 5
+   },
+   "hex": "01040405"
+  },
+  {
+   "name": "RESTART",
+   "seq": 5,
+   "args": {},
+   "hex": "010505"
+  },
+  {
+   "name": "SLEEP",
+   "seq": 6,
+   "args": {},
+   "hex": "010606"
+  },
+  {
+   "name": "STREAM_START",
+   "seq": 8,
+   "args": {
+    "mask": 147
+   },
+   "hex": "0108109300"
+  },
+  {
+   "name": "STREAM_STOP",
+   "seq": 10,
+   "args": {
+    "mask": 1
+   },
+   "hex": "010a110100"
+  },
+  {
+   "name": "STREAM_GET",
+   "seq": 11,
+   "args": {},
+   "hex": "010b12"
+  },
+  {
+   "name": "IMU_SET",
+   "seq": 12,
+   "args": {
+    "rate_hz": 100,
+    "accel_range_g": 8,
+    "gyro_range_dps": 500
+   },
+   "hex": "010c206408f401"
+  },
+  {
+   "name": "IMU_GET",
+   "seq": 14,
+   "args": {},
+   "hex": "010e21"
+  },
+  {
+   "name": "EVENT_SET",
+   "seq": 15,
+   "args": {
+    "event_mask": 3,
+    "tap_threshold_mg": 1200
+   },
+   "hex": "010f2203b004"
+  },
+  {
+   "name": "EVENT_GET",
+   "seq": 16,
+   "args": {},
+   "hex": "011023"
+  },
+  {
+   "name": "MIC_SET_GAIN",
+   "seq": 17,
+   "args": {
+    "gain_half_db": 60
+   },
+   "hex": "0111303c"
+  },
+  {
+   "name": "MIC_GET",
+   "seq": 18,
+   "args": {},
+   "hex": "011231"
+  },
+  {
+   "name": "RADIO_SET_TX_POWER",
+   "seq": 19,
+   "args": {
+    "dbm": -20
+   },
+   "hex": "011340ec"
+  },
+  {
+   "name": "RADIO_SET_TX_POWER",
+   "seq": 20,
+   "args": {
+    "dbm": 4
+   },
+   "hex": "01144004"
+  },
+  {
+   "name": "RADIO_GET",
+   "seq": 21,
+   "args": {},
+   "hex": "011541"
+  },
+  {
+   "name": "LED_SET",
+   "seq": 7,
+   "args": {
+    "r": 0,
+    "g": 255,
+    "b": 0,
+    "brightness": 128,
+    "pattern": 1,
+    "period_ms": 1000
+   },
+   "hex": "01075000ff008001e803"
+  },
+  {
+   "name": "LED_SET",
+   "seq": 24,
+   "args": {
+    "r": 255,
+    "g": 0,
+    "b": 64,
+    "brightness": 255,
+    "pattern": 3,
+    "period_ms": 2500
+   },
+   "hex": "011850ff0040ff03c409"
+  },
+  {
+   "name": "LED_GET",
+   "seq": 25,
+   "args": {},
+   "hex": "011951"
+  },
+  {
+   "name": "TEMP_SET_INTERVAL",
+   "seq": 26,
+   "args": {
+    "seconds": 2
+   },
+   "hex": "011a6002"
+  },
+  {
+   "name": "BATTERY_GET",
+   "seq": 27,
+   "args": {},
+   "hex": "011b61"
+  },
+  {
+   "name": "STORE_INFO",
+   "seq": 28,
+   "args": {},
+   "hex": "011c70"
+  },
+  {
+   "name": "STORE_PUT",
+   "seq": 29,
+   "args": {
+    "key": 7,
+    "value": "68692000ff21"
+   },
+   "hex": "011d71070068692000ff21"
+  },
+  {
+   "name": "STORE_GET",
+   "seq": 32,
+   "args": {
+    "key": 999
+   },
+   "hex": "012072e703"
+  },
+  {
+   "name": "STORE_DEL",
+   "seq": 34,
+   "args": {
+    "key": 7
+   },
+   "hex": "0122730700"
+  },
+  {
+   "name": "STORE_WIPE",
+   "seq": 255,
+   "args": {},
+   "hex": "01ff745658"
+  },
+  {
+   "name": "TIME_SET",
+   "seq": 50,
+   "args": {
+    "unix_ms": 1794484800123
+   },
+   "hex": "0132077b0aa1cfa1010000"
+  },
+  {
+   "name": "TIME_GET",
+   "seq": 51,
+   "args": {},
+   "hex": "013308"
+  },
+  {
+   "name": "STREAM_SET_INTERVAL",
+   "seq": 52,
+   "args": {
+    "stream": 4,
+    "interval_ms": 60000
+   },
+   "hex": "0134130460ea0000",
+   "note": "battery every minute"
+  },
+  {
+   "name": "STREAM_SET_INTERVAL",
+   "seq": 53,
+   "args": {
+    "stream": 7,
+    "interval_ms": 20
+   },
+   "hex": "0135130714000000"
+  },
+  {
+   "name": "STREAM_GET_INTERVAL",
+   "seq": 54,
+   "args": {
+    "stream": 2
+   },
+   "hex": "01361402"
+  },
+  {
+   "name": "MOTION2_SET",
+   "seq": 55,
+   "args": {
+    "rate_hz": 416,
+    "sensors": 1
+   },
+   "hex": "013724a00101"
+  },
+  {
+   "name": "MOTION2_SET",
+   "seq": 56,
+   "args": {
+    "rate_hz": 1666,
+    "sensors": 3
+   },
+   "hex": "013824820603",
+   "note": "the client encodes any value; the band decides"
+  },
+  {
+   "name": "MOTION2_GET",
+   "seq": 57,
+   "args": {},
+   "hex": "013925"
+  },
+  {
+   "name": "STREAM_START",
+   "seq": 58,
+   "args": {
+    "mask": 256
+   },
+   "hex": "013a100001",
+   "note": "MOTION2 is bit 8"
+  }
+ ],
+ "responses": [
+  {
+   "hex": "020001000100010000012a00ff07f40040e20100",
+   "value": {
+    "frame": "response",
+    "seq": 0,
+    "opcode": "GET_INFO",
+    "status": "OK",
+    "data": {
+     "proto_major": 1,
+     "proto_minor": 0,
+     "fw_major": 1,
+     "fw_minor": 0,
+     "fw_patch": 0,
+     "hw": 1,
+     "band_no": 42,
+     "caps": 2047,
+     "max_frame": 244,
+     "uptime_ms": 123456
+    }
+   }
+  },
+  {
+   "hex": "020102005665786f2d4841434b2d3432",
+   "value": {
+    "frame": "response",
+    "seq": 1,
+    "opcode": "GET_NAME",
+    "status": "OK",
+    "data": {
+     "name": "Vexo-HACK-42"
+    }
+   }
+  },
+  {
+   "hex": "020203002a00",
+   "value": {
+    "frame": "response",
+    "seq": 2,
+    "opcode": "SET_BAND_NUMBER",
+    "status": "OK",
+    "data": {
+     "number": 42
+    }
+   }
+  },
+  {
+   "hex": "02030306",
+   "value": {
+    "frame": "response",
+    "seq": 3,
+    "opcode": "SET_BAND_NUMBER",
+    "status": "DENIED",
+    "data": {}
+   }
+  },
+  {
+   "hex": "02040400",
+   "value": {
+    "frame": "response",
+    "seq": 4,
+    "opcode": "IDENTIFY",
+    "status": "OK",
+    "data": {}
+   }
+  },
+  {
+   "hex": "02040406",
+   "value": {
+    "frame": "response",
+    "seq": 4,
+    "opcode": "IDENTIFY",
+    "status": "DENIED",
+    "data": {}
+   }
+  },
+  {
+   "hex": "02050500",
+   "value": {
+    "frame": "response",
+    "seq": 5,
+    "opcode": "RESTART",
+    "status": "OK",
+    "data": {}
+   }
+  },
+  {
+   "hex": "02060600",
+   "value": {
+    "frame": "response",
+    "seq": 6,
+    "opcode": "SLEEP",
+    "status": "OK",
+    "data": {}
+   }
+  },
+  {
+   "hex": "020810009300",
+   "value": {
+    "frame": "response",
+    "seq": 8,
+    "opcode": "STREAM_START",
+    "status": "OK",
+    "data": {
+     "active": 147
+    }
+   }
+  },
+  {
+   "hex": "02091005",
+   "value": {
+    "frame": "response",
+    "seq": 9,
+    "opcode": "STREAM_START",
+    "status": "NOT_AVAILABLE",
+    "data": {}
+   }
+  },
+  {
+   "hex": "020a11009200",
+   "value": {
+    "frame": "response",
+    "seq": 10,
+    "opcode": "STREAM_STOP",
+    "status": "OK",
+    "data": {
+     "active": 146
+    }
+   }
+  },
+  {
+   "hex": "020b12000000",
+   "value": {
+    "frame": "response",
+    "seq": 11,
+    "opcode": "STREAM_GET",
+    "status": "OK",
+    "data": {
+     "active": 0
+    }
+   }
+  },
+  {
+   "hex": "020c20006408f401",
+   "value": {
+    "frame": "response",
+    "seq": 12,
+    "opcode": "IMU_SET",
+    "status": "OK",
+    "data": {
+     "rate_hz": 100,
+     "accel_range_g": 8,
+     "gyro_range_dps": 500
+    }
+   }
+  },
+  {
+   "hex": "020d2003",
+   "value": {
+    "frame": "response",
+    "seq": 13,
+    "opcode": "IMU_SET",
+    "status": "BAD_ARG",
+    "data": {}
+   }
+  },
+  {
+   "hex": "020e21001902d007",
+   "value": {
+    "frame": "response",
+    "seq": 14,
+    "opcode": "IMU_GET",
+    "status": "OK",
+    "data": {
+     "rate_hz": 25,
+     "accel_range_g": 2,
+     "gyro_range_dps": 2000
+    }
+   }
+  },
+  {
+   "hex": "020f220003b004",
+   "value": {
+    "frame": "response",
+    "seq": 15,
+    "opcode": "EVENT_SET",
+    "status": "OK",
+    "data": {
+     "event_mask": 3,
+     "tap_threshold_mg": 1200
+    }
+   }
+  },
+  {
+   "hex": "021023003f2003",
+   "value": {
+    "frame": "response",
+    "seq": 16,
+    "opcode": "EVENT_GET",
+    "status": "OK",
+    "data": {
+     "event_mask": 63,
+     "tap_threshold_mg": 800
+    }
+   }
+  },
+  {
+   "hex": "021130003c",
+   "value": {
+    "frame": "response",
+    "seq": 17,
+    "opcode": "MIC_SET_GAIN",
+    "status": "OK",
+    "data": {
+     "gain_half_db": 60
+    }
+   }
+  },
+  {
+   "hex": "0212310050803e1401c05d",
+   "value": {
+    "frame": "response",
+    "seq": 18,
+    "opcode": "MIC_GET",
+    "status": "OK",
+    "data": {
+     "gain_half_db": 80,
+     "sample_rate": 16000,
+     "frame_ms": 20,
+     "channels": 1,
+     "bitrate": 24000
+    }
+   }
+  },
+  {
+   "hex": "02134000ec",
+   "value": {
+    "frame": "response",
+    "seq": 19,
+    "opcode": "RADIO_SET_TX_POWER",
+    "status": "OK",
+    "data": {
+     "dbm": -20
+    }
+   }
+  },
+  {
+   "hex": "02154100f8c7021800f700",
+   "value": {
+    "frame": "response",
+    "seq": 21,
+    "opcode": "RADIO_GET",
+    "status": "OK",
+    "data": {
+     "tx_dbm": -8,
+     "rssi_dbm": -57,
+     "phy": 2,
+     "interval": 24,
+     "mtu": 247
+    }
+   }
+  },
+  {
+   "hex": "02164100f87f000000f700",
+   "value": {
+    "frame": "response",
+    "seq": 22,
+    "opcode": "RADIO_GET",
+    "status": "OK",
+    "data": {
+     "tx_dbm": -8,
+     "rssi_dbm": 127,
+     "phy": 0,
+     "interval": 0,
+     "mtu": 247
+    }
+   }
+  },
+  {
+   "hex": "02075000",
+   "value": {
+    "frame": "response",
+    "seq": 7,
+    "opcode": "LED_SET",
+    "status": "OK",
+    "data": {}
+   }
+  },
+  {
+   "hex": "02175006",
+   "value": {
+    "frame": "response",
+    "seq": 23,
+    "opcode": "LED_SET",
+    "status": "DENIED",
+    "data": {}
+   }
+  },
+  {
+   "hex": "0219510000ff008001e803",
+   "value": {
+    "frame": "response",
+    "seq": 25,
+    "opcode": "LED_GET",
+    "status": "OK",
+    "data": {
+     "r": 0,
+     "g": 255,
+     "b": 0,
+     "brightness": 128,
+     "pattern": 1,
+     "period_ms": 1000
+    }
+   }
+  },
+  {
+   "hex": "021a600002",
+   "value": {
+    "frame": "response",
+    "seq": 26,
+    "opcode": "TEMP_SET_INTERVAL",
+    "status": "OK",
+    "data": {
+     "seconds": 2
+    }
+   }
+  },
+  {
+   "hex": "021b61005701ac0f",
+   "value": {
+    "frame": "response",
+    "seq": 27,
+    "opcode": "BATTERY_GET",
+    "status": "OK",
+    "data": {
+     "percent": 87,
+     "state": 1,
+     "millivolts": 4012
+    }
+   }
+  },
+  {
+   "hex": "021c7000e803e80008bd03000300",
+   "value": {
+    "frame": "response",
+    "seq": 28,
+    "opcode": "STORE_INFO",
+    "status": "OK",
+    "data": {
+     "keys_max": 1000,
+     "value_max": 232,
+     "free_bytes": 245000,
+     "used_keys": 3
+    }
+   }
+  },
+  {
+   "hex": "021d7100",
+   "value": {
+    "frame": "response",
+    "seq": 29,
+    "opcode": "STORE_PUT",
+    "status": "OK",
+    "data": {}
+   }
+  },
+  {
+   "hex": "021e7108",
+   "value": {
+    "frame": "response",
+    "seq": 30,
+    "opcode": "STORE_PUT",
+    "status": "NO_SPACE",
+    "data": {}
+   }
+  },
+  {
+   "hex": "021f7104",
+   "value": {
+    "frame": "response",
+    "seq": 31,
+    "opcode": "STORE_PUT",
+    "status": "BUSY",
+    "data": {}
+   }
+  },
+  {
+   "hex": "0220720068692000ff21",
+   "value": {
+    "frame": "response",
+    "seq": 32,
+    "opcode": "STORE_GET",
+    "status": "OK",
+    "data": {
+     "value": "68692000ff21"
+    }
+   }
+  },
+  {
+   "hex": "02217207",
+   "value": {
+    "frame": "response",
+    "seq": 33,
+    "opcode": "STORE_GET",
+    "status": "NOT_FOUND",
+    "data": {}
+   }
+  },
+  {
+   "hex": "02227300",
+   "value": {
+    "frame": "response",
+    "seq": 34,
+    "opcode": "STORE_DEL",
+    "status": "OK",
+    "data": {}
+   }
+  },
+  {
+   "hex": "02ff7400",
+   "value": {
+    "frame": "response",
+    "seq": 255,
+    "opcode": "STORE_WIPE",
+    "status": "OK",
+    "data": {}
+   }
+  },
+  {
+   "hex": "02280963",
+   "note": "an opcode this client does not know: data stays raw",
+   "value": {
+    "frame": "response",
+    "seq": 40,
+    "opcode": 9,
+    "status": 99,
+    "data": {}
+   }
+  },
+  {
+   "hex": "02290901",
+   "value": {
+    "frame": "response",
+    "seq": 41,
+    "opcode": 9,
+    "status": "UNKNOWN_OPCODE",
+    "data": {}
+   }
+  },
+  {
+   "hex": "023101000101010100012a00ff07f40040e20100",
+   "note": "an event band: proto_minor 1, firmware 1.1.0",
+   "value": {
+    "frame": "response",
+    "seq": 49,
+    "opcode": "GET_INFO",
+    "status": "OK",
+    "data": {
+     "proto_major": 1,
+     "proto_minor": 1,
+     "fw_major": 1,
+     "fw_minor": 1,
+     "fw_patch": 0,
+     "hw": 1,
+     "band_no": 42,
+     "caps": 2047,
+     "max_frame": 244,
+     "uptime_ms": 123456
+    }
+   }
+  },
+  {
+   "hex": "02320700017b0aa1cfa101000040e20100",
+   "value": {
+    "frame": "response",
+    "seq": 50,
+    "opcode": "TIME_SET",
+    "status": "OK",
+    "data": {
+     "set": 1,
+     "unix_ms": 1794484800123,
+     "t_ms": 123456
+    }
+   }
+  },
+  {
+   "hex": "02330800000000000000000000faffffff",
+   "note": "clock not set since the band started",
+   "value": {
+    "frame": "response",
+    "seq": 51,
+    "opcode": "TIME_GET",
+    "status": "OK",
+    "data": {
+     "set": 0,
+     "unix_ms": 0,
+     "t_ms": 4294967290
+    }
+   }
+  },
+  {
+   "hex": "02330800017b0aa1cfa1010000e8030000",
+   "value": {
+    "frame": "response",
+    "seq": 51,
+    "opcode": "TIME_GET",
+    "status": "OK",
+    "data": {
+     "set": 1,
+     "unix_ms": 1794484800123,
+     "t_ms": 1000
+    }
+   }
+  },
+  {
+   "hex": "02320703",
+   "note": "a time outside 2020..2100, e.g. seconds instead of milliseconds",
+   "value": {
+    "frame": "response",
+    "seq": 50,
+    "opcode": "TIME_SET",
+    "status": "BAD_ARG",
+    "data": {}
+   }
+  },
+  {
+   "hex": "02330801",
+   "note": "an UNKNOWN_OPCODE response carries no data",
+   "value": {
+    "frame": "response",
+    "seq": 51,
+    "opcode": "TIME_GET",
+    "status": "UNKNOWN_OPCODE",
+    "data": {}
+   }
+  },
+  {
+   "hex": "023413000460ea0000e803000080ee3600",
+   "value": {
+    "frame": "response",
+    "seq": 52,
+    "opcode": "STREAM_SET_INTERVAL",
+    "status": "OK",
+    "data": {
+     "stream": 4,
+     "interval_ms": 60000,
+     "min_ms": 1000,
+     "max_ms": 3600000
+    }
+   }
+  },
+  {
+   "hex": "0236140002e80300006400000080ee3600",
+   "value": {
+    "frame": "response",
+    "seq": 54,
+    "opcode": "STREAM_GET_INTERVAL",
+    "status": "OK",
+    "data": {
+     "stream": 2,
+     "interval_ms": 1000,
+     "min_ms": 100,
+     "max_ms": 3600000
+    }
+   }
+  },
+  {
+   "hex": "02351303",
+   "note": "a stream without an interval, or a value outside its limits",
+   "value": {
+    "frame": "response",
+    "seq": 53,
+    "opcode": "STREAM_SET_INTERVAL",
+    "status": "BAD_ARG",
+    "data": {}
+   }
+  },
+  {
+   "hex": "02372400a0010141034103a001",
+   "note": "caps of a Bluetooth link",
+   "value": {
+    "frame": "response",
+    "seq": 55,
+    "opcode": "MOTION2_SET",
+    "status": "OK",
+    "data": {
+     "rate_hz": 416,
+     "sensors": 1,
+     "max_accel_hz": 833,
+     "max_gyro_hz": 833,
+     "max_both_hz": 416
+    }
+   }
+  },
+  {
+   "hex": "02392500190003820641034103",
+   "note": "defaults; caps of the USB cable",
+   "value": {
+    "frame": "response",
+    "seq": 57,
+    "opcode": "MOTION2_GET",
+    "status": "OK",
+    "data": {
+     "rate_hz": 25,
+     "sensors": 3,
+     "max_accel_hz": 1666,
+     "max_gyro_hz": 833,
+     "max_both_hz": 833
+    }
+   }
+  },
+  {
+   "hex": "02382406",
+   "note": "MOTION2 is streaming and the new setting is above the cap of its transport",
+   "value": {
+    "frame": "response",
+    "seq": 56,
+    "opcode": "MOTION2_SET",
+    "status": "DENIED",
+    "data": {}
+   }
+  },
+  {
+   "hex": "023a1006",
+   "note": "MOTION2 set faster than this transport allows",
+   "value": {
+    "frame": "response",
+    "seq": 58,
+    "opcode": "STREAM_START",
+    "status": "DENIED",
+    "data": {}
+   }
+  },
+  {
+   "hex": "023a10000101",
+   "value": {
+    "frame": "response",
+    "seq": 58,
+    "opcode": "STREAM_START",
+    "status": "OK",
+    "data": {
+     "active": 257
+    }
+   }
+  }
+ ],
+ "notices": [
+  {
+   "hex": "03010e",
+   "value": {
+    "frame": "notice",
+    "code": "LOW_BATTERY",
+    "arg": 14
+   }
+  },
+  {
+   "hex": "030204",
+   "value": {
+    "frame": "notice",
+    "code": "CRITICAL_BATTERY",
+    "arg": 4
+   }
+  },
+  {
+   "hex": "030303",
+   "value": {
+    "frame": "notice",
+    "code": "STREAM_DROPPED",
+    "arg": 3
+   }
+  },
+  {
+   "hex": "030308",
+   "note": "MOTION2 frames were dropped",
+   "value": {
+    "frame": "notice",
+    "code": "STREAM_DROPPED",
+    "arg": 8
+   }
+  },
+  {
+   "hex": "030401",
+   "value": {
+    "frame": "notice",
+    "code": "USB_POWER",
+    "arg": 1
+   }
+  },
+  {
+   "hex": "030400",
+   "value": {
+    "frame": "notice",
+    "code": "USB_POWER",
+    "arg": 0
+   }
+  },
+  {
+   "hex": "03c801",
+   "note": "unknown notice code stays a number",
+   "value": {
+    "frame": "notice",
+    "code": 200,
+    "arg": 1
+   }
+  }
+ ],
+ "streams": [
+  {
+   "hex": "1040e201002802f40118fcfa007d0030f8000080c1803e0100204ee0b1ffff",
+   "value": {
+    "frame": "motion",
+    "t_ms": 123456,
+    "period_ms": 40,
+    "samples": [
+     {
+      "ax": 500,
+      "ay": -1000,
+      "az": 250,
+      "gx": 125,
+      "gy": -2000,
+      "gz": 0
+     },
+     {
+      "ax": -16000,
+      "ay": 16000,
+      "az": 1,
+      "gx": 20000,
+      "gy": -20000,
+      "gz": -1
+     }
+    ]
+   }
+  },
+  {
+   "hex": "10faffffff0a0a00000000e8030000000000000a00f6ffe9030100ffff64001400ecffea030200feffc8001e00e2ffeb030300fdff2c012800d8ffec030400fcff90013200ceffed030500fbfff4013c00c4ffee030600faff58024600baffef030700f9ffbc025000b0fff0030800f8ff20035a00a6fff1030900f7ff8403",
+   "value": {
+    "frame": "motion",
+    "t_ms": 4294967290,
+    "period_ms": 10,
+    "samples": [
+     {
+      "ax": 0,
+      "ay": 0,
+      "az": 1000,
+      "gx": 0,
+      "gy": 0,
+      "gz": 0
+     },
+     {
+      "ax": 10,
+      "ay": -10,
+      "az": 1001,
+      "gx": 1,
+      "gy": -1,
+      "gz": 100
+     },
+     {
+      "ax": 20,
+      "ay": -20,
+      "az": 1002,
+      "gx": 2,
+      "gy": -2,
+      "gz": 200
+     },
+     {
+      "ax": 30,
+      "ay": -30,
+      "az": 1003,
+      "gx": 3,
+      "gy": -3,
+      "gz": 300
+     },
+     {
+      "ax": 40,
+      "ay": -40,
+      "az": 1004,
+      "gx": 4,
+      "gy": -4,
+      "gz": 400
+     },
+     {
+      "ax": 50,
+      "ay": -50,
+      "az": 1005,
+      "gx": 5,
+      "gy": -5,
+      "gz": 500
+     },
+     {
+      "ax": 60,
+      "ay": -60,
+      "az": 1006,
+      "gx": 6,
+      "gy": -6,
+      "gz": 600
+     },
+     {
+      "ax": 70,
+      "ay": -70,
+      "az": 1007,
+      "gx": 7,
+      "gy": -7,
+      "gz": 700
+     },
+     {
+      "ax": 80,
+      "ay": -80,
+      "az": 1008,
+      "gx": 8,
+      "gy": -8,
+      "gz": 800
+     },
+     {
+      "ax": 90,
+      "ay": -90,
+      "az": 1009,
+      "gx": 9,
+      "gy": -9,
+      "gz": 900
+     }
+    ]
+   },
+   "note": "full 10-sample frame at 100 Hz; t_ms close to wrapping"
+  },
+  {
+   "hex": "10010000006400",
+   "value": {
+    "frame": "motion",
+    "t_ms": 1,
+    "period_ms": 100,
+    "samples": []
+   }
+  },
+  {
+   "hex": "11891300000100",
+   "value": {
+    "frame": "event",
+    "t_ms": 5001,
+    "event": 1,
+    "arg": 0
+   }
+  },
+  {
+   "hex": "118a1300000200",
+   "value": {
+    "frame": "event",
+    "t_ms": 5002,
+    "event": 2,
+    "arg": 0
+   }
+  },
+  {
+   "hex": "118b1300000300",
+   "value": {
+    "frame": "event",
+    "t_ms": 5003,
+    "event": 3,
+    "arg": 0
+   }
+  },
+  {
+   "hex": "118c1300000400",
+   "value": {
+    "frame": "event",
+    "t_ms": 5004,
+    "event": 4,
+    "arg": 0
+   }
+  },
+  {
+   "hex": "118d1300000504",
+   "value": {
+    "frame": "event",
+    "t_ms": 5005,
+    "event": 5,
+    "arg": 4
+   }
+  },
+  {
+   "hex": "118e1300000600",
+   "value": {
+    "frame": "event",
+    "t_ms": 5006,
+    "event": 6,
+    "arg": 0
+   }
+  },
+  {
+   "hex": "118f1300000700",
+   "value": {
+    "frame": "event",
+    "t_ms": 5007,
+    "event": 7,
+    "arg": 0
+   }
+  },
+  {
+   "hex": "1109000000c803",
+   "value": {
+    "frame": "event",
+    "t_ms": 9,
+    "event": 200,
+    "arg": 3
+   },
+   "note": "unknown event code: decode it, the layer above ignores it"
+  },
+  {
+   "hex": "1260ea000040e2010070015401",
+   "value": {
+    "frame": "activity",
+    "t_ms": 60000,
+    "steps_total": 123456,
+    "cadence_spm": 112,
+    "state": 1,
+    "motion_mg": 340
+   }
+  },
+  {
+   "hex": "13ffff28b80102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f2021222324252627",
+   "value": {
+    "frame": "audio",
+    "seq": 65535,
+    "opus": "b80102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f2021222324252627"
+   }
+  },
+  {
+   "hex": "13000000",
+   "value": {
+    "frame": "audio",
+    "seq": 0,
+    "opus": ""
+   }
+  },
+  {
+   "hex": "145700930f",
+   "value": {
+    "frame": "battery",
+    "percent": 87,
+    "state": 0,
+    "millivolts": 3987
+   }
+  },
+  {
+   "hex": "1464025e10",
+   "value": {
+    "frame": "battery",
+    "percent": 100,
+    "state": 2,
+    "millivolts": 4190
+   }
+  },
+  {
+   "hex": "1588130000127a0000",
+   "value": {
+    "frame": "temp",
+    "t_ms": 5000,
+    "temp_mc": 31250
+   }
+  },
+  {
+   "hex": "158813000072edffff",
+   "value": {
+    "frame": "temp",
+    "t_ms": 5000,
+    "temp_mc": -4750
+   }
+  },
+  {
+   "hex": "16e8030000c1f802",
+   "value": {
+    "frame": "link",
+    "t_ms": 1000,
+    "rssi_dbm": -63,
+    "tx_dbm": -8,
+    "phy": 2
+   }
+  },
+  {
+   "hex": "17bc0200000c1f",
+   "value": {
+    "frame": "mic_level",
+    "t_ms": 700,
+    "peak_db": 12,
+    "rms_db": 31
+   }
+  },
+  {
+   "hex": "17200300006060",
+   "value": {
+    "frame": "mic_level",
+    "t_ms": 800,
+    "peak_db": 96,
+    "rms_db": 96
+   }
+  },
+  {
+   "hex": "188813000000000000409c00000301f40118fcfa007d0030f80000",
+   "note": "MOTION2, both sensors, 25 Hz: 12 bytes per sample",
+   "value": {
+    "frame": "motion2",
+    "t_ms": 5000,
+    "sample_no": 0,
+    "period_us": 40000,
+    "sensors": 3,
+    "samples": [
+     {
+      "ax": 500,
+      "ay": -1000,
+      "az": 250,
+      "gx": 125,
+      "gy": -2000,
+      "gz": 0
+     }
+    ]
+   }
+  },
+  {
+   "hex": "1840e20100400300006409000001030a00ecffe8030b00ebffe90380c1803e0100",
+   "note": "accelerometer only at 416 Hz: 6 bytes per sample, measured period 2404 us",
+   "value": {
+    "frame": "motion2",
+    "t_ms": 123456,
+    "sample_no": 832,
+    "period_us": 2404,
+    "sensors": 1,
+    "samples": [
+     {
+      "ax": 10,
+      "ay": -20,
+      "az": 1000
+     },
+     {
+      "ax": 11,
+      "ay": -21,
+      "az": 1001
+     },
+     {
+      "ax": -16000,
+      "ay": 16000,
+      "az": 1
+     }
+    ]
+   }
+  },
+  {
+   "hex": "18faffffff00286beeb104000002027d0030f80000204ee0b1ffff",
+   "note": "gyroscope only at 833 Hz; t_ms about to wrap",
+   "value": {
+    "frame": "motion2",
+    "t_ms": 4294967290,
+    "sample_no": 4000000000,
+    "period_us": 1201,
+    "sensors": 2,
+    "samples": [
+     {
+      "gx": 125,
+      "gy": -2000,
+      "gz": 0
+     },
+     {
+      "gx": 20000,
+      "gy": -20000,
+      "gz": -1
+     }
+    ]
+   }
+  },
+  {
+   "hex": "180700000063000000580200000100",
+   "note": "no samples",
+   "value": {
+    "frame": "motion2",
+    "t_ms": 7,
+    "sample_no": 99,
+    "period_us": 600,
+    "sensors": 1,
+    "samples": []
+   }
+  },
+  {
+   "hex": "7f0102",
+   "note": "unknown frame type: must be ignored, not an error",
+   "value": {
+    "frame": "unknown",
+    "type": 127
+   }
+  }
+ ],
+ "invalid": [
+  {
+   "hex": "",
+   "note": "empty"
+  },
+  {
+   "hex": "02",
+   "note": "response header cut short"
+  },
+  {
+   "hex": "0207",
+   "note": "response header cut short"
+  },
+  {
+   "hex": "020750",
+   "note": "response without status"
+  },
+  {
+   "hex": "0200010001",
+   "note": "GET_INFO response with too little data"
+  },
+  {
+   "hex": "03",
+   "note": "notice without code"
+  },
+  {
+   "hex": "0301",
+   "note": "notice without arg"
+  },
+  {
+   "hex": "10010000002802000000000000000000000000",
+   "note": "motion frame says 2 samples but carries 1"
+  },
+  {
+   "hex": "1101000000",
+   "note": "event cut short"
+  },
+  {
+   "hex": "13000005aabb",
+   "note": "audio len says 5 but 2 bytes follow"
+  },
+  {
+   "hex": "1457",
+   "note": "battery cut short"
+  },
+  {
+   "hex": "180100000000000000409c00000302000000000000000000000000",
+   "note": "motion2 frame says 2 samples but carries 1"
+  },
+  {
+   "hex": "180100000000000000409c00000001000000000000",
+   "note": "motion2 with sensors 0: the sample size is unknown"
+  },
+  {
+   "hex": "180100000000000000409c000001",
+   "note": "motion2 header cut short"
+  },
+  {
+   "hex": "0105",
+   "note": "command without opcode (commands are never valid band-to-client frames either)"
+  }
+ ]
+}

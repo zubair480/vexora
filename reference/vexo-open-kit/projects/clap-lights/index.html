@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'">
+<title>Clap lights - Vexo Open project</title>
+<link rel="icon" href="../shared/icon.png">
+<link rel="stylesheet" href="../shared/style.css">
+</head>
+<body>
+<h1>Clap lights</h1>
+<p>Clap once to switch the lamp on or off. Clap twice quickly to change its colour. The ring and the bars follow
+how loud the room is.</p>
+<p class="soft">While this page is connected the band's microphone is on: its light is solid blue and locked, which is why the lamp is here on the screen.
+Tell the people near you. The page only gets loudness numbers; no sound is recorded and none leaves the band.</p>
+<div class="card row">
+  <label>Band number <input id="number" inputmode="numeric" maxlength="13" placeholder="XX"></label>
+  <select id="link" aria-label="How to connect">
+    <option value="ble">Bluetooth</option>
+    <option value="serial">USB cable</option>
+    <option value="pretend">Pretend band (no hardware)</option>
+  </select>
+  <button id="connect">Connect</button>
+  <button id="disconnect" disabled>Disconnect</button>
+</div>
+<p id="needs-server"><b>Connect does nothing?</b> This page was opened as a file (by double-click), so the browser blocks its program.
+Open it through the web server on your own computer: in a terminal, in your project folder
+(<code>my-project</code>, the folder that holds <code>vexo-open-kit</code>), run
+<code>python3 -m http.server 8000 --bind 127.0.0.1</code> (on Windows type <code>python</code>),
+then open <code>http://localhost:8000/vexo-open-kit/projects/clap-lights/</code>
+(8000, or the port you started it with) in Chrome or Edge. Copied this page into your own folder? The
+command is the same; open <code>http://localhost:8000/clap-lights/</code>.</p>
+<p id="message" role="status">Double-tap your band, type its number and press Connect. No band? Choose "Pretend band".</p>
+<div class="card row pretend-only" hidden>
+  <span><span id="light"></span> The pretend band's light is <span id="light-text">off</span>.</span>
+  <button id="pretend-clap" disabled>Clap</button>
+  <button id="pretend-clap2" disabled>Clap twice</button>
+  <button id="pretend-quiet" disabled>Quiet</button>
+  <button id="pretend-talk" disabled>Talking</button>
+  <button id="pretend-loud" disabled>Loud room</button>
+  <button id="pretend-drop" disabled>Lose the link</button>
+</div>
+<div class="card">
+  <p id="status" class="big">Not connected</p>
+  <p>Claps: <strong id="claps">0</strong> &nbsp; Colour: <strong id="theme">Sunshine</strong> &nbsp; Loudness: <strong id="loud">-</strong></p>
+  <canvas id="picture" width="720" height="260"></canvas>
+  <p class="soft">Bars: loudness, newest on the right. White bar: a clap. Dotted line: the background level the detector compares with.</p>
+</div>
+<script type="module" src="lights.js"></script>
+</body>
+</html>

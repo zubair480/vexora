@@ -1,0 +1,15 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<!-- This small hidden page is the only part of the dashboard that may contact Deepgram, and
+     it may contact nothing else. The dashboard itself keeps its own rule (only the server
+     it came from). This page is loaded only after someone picks Deepgram and switches Live
+     transcript on, and it is removed when that is switched off. See README.md here. -->
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; connect-src wss://api.deepgram.com/v1/listen">
+<meta name="referrer" content="no-referrer">
+<title>Vexo Open: link to Deepgram</title>
+<script type="module" src="deepgram-frame.js"></script>
+</head>
+<body></body>
+</html>

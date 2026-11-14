@@ -1,0 +1,10 @@
+{
+  "name": "vexo-open",
+  "version": "0.1.0",
+  "description": "Talk to a Vexo Open band from a web page (Web Bluetooth / Web Serial) or a simulator.",
+  "type": "module",
+  "main": "src/index.js",
+  "exports": { ".": "./src/index.js" },
+  "scripts": { "test": "node --test test/*.test.js" },
+  "private": true
+}
