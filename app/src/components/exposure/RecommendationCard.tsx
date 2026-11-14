@@ -2,7 +2,7 @@
 // and a "Review & Plan" panel comparing three HAV controls (computed with lib/hav).
 import { useId, useMemo, useState } from 'react';
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
-import { ArrowRight, ChevronDown, Repeat, Sparkles, Users, Wrench, type LucideIcon } from 'lucide-react';
+import { ArrowRight, CheckCircle2, ChevronDown, Repeat, Sparkles, Users, Wrench, type LucideIcon } from 'lucide-react';
 import clsx from 'clsx';
 import { Card, Pill } from '../ui/primitives';
 import { exposureLevel, ACTION_VALUE } from '../../lib/hav';
@@ -11,6 +11,8 @@ import type { Exposure, Recommendation } from '../../data/types';
 import { FOCUS_RING, levelLabel, levelTone, toneTextStrong } from './tone';
 import { IdlerIllustration } from './IdlerIllustration';
 import { buildControlOptions, type ControlId } from './controlOptions';
+import { normaliseServerOptions } from './serverOptions';
+import { ServerOptionList } from './ServerOptionList';
 
 const EASE = [0.22, 1, 0.36, 1] as const;
 const FOCUS = FOCUS_RING;
@@ -21,7 +23,31 @@ const optionIcon: Record<ControlId, LucideIcon> = {
   split: Users,
 };
 
-export function RecommendationCard({ recommendation, exposure }: { recommendation: Recommendation; exposure: Exposure }) {
+export function RecommendationCard({ recommendation, exposure }: { recommendation: Recommendation | null; exposure: Exposure }) {
+  if (!recommendation) return <EmptyRecommendation />;
+  return <RecommendationBody recommendation={recommendation} exposure={exposure} />;
+}
+
+/** Calm empty state: the server has no planned task that needs a review. */
+function EmptyRecommendation() {
+  return (
+    <Card className="relative shrink-0 overflow-hidden p-5">
+      <div className="flex items-center gap-3">
+        <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-ok-bg text-ok">
+          <CheckCircle2 size={20} strokeWidth={2} aria-hidden="true" />
+        </span>
+        <div className="min-w-0">
+          <h2 className="label font-semibold uppercase tracking-wide text-ink">Recommendation</h2>
+          <p className="mt-0.5 text-sm text-ink-2">No planned task needs review.</p>
+        </div>
+      </div>
+    </Card>
+  );
+}
+
+const DASH = '—';
+
+function RecommendationBody({ recommendation, exposure }: { recommendation: Recommendation; exposure: Exposure }) {
   const reduce = useReducedMotion() ?? false;
   const [open, setOpen] = useState(false);
   const [showDetail, setShowDetail] = useState(false);
@@ -31,13 +57,31 @@ export function RecommendationCard({ recommendation, exposure }: { recommendatio
 
   const { current } = exposure;
   const { projectedPoints, deltaPoints } = recommendation;
-  const curLevel = exposureLevel(current);
-  const projLevel = exposureLevel(projectedPoints);
+  // Nulls stay nulls: they render as "—" with no level colour, never a stand-in number.
+  const curLevel = current == null ? null : exposureLevel(current);
+  const projLevel = projectedPoints == null ? null : exposureLevel(projectedPoints);
 
-  const options = useMemo(
-    () => buildControlOptions(exposure, recommendation, shift.tool, shift.workers.filter((w) => w.onTask).length),
-    [exposure, recommendation],
+  // Server data always carries an `options` array (possibly empty): render exactly what the planner sent.
+  // Only the demo data (no `options` field) falls back to havPoints options computed from the demo tool,
+  // so a live recommendation is never mixed with demo tool figures.
+  const fromServer = Array.isArray(recommendation.options);
+  const serverOptions = useMemo(
+    () => (fromServer ? normaliseServerOptions(recommendation.options ?? []) : []),
+    [fromServer, recommendation.options],
   );
+  const options = useMemo(
+    () =>
+      fromServer
+        ? []
+        : buildControlOptions(exposure, recommendation, shift.tool, shift.workers.filter((w) => w.onTask).length),
+    [fromServer, exposure, recommendation],
+  );
+
+  const chipAria =
+    `Exposure ${current == null ? 'not available' : `${current} points`} now, ` +
+    `${projectedPoints == null ? 'no projection' : `${projectedPoints} points`} after the next task` +
+    (deltaPoints == null ? '' : `, change ${deltaPoints >= 0 ? '+' : ''}${deltaPoints}`) +
+    (projLevel ? `. ${levelLabel[projLevel]}.` : '.');
 
   const t = (duration: number, delay = 0) => (reduce ? { duration: 0 } : { duration, delay, ease: EASE });
 
@@ -93,18 +137,23 @@ export function RecommendationCard({ recommendation, exposure }: { recommendatio
         {/* Before → after exposure chip */}
         <div
           className="mt-4 inline-flex flex-wrap items-center gap-2 rounded-full border border-line bg-surface px-3 py-1.5 text-sm shadow-card"
-          aria-label={`Exposure ${current} points now, ${projectedPoints} points after the next task, up ${deltaPoints}. ${levelLabel[projLevel]}.`}
+          aria-label={chipAria}
           role="group"
         >
           <span className="label hidden sm:inline">Exposure</span>
-          <span className={clsx('font-display font-semibold tabular-nums', toneTextStrong[levelTone[curLevel]])}>
-            {current}
+          <span className={clsx('font-display font-semibold tabular-nums', curLevel ? toneTextStrong[levelTone[curLevel]] : 'text-ink-2')}>
+            {current ?? DASH}
           </span>
           <ArrowRight size={14} className="text-ink-3" aria-hidden="true" />
-          <span className={clsx('font-display font-semibold tabular-nums', toneTextStrong[levelTone[projLevel]])}>
-            {projectedPoints} pts
+          <span className={clsx('font-display font-semibold tabular-nums', projLevel ? toneTextStrong[levelTone[projLevel]] : 'text-ink-2')}>
+            {projectedPoints == null ? DASH : `${projectedPoints} pts`}
           </span>
-          <Pill tone="bad" className="py-0.5 tabular-nums">+{deltaPoints}</Pill>
+          {deltaPoints != null && (
+            <Pill tone={deltaPoints > 0 ? 'bad' : 'ok'} className="py-0.5 tabular-nums">
+              {deltaPoints > 0 ? '+' : ''}
+              {deltaPoints}
+            </Pill>
+          )}
         </div>
 
         {/* CTAs */}
@@ -160,6 +209,11 @@ export function RecommendationCard({ recommendation, exposure }: { recommendatio
                   <p className="label font-semibold uppercase tracking-wide">Control options</p>
                   <p className="text-[11px] text-ink-2">Action value {ACTION_VALUE} pts</p>
                 </div>
+                {fromServer ? (
+                  <ServerOptionList options={serverOptions} reduce={reduce} transition={t} />
+                ) : options.length === 0 ? (
+                  <p className="mt-2 text-sm text-ink-2">Not enough measured data to project control options.</p>
+                ) : (
                 <ul className="mt-2 space-y-2">
                   {options.map((o, i) => {
                     const Icon = optionIcon[o.id];
@@ -201,6 +255,7 @@ export function RecommendationCard({ recommendation, exposure }: { recommendatio
                     );
                   })}
                 </ul>
+                )}
               </div>
             </motion.div>
           )}

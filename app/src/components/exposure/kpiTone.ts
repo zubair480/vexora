@@ -26,7 +26,7 @@ export function defectsTone(n: number): { tone: Tone; caption: string } {
   return n > 0 ? { tone: 'bad', caption: 'Needs repair' } : { tone: 'ok', caption: 'None open' };
 }
 
-export const riskTone: Record<Kpis['vibrationRisk'], Tone> = { Normal: 'ok', Elevated: 'warn', High: 'bad' };
+export const riskTone: Record<NonNullable<Kpis['vibrationRisk']>, Tone> = { Normal: 'ok', Elevated: 'warn', High: 'bad' };
 
 export function exposureKpi(points: number): { tone: Tone; caption: string } {
   const lvl = exposureLevel(points);

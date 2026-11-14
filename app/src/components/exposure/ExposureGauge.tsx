@@ -12,10 +12,12 @@ const EASE = [0.22, 1, 0.36, 1] as const;
 const FOCUS = FOCUS_RING;
 
 export function ExposureGauge({ exposure }: { exposure: Exposure }) {
-  const { current, projected, action, limit } = exposure;
-  const lvl = exposureLevel(current);
-  const projLvl = exposureLevel(projected);
-  const pct = Math.round((current / action) * 100);
+  const { current, projected, action, limit, label, reasons } = exposure;
+  // Server data never invents a value: a null current or projection is shown as "—", never filled in.
+  const lvl = current == null ? null : exposureLevel(current);
+  const projLvl = projected == null ? null : exposureLevel(projected);
+  const pct = current == null ? null : Math.round((current / action) * 100);
+  const reason = current == null ? reasons?.find(Boolean) : undefined;
 
   return (
     <Card className="h-full p-5">
@@ -26,9 +28,15 @@ export function ExposureGauge({ exposure }: { exposure: Exposure }) {
             <InfoTip label="About HAV points">
               UK HSE points: points = 2 × a<sub>hv</sub>² × hours. {action} = action value, {limit} = limit value.
             </InfoTip>
-            <Pill tone={levelTone[lvl]} dot className="shrink-0">
-              {levelLabel[lvl]}
-            </Pill>
+            {lvl ? (
+              <Pill tone={levelTone[lvl]} dot className="shrink-0">
+                {levelLabel[lvl]}
+              </Pill>
+            ) : (
+              <Pill tone="neutral" className="shrink-0">
+                Not available
+              </Pill>
+            )}
           </div>
         }
       />
@@ -37,23 +45,32 @@ export function ExposureGauge({ exposure }: { exposure: Exposure }) {
       <div className="mt-4 flex flex-col items-center gap-4 sm:flex-row xl:flex-col min-[1700px]:flex-row">
         <div className="flex w-full max-w-[220px] shrink-0 flex-col items-center">
           <GaugeSvg exposure={exposure} />
-          <p className="-mt-1 text-sm text-ink-2">
-            <span className="font-display font-semibold tabular-nums text-ink">{pct}%</span> of action value
-          </p>
+          {pct != null ? (
+            <p className="-mt-1 text-sm text-ink-2">
+              <span className="font-display font-semibold tabular-nums text-ink">{pct}%</span> of action value
+            </p>
+          ) : (
+            reason && <p className="-mt-1 text-center text-xs leading-snug text-ink-2">{reason}</p>
+          )}
+          {label && <p className="mt-1.5 text-center text-[11px] leading-snug text-ink-2">{label}</p>}
         </div>
 
         <ul className="grid w-full flex-1 grid-cols-2 gap-2 sm:block sm:space-y-2 xl:grid xl:space-y-0 min-[1700px]:block min-[1700px]:space-y-2">
           <li className="rounded-xl bg-panel px-3 py-2">
             <p className="label">Current Exposure</p>
-            <p className="font-display font-semibold tabular-nums text-ink">{Math.round(current)} points</p>
+            <p className="font-display font-semibold tabular-nums text-ink">{current == null ? '—' : `${Math.round(current)} points`}</p>
           </li>
-          <li className="rounded-xl bg-bad-bg px-3 py-2">
+          <li className={clsx('rounded-xl px-3 py-2', projected == null ? 'bg-panel' : 'bg-bad-bg')}>
             <p className="label">Next-Task (Projected)</p>
-            <p className={clsx('flex items-baseline gap-1.5 font-display font-semibold tabular-nums', toneTextStrong.bad)}>
-              {Math.round(projected)} points
-              <span className="text-xs font-medium">+{Math.round(projected - current)}</span>
-            </p>
-            {projLvl !== lvl && <p className={clsx('text-[11px] font-medium', toneTextStrong.bad)}>{levelLabel[projLvl]}</p>}
+            {projected == null ? (
+              <p className="font-display font-semibold text-ink">{'—'}</p>
+            ) : (
+              <p className={clsx('flex items-baseline gap-1.5 font-display font-semibold tabular-nums', toneTextStrong.bad)}>
+                {Math.round(projected)} points
+                {current != null && <span className="text-xs font-medium">+{Math.round(projected - current)}</span>}
+              </p>
+            )}
+            {projLvl && projLvl !== lvl && <p className={clsx('text-[11px] font-medium', toneTextStrong.bad)}>{levelLabel[projLvl]}</p>}
           </li>
           <LegendRow dot="bg-warn" name="Action value" value={action} />
           <LegendRow dot="bg-bad" name="Limit value" value={limit} />
@@ -77,12 +94,15 @@ function LegendRow({ dot, name, value }: { dot: string; name: string; value: num
 function GaugeSvg({ exposure }: { exposure: Exposure }) {
   const { current, projected, action, limit } = exposure;
   const reduce = useReducedMotion() ?? false;
-  const lvl = exposureLevel(current);
+  const hasCurrent = current != null;
+  const lvl = hasCurrent ? exposureLevel(current) : 'below';
+  // The projected ghost needs both real values; with either missing it is simply not drawn.
+  const showProj = current != null && projected != null;
 
-  const max = gaugeMax(action, limit, projected);
+  const max = gaugeMax(action, limit, projected ?? 0);
   const frac = makeFrac(action, max);
-  const fCur = frac(current);
-  const fProj = frac(Math.max(projected, current));
+  const fCur = frac(current ?? 0);
+  const fProj = frac(showProj ? Math.max(projected, current) : current ?? 0);
   const fAction = frac(action);
   const fLimit = frac(limit);
 
@@ -100,7 +120,7 @@ function GaugeSvg({ exposure }: { exposure: Exposure }) {
 
   const knobX = useTransform(prog, (p) => polar(fCur * p).x);
   const knobY = useTransform(prog, (p) => polar(fCur * p).y);
-  const count = useTransform(prog, (p) => Math.round(current * p));
+  const count = useTransform(prog, (p) => (current == null ? '—' : String(Math.round(current * p))));
   const projPt = polar(fProj);
 
   const ticks = [
@@ -110,8 +130,11 @@ function GaugeSvg({ exposure }: { exposure: Exposure }) {
   ];
 
   const aria =
-    `Estimated exposure ${Math.round(current)} points, ${Math.round((current / action) * 100)}% of action value. ` +
-    `Projected ${Math.round(projected)} points after next task. Action value ${action}, limit value ${limit}.`;
+    (current == null
+      ? 'Estimated exposure not available. '
+      : `Estimated exposure ${Math.round(current)} points, ${Math.round((current / action) * 100)}% of action value. `) +
+    (projected == null ? '' : `Projected ${Math.round(projected)} points after next task. `) +
+    `Action value ${action}, limit value ${limit}.`;
 
   return (
     <svg viewBox="0 0 240 150" className="block h-auto w-full overflow-visible" role="img" aria-label={aria}>
@@ -140,6 +163,7 @@ function GaugeSvg({ exposure }: { exposure: Exposure }) {
       </g>
 
       {/* 3. Projected ghost arc: dashed, fades in once the current arc has landed. */}
+      {showProj && (
       <motion.g
         initial={reduce ? false : { opacity: 0 }}
         animate={{ opacity: 1 }}
@@ -155,8 +179,11 @@ function GaugeSvg({ exposure }: { exposure: Exposure }) {
         />
         <circle cx={projPt.x} cy={projPt.y} r={5} strokeWidth={2.5} className="fill-surface stroke-bad" />
       </motion.g>
+      )}
 
-      {/* 2. Progress arc 0 → current. */}
+      {/* 2. Progress arc 0 → current, and 4. its knob: only when there is a real current value. */}
+      {hasCurrent && (
+      <>
       <motion.path
         d={arcPath(0, fCur)}
         fill="none"
@@ -174,13 +201,15 @@ function GaugeSvg({ exposure }: { exposure: Exposure }) {
         strokeWidth={3.5}
         className={clsx('fill-surface drop-shadow-sm', gaugeStroke[lvl])}
       />
+      </>
+      )}
 
       {/* Centre readout. */}
       <motion.text
         x={GAUGE.cx}
         y={GAUGE.cy - 22}
         textAnchor="middle"
-        className="fill-ink font-display text-[44px] font-bold tabular-nums"
+        className={clsx('font-display text-[44px] font-bold tabular-nums', hasCurrent ? 'fill-ink' : 'fill-ink-3')}
         aria-hidden
       >
         {count}
