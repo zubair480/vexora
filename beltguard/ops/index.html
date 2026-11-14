@@ -1,0 +1,162 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>BeltGuard Build Status</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans+Condensed:wght@600&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --paper:#F4F2EE; --surface:#FFFFFF; --ink:#14171A; --ink-2:#4A525B; --ink-3:#8A929B;
+  --rule:#E2DED7; --rule-2:#EEEBE6; --orange:#F05A00;
+  --ok-bg:#E6F3EB; --ok:#1C6B44; --warn-bg:#FBF0DA; --warn:#87570A; --bad-bg:#FBE7E9; --bad:#A3202F;
+  --sans:"IBM Plex Sans",system-ui,sans-serif; --cond:"IBM Plex Sans Condensed","IBM Plex Sans",sans-serif; --mono:"IBM Plex Mono",ui-monospace,monospace;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--paper);color:var(--ink);font:14px/1.5 var(--sans);-webkit-font-smoothing:antialiased}
+.wrap{max-width:1440px;margin:0 auto;padding:32px 40px 48px}
+header{display:flex;align-items:flex-end;justify-content:space-between;gap:24px;margin-bottom:28px}
+.over{font:600 11px/1 var(--sans);letter-spacing:.07em;text-transform:uppercase;color:var(--ink-3);margin:0 0 8px}
+h1{font:600 30px/1.1 var(--cond);letter-spacing:-.01em;margin:0}
+h1 span{color:var(--orange)}
+.lede{margin:8px 0 0;color:var(--ink-2);max-width:62ch}
+.clock{font:500 13px var(--mono);color:var(--ink-3);font-variant-numeric:tabular-nums;white-space:nowrap}
+.grid{display:grid;grid-template-columns:minmax(0,1.05fr) minmax(0,1fr);gap:24px;align-items:start}
+.card{background:var(--surface);border:1px solid var(--rule);border-radius:14px;box-shadow:0 1px 2px rgba(20,23,26,.04);overflow:hidden}
+.card-head{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:18px 24px;border-bottom:1px solid var(--rule)}
+.card-head h2{font:600 17px/1.2 var(--cond);margin:0}
+.card-head .note{color:var(--ink-3);font-size:13px}
+table{width:100%;border-collapse:collapse}
+th{font:600 12px/1 var(--sans);color:var(--ink-3);text-align:left;padding:14px 24px 10px;border-bottom:1px solid var(--rule-2)}
+td{padding:16px 24px;border-bottom:1px solid var(--rule-2);vertical-align:top}
+tr:last-child td{border-bottom:0}
+.who b{display:block;font-weight:600}
+.who small{display:block;color:var(--ink-3);font-size:12.5px;margin-top:2px}
+.pill{display:inline-flex;align-items:center;gap:6px;padding:3px 10px;border-radius:999px;font:500 12px/1.6 var(--sans);white-space:nowrap}
+.pill::before{content:"";width:6px;height:6px;border-radius:50%;background:currentColor}
+.ok{background:var(--ok-bg);color:var(--ok)} .warn{background:var(--warn-bg);color:var(--warn)} .bad{background:var(--bad-bg);color:var(--bad)}
+.age{font:500 12.5px var(--mono);color:var(--ink-2);font-variant-numeric:tabular-nums;white-space:nowrap}
+.latest{color:var(--ink-2);display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;max-width:52ch}
+.flag{display:inline-block;margin-bottom:4px;font:600 11px/1.6 var(--sans);color:var(--orange);letter-spacing:.04em;text-transform:uppercase}
+.preview{display:flex;flex-direction:column;height:calc(100vh - 210px);min-height:460px}
+.seg{display:inline-flex;border:1px solid var(--rule);border-radius:9px;padding:2px;gap:2px}
+.seg button{border:0;background:none;border-radius:7px;padding:5px 12px;font:500 13px var(--sans);color:var(--ink-2);cursor:pointer}
+.seg button[aria-pressed="true"]{background:var(--ink);color:#fff}
+.stage{position:relative;flex:1;background:var(--paper)}
+.stage iframe{position:absolute;inset:0;width:100%;height:100%;border:0;background:var(--paper)}
+.empty{position:absolute;inset:0;display:grid;place-items:center;padding:40px;text-align:center}
+.empty[hidden],iframe[hidden]{display:none}
+.empty .box{max-width:420px}
+.empty h3{font:600 20px/1.25 var(--cond);margin:14px 0 8px}
+.empty p{color:var(--ink-2);margin:0}
+.spinner{width:28px;height:28px;margin:0 auto;border-radius:50%;border:2.5px solid var(--rule);border-top-color:var(--orange);animation:spin 1s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.log{margin-top:24px}
+.log ol{list-style:none;margin:0;padding:6px 24px 14px;max-height:280px;overflow:auto}
+.log li{display:grid;grid-template-columns:76px 40px 1fr;gap:12px;padding:9px 0;border-bottom:1px solid var(--rule-2);color:var(--ink-2)}
+.log li:last-child{border-bottom:0}
+.log time{font:12.5px/1.55 var(--mono);color:var(--ink-3)}
+.log .tag{font:500 12px/1.6 var(--mono);color:var(--ink)}
+@media (max-width:1000px){.wrap{padding:24px 16px 40px}.grid{grid-template-columns:1fr}.preview{height:70vh}th,td{padding-left:16px;padding-right:16px}header{flex-direction:column;align-items:flex-start}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div>
+      <p class="over">VexoHacks · build status</p>
+      <h1>BeltGuard <span>/</span> parallel build</h1>
+      <p class="lede">Four Claude sessions build the product at the same time. Each one reports a heartbeat at least once a minute; the product dashboard appears on the right as soon as it renders.</p>
+    </div>
+    <span class="clock" id="clock"></span>
+  </header>
+
+  <div class="grid">
+    <section class="card">
+      <div class="card-head"><h2>Sessions</h2><span class="note" id="summary">Waiting for heartbeats</span></div>
+      <table>
+        <thead><tr><th>Session</th><th>Status</th><th>Last update</th><th>Latest report</th></tr></thead>
+        <tbody id="rows"></tbody>
+      </table>
+    </section>
+
+    <section class="card preview">
+      <div class="card-head">
+        <h2>Product dashboard</h2>
+        <span class="seg" role="group" aria-label="Preview source">
+          <button data-src="http://127.0.0.1:8765/" aria-pressed="true">Live backend</button>
+          <button data-src="/frontend/" aria-pressed="false">Static files</button>
+        </span>
+      </div>
+      <div class="stage">
+        <iframe id="view" title="BeltGuard dashboard preview" hidden></iframe>
+        <div class="empty" id="empty"><div class="box"><div class="spinner"></div><h3>The dashboard isn't rendered yet</h3><p id="emptyText">The hologram session is writing <code>frontend/</code>. This panel switches on by itself when the first version lands.</p></div></div>
+      </div>
+    </section>
+  </div>
+
+  <section class="card log">
+    <div class="card-head"><h2>Activity</h2><span class="note">Newest at the bottom</span></div>
+    <ol id="log"></ol>
+  </section>
+</div>
+<script>
+const SESSIONS = [["S0","Orchestrator","Integration and band tests"],["S1","Hologram UI","3D model and dashboard"],["S2","Band backend","Band 07, server, database"],["S3","Tool detector","Motion to tool use"],["S4","HAV brain","Exposure, AI, planner"]];
+const RX = /^(\d\d):(\d\d):(\d\d) \[(S\d)[^\]]*\] (.*)$/;
+const FLAG = /(NEED BAND|BAND LIVE|BACKEND UP|READY FOR LABEL|DECISION|BLOCK|ERROR|FAIL)/i;
+const esc = s => s.replace(/[&<>]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;"}[c]));
+function ageSec(h, m, s) { const now = new Date(), t = new Date(now); t.setHours(+h, +m, +s, 0); let d = (now - t) / 1000; if (d < -60) d += 86400; return Math.max(0, d); }
+const fmtAge = d => d < 60 ? `${Math.round(d)} s ago` : `${Math.floor(d / 60)} min ago`;
+async function tick() {
+  document.getElementById("clock").textContent = new Date().toLocaleTimeString([], {hour: "2-digit", minute: "2-digit", second: "2-digit"});
+  let text = "";
+  try { text = await (await fetch("heartbeat.log?t=" + Date.now(), {cache: "no-store"})).text(); } catch (e) { return; }
+  const lines = text.split(/\r?\n/).filter(Boolean), last = {};
+  for (const ln of lines) { const m = ln.match(RX); if (m) last[m[4]] = {h: m[1], m: m[2], s: m[3], msg: m[5]}; }
+  let active = 0;
+  document.getElementById("rows").innerHTML = SESSIONS.map(([id, name, role]) => {
+    const L = last[id];
+    let pill = `<span class="pill bad">No report</span>`, age = "—", latest = "Starting up";
+    if (L) {
+      const d = ageSec(L.h, L.m, L.s);
+      pill = d < 120 ? `<span class="pill ok">Active</span>` : d < 300 ? `<span class="pill warn">Quiet</span>` : `<span class="pill bad">Silent</span>`;
+      if (d < 120) active++;
+      age = fmtAge(d);
+      const f = L.msg.match(FLAG);
+      latest = (f ? `<span class="flag">${esc(f[1])}</span><br>` : "") + esc(L.msg);
+    }
+    return `<tr><td class="who"><b>${name}</b><small>${id} · ${role}</small></td><td>${pill}</td><td class="age">${age}</td><td><div class="latest">${latest}</div></td></tr>`;
+  }).join("");
+  document.getElementById("summary").textContent = `${active} of 5 active · ${lines.length} reports`;
+  const log = document.getElementById("log"), atBottom = log.scrollTop + log.clientHeight >= log.scrollHeight - 24;
+  log.innerHTML = lines.slice(-150).map(l => { const m = l.match(RX); return m ? `<li><time>${m[1]}:${m[2]}:${m[3]}</time><span class="tag">${m[4]}</span><span>${esc(m[5])}</span></li>` : ""; }).join("");
+  if (atBottom) log.scrollTop = log.scrollHeight;
+}
+let src = "http://127.0.0.1:8765/", shown = "";
+const view = document.getElementById("view"), empty = document.getElementById("empty");
+async function checkPreview(force) {
+  let ready = false;
+  try { const r = await fetch("/frontend/index.html?t=" + Date.now(), {cache: "no-store"}); ready = r.ok; } catch (e) {}
+  view.hidden = !ready; empty.hidden = ready;
+  if (ready && (force || shown !== src)) { view.src = src + (src.includes("?") ? "&" : "?") + "r=" + Date.now(); shown = src; }
+}
+document.querySelectorAll(".seg button").forEach(b => b.onclick = () => { document.querySelectorAll(".seg button").forEach(x => x.setAttribute("aria-pressed", x === b)); src = b.dataset.src; checkPreview(true); });
+// Live reload: reload the preview the moment any session saves a frontend file.
+const WATCH = ["index.html", "style.css", "app.js", "model3d.js", "charts.js", "replay.js"];
+let stamps = null;
+async function watchFiles() {
+  try {
+    const now = await Promise.all(WATCH.map(f => fetch("/frontend/" + f + "?t=" + Date.now(), {method: "HEAD", cache: "no-store"}).then(r => r.headers.get("last-modified") + "|" + r.headers.get("content-length")).catch(() => "")));
+    const key = now.join(",");
+    if (stamps !== null && key !== stamps) { checkPreview(true); document.getElementById("summary").textContent += " · dashboard reloaded"; }
+    stamps = key;
+  } catch (e) {}
+}
+tick(); setInterval(tick, 3000);
+checkPreview(true); setInterval(() => checkPreview(false), 5000);
+watchFiles(); setInterval(watchFiles, 3000);
+</script>
+</body>
+</html>

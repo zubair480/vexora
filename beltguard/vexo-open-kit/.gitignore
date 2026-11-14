@@ -1,0 +1,26 @@
+node_modules/
+__pycache__/
+*.pyc
+*.egg-info/
+.venv/
+.DS_Store
+# keys, certificates, local settings, build output: never commit these
+*.pem
+*.key
+*.der
+*.p12
+*.pfx
+.env
+.env.*
+build/
+dist/
+*.uf2
+*.hex
+*.bin
+*.elf
+# recordings saved by the examples
+*.wav
+*.ogg
+# test voices and results of the maintainers' speech checks
+voices/
+accuracy-*.json

@@ -1,0 +1,18 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "vexo-open"
+version = "0.2.0"
+description = "Talk to a Vexo Open band from Python (Bluetooth, USB cable, or a simulator)."
+requires-python = ">=3.9"
+dependencies = []
+
+[project.optional-dependencies]
+ble = ["bleak>=0.21"]
+serial = ["pyserial>=3.5"]
+all = ["bleak>=0.21", "pyserial>=3.5"]
+
+[tool.setuptools.packages.find]
+include = ["vexo_open*"]

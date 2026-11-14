@@ -1,0 +1,13 @@
+<section id="flow" data-transition="fade">
+<h2>One shift becomes one linked record</h2>
+<div class="rows">
+<div class="row head"><p class="lab">Step</p><div></div><p class="lab">What happens on conveyor CV-102</p><p class="lab">What the band does</p></div>
+<div class="row rise" style="--i:1"><p class="n">01</p><h3 class="verb">Walk</h3><p class="what">Walks the inspection route. Walking never counts as exposure.</p><p class="band">Motion tells walking from tool use</p></div>
+<div class="row rise" style="--i:2"><p class="n">02</p><h3 class="verb">Speak</h3><p class="what">Double-tap: “Station three, return idler seized.” A work order is drafted, and code checks the station.</p><p class="band">Mic and double-tap, so hands stay full</p></div>
+<div class="row hot rise" style="--i:3"><p class="n">03</p><h3 class="verb">Use the tool</h3><p class="what">Picks the impact wrench for the job. Trigger time comes from the band’s own clock.</p><p class="band">Feels the tool start and stop</p></div>
+<div class="row rise" style="--i:4"><p class="n">04</p><h3 class="verb">Score</h3><p class="what">2 × a² × T against 100 and 400, linked to the defect and the work order.</p><p class="band">T is measured, not remembered</p></div>
+<div class="row last rise" style="--i:5"><p class="n">05</p><h3 class="verb">Next job</h3><p class="what">Needle scaler for 30 min: about 361 points projected. Safer options, then “Supervisor review required”.</p><p class="band">LED: amber for tool use, red over the action value</p></div>
+</div>
+<div class="pg"></div>
+<aside>This is the live demo. Walk: the band separates walking from tool use. Speak: double-tap and say the defect. OpenAI extracts it, code checks the station against CV-102’s five stations, and a work order is drafted with an isolation note. With no station named, it asks instead of guessing. Use the tool: the technician selects the tool; on stage a phone on vibrate, labelled DEMO, stands in for a half-inch impact wrench. The band times trigger from its own sample clock. Score: 2 times a squared times T, linked to the defect and the work order. Next job: 30 minutes with a needle scaler projects about 361 points, far over the 100-point action value, so BeltGuard lists a vibration-reduced scaler (about 49 points), splitting the job, or a qualified colleague, and asks for supervisor review.</aside>
+</section>

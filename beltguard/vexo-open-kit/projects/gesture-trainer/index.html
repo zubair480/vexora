@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'">
+<title>Gesture trainer - Vexo Open project</title>
+<link rel="icon" href="../shared/icon.png">
+<link rel="stylesheet" href="../shared/style.css">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<h1>Gesture trainer</h1>
+<p>Teach the band your own gestures. Press Record, do the gesture three times with a short rest in between, and
+do the same for the next one. After that the page names every gesture you make and the band lights up in its colour.</p>
+<div class="card row">
+  <label>Band number <input id="number" inputmode="numeric" maxlength="13" placeholder="XX"></label>
+  <select id="link" aria-label="How to connect">
+    <option value="ble">Bluetooth</option>
+    <option value="serial">USB cable</option>
+    <option value="pretend">Pretend band (no hardware)</option>
+  </select>
+  <button id="connect">Connect</button>
+  <button id="disconnect" disabled>Disconnect</button>
+</div>
+<p id="needs-server"><b>Connect does nothing?</b> This page was opened as a file (by double-click), so the browser blocks its program.
+Open it through the web server on your own computer: in a terminal, in your project folder
+(<code>my-project</code>, the folder that holds <code>vexo-open-kit</code>), run
+<code>python3 -m http.server 8000 --bind 127.0.0.1</code> (on Windows type <code>python</code>),
+then open <code>http://localhost:8000/vexo-open-kit/projects/gesture-trainer/</code>
+(8000, or the port you started it with) in Chrome or Edge. Copied this page into your own folder? The
+command is the same; open <code>http://localhost:8000/gesture-trainer/</code>.</p>
+<p id="message" role="status">Double-tap your band, type its number and press Connect. No band? Choose "Pretend band".</p>
+<div class="card row pretend-only" hidden>
+  <span><span id="light"></span> The pretend band's light is <span id="light-text">off</span>.</span>
+  <button id="pretend-circle" disabled>Circle</button>
+  <button id="pretend-shake" disabled>Shake</button>
+  <button id="pretend-flick" disabled>Flick</button>
+  <button id="pretend-punch" disabled>Punch</button>
+  <button id="pretend-drop" disabled>Lose the link</button>
+</div>
+<div class="card">
+  <table>
+    <tr><th>Gesture</th><th>Colour</th><th></th><th>Examples</th></tr>
+    <tr><td><input id="name-0" value="Circle" maxlength="14" aria-label="Name of gesture 1"></td><td><input id="colour-0" type="color" value="#ff3b30" aria-label="Colour of gesture 1"></td><td><button id="record-0" disabled>Record</button></td><td id="count-0">0 of 3</td></tr>
+    <tr><td><input id="name-1" value="Shake" maxlength="14" aria-label="Name of gesture 2"></td><td><input id="colour-1" type="color" value="#34c759" aria-label="Colour of gesture 2"></td><td><button id="record-1" disabled>Record</button></td><td id="count-1">0 of 3</td></tr>
+    <tr><td><input id="name-2" value="Flick" maxlength="14" aria-label="Name of gesture 3"></td><td><input id="colour-2" type="color" value="#0a84ff" aria-label="Colour of gesture 3"></td><td><button id="record-2" disabled>Record</button></td><td id="count-2">0 of 3</td></tr>
+  </table>
+</div>
+<div class="card">
+  <p id="status" class="big">Not connected</p>
+  <p id="detail" class="soft">The last gesture the recogniser cut out of the motion is drawn here.</p>
+  <canvas id="picture" width="720" height="220"></canvas>
+  <p class="soft">Red, green, blue: acceleration x, y, z. Orange, purple, cyan: turning speed x, y, z.</p>
+</div>
+<script type="module" src="trainer.js"></script>
+</body>
+</html>

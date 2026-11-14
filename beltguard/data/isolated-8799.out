@@ -1,0 +1,25 @@
+[app] loaded exposure.py
+[app] tool profiles: impact_wrench, impact_wrench_1in, angle_grinder, needle_scaler, needle_scaler_vr, chipping_hammer, drill, hammer_drill, breaker_hammer, power_jack, torque_wrench_hydraulic, demo_tool
+ISOLATED BeltGuard on http://127.0.0.1:8799  (DB copy C:\Users\zubai\AppData\Local\Temp\bg-iso-823ssu3v\beltguard-voice-test.db; SIM band; no band search, no heartbeat, raw -> C:\Users\zubai\AppData\Local\Temp\bg-iso-823ssu3v\raw)
+[band] detector: using S3 detector.py at 50 Hz
+[band] connected Vexo-HACK-07 info {'number': 7, 'protocol': '1.1', 'firmware': '1.1.0', 'features': ['fast-motion', 'intervals', 'clock'], 'hardware': 1, 'capabilities': ['accel', 'gyro', 'events', 'steps', 'mic', 'led', 'battery', 'temperature', 'storage', 'tx-power', 'usb']}
+[band] motion_limits() {'rates': [10, 25, 50, 100, 208, 416, 833, 1666], 'accel': 833, 'gyro': 833, 'both': 416, 'transport': 'sim'}
+[band] recording raw motion to C:\Users\zubai\AppData\Local\Temp\bg-iso-823ssu3v\raw\20261114-150543-sim.jsonl
+[band] detector: using S3 detector.py at 416.0 Hz
+[app] loaded inspection.py
+[app] loaded planner.py
+[app] loaded intents.py
+[band] detector: using S3 detector.py at 50.0 Hz
+[band] detector: using S3 detector.py at 416.0 Hz
+[band] detector: using S3 detector.py at 50.0 Hz
+[band] detector: using S3 detector.py at 50.0 Hz
+[band] detector: using S3 detector.py at 416.0 Hz
+[band] detector: using S3 detector.py at 50.0 Hz
+[band] detector: using S3 detector.py at 50.0 Hz
+[band] detector: using S3 detector.py at 416.0 Hz
+[band] detector: using S3 detector.py at 50.0 Hz
+[band] detector: using S3 detector.py at 416.0 Hz
+[band] detector: using S3 detector.py at 50.0 Hz
+[band] detector: using S3 detector.py at 416.0 Hz
+[band] detector: using S3 detector.py at 50.0 Hz
+[app] loaded intents.py

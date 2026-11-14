@@ -1,0 +1,16 @@
+[app] loaded exposure.py
+[app] tool profiles: impact_wrench, impact_wrench_1in, angle_grinder, needle_scaler, needle_scaler_vr, chipping_hammer, drill, hammer_drill, breaker_hammer, power_jack, torque_wrench_hydraulic, demo_tool
+[app] BeltGuard on http://127.0.0.1:8765  (band 7, no simulated data; Python searches: usb; dashboard link: /ws/ingest)
+[app] fleet layer (re)loaded
+[app] loaded job_agent.py
+[app] loaded inspection.py
+[app] loaded planner.py
+[app] loaded intents.py
+[band] detector: using S3 detector.py at 50 Hz
+[app] searching for band 07 over usb
+[band] usb connect attempt 1 failed (no-port): No band found on USB. Plug the band in, or give the port name yourself: Band.connect(42, transport="serial", port="COM5"). On a Mac the port is called /dev/cu.u
+[band] detector: using S3 detector.py at 50 Hz
+[band] recording raw motion to C:\Users\zubai\vexo hackathon\beltguard\data\raw\20261114-153604-browser-ble.jsonl
+[app] BAND LIVE (browser-ble) · band 07 streams from the dashboard (Chrome Web Bluetooth) via /ws/ingest
+[band] detector: using S3 detector.py at 416.0 Hz
+[app] loaded job_agent.py

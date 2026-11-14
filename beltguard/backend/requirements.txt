@@ -1,0 +1,9 @@
+# BeltGuard backend. Install from the beltguard/ folder:  python -m pip install -r backend/requirements.txt
+# The Vexo Open library itself is NOT installed: app.py/band.py load it from vexo-open-kit/python
+# (the kit's own convention). bleak is its Bluetooth dependency.
+fastapi>=0.110
+uvicorn>=0.29
+websockets>=12
+numpy>=1.26
+openai>=1.40
+bleak>=0.21

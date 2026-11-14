@@ -1,0 +1,908 @@
+{
+  "info": {
+    "started": "2026-11-14 15:36:23",
+    "mode": "in-process, DB copy, sim band",
+    "db_rows": {
+      "conveyors": 1,
+      "defects": 11,
+      "exposure_records": 36,
+      "inspection_events": 37,
+      "meta": 4,
+      "motion_samples": 0,
+      "shift_events": 534,
+      "stations": 5,
+      "tool_assignments": 8,
+      "tool_profiles": 13,
+      "tool_sessions": 38,
+      "transcripts": 48,
+      "work_orders": 11,
+      "workers": 1
+    },
+    "timeline": [
+      [
+        "start",
+        [],
+        0
+      ],
+      [
+        "after say 1",
+        [
+          [
+            "Isolate & lock out CV-102",
+            "done"
+          ],
+          [
+            "Remove guard",
+            "left"
+          ],
+          [
+            "Replace idler",
+            "left"
+          ],
+          [
+            "Refit guard",
+            "left"
+          ],
+          [
+            "Remove isolation & test run",
+            "left"
+          ],
+          [
+            "Supervisor sign-off",
+            "left"
+          ]
+        ],
+        1
+      ],
+      [
+        "after say 2",
+        [
+          [
+            "Isolate & lock out CV-102",
+            "done"
+          ],
+          [
+            "Remove guard",
+            "done"
+          ],
+          [
+            "Replace idler",
+            "left"
+          ],
+          [
+            "Refit guard",
+            "left"
+          ],
+          [
+            "Remove isolation & test run",
+            "left"
+          ],
+          [
+            "Supervisor sign-off",
+            "left"
+          ]
+        ],
+        3
+      ],
+      [
+        "tool scene",
+        [
+          [
+            "Isolate & lock out CV-102",
+            "done"
+          ],
+          [
+            "Remove guard",
+            "done"
+          ],
+          [
+            "Replace idler",
+            "left"
+          ],
+          [
+            "Refit guard",
+            "left"
+          ],
+          [
+            "Remove isolation & test run",
+            "left"
+          ],
+          [
+            "Supervisor sign-off",
+            "left"
+          ]
+        ],
+        3
+      ],
+      [
+        "tool scene",
+        [
+          [
+            "Isolate & lock out CV-102",
+            "done"
+          ],
+          [
+            "Remove guard",
+            "done"
+          ],
+          [
+            "Replace idler",
+            "left"
+          ],
+          [
+            "Refit guard",
+            "left"
+          ],
+          [
+            "Remove isolation & test run",
+            "left"
+          ],
+          [
+            "Supervisor sign-off",
+            "left"
+          ]
+        ],
+        3
+      ],
+      [
+        "tool scene",
+        [
+          [
+            "Isolate & lock out CV-102",
+            "done"
+          ],
+          [
+            "Remove guard",
+            "done"
+          ],
+          [
+            "Replace idler",
+            "left"
+          ],
+          [
+            "Refit guard",
+            "left"
+          ],
+          [
+            "Remove isolation & test run",
+            "left"
+          ],
+          [
+            "Supervisor sign-off",
+            "left"
+          ]
+        ],
+        3
+      ],
+      [
+        "tool scene",
+        [
+          [
+            "Isolate & lock out CV-102",
+            "done"
+          ],
+          [
+            "Remove guard",
+            "done"
+          ],
+          [
+            "Replace idler",
+            "in_progress"
+          ],
+          [
+            "Refit guard",
+            "left"
+          ],
+          [
+            "Remove isolation & test run",
+            "left"
+          ],
+          [
+            "Supervisor sign-off",
+            "left"
+          ]
+        ],
+        3
+      ],
+      [
+        "tool scene",
+        [
+          [
+            "Isolate & lock out CV-102",
+            "done"
+          ],
+          [
+            "Remove guard",
+            "done"
+          ],
+          [
+            "Replace idler",
+            "in_progress"
+          ],
+          [
+            "Refit guard",
+            "left"
+          ],
+          [
+            "Remove isolation & test run",
+            "left"
+          ],
+          [
+            "Supervisor sign-off",
+            "left"
+          ]
+        ],
+        3
+      ],
+      [
+        "tool scene",
+        [
+          [
+            "Isolate & lock out CV-102",
+            "done"
+          ],
+          [
+            "Remove guard",
+            "done"
+          ],
+          [
+            "Replace idler",
+            "in_progress"
+          ],
+          [
+            "Refit guard",
+            "left"
+          ],
+          [
+            "Remove isolation & test run",
+            "left"
+          ],
+          [
+            "Supervisor sign-off",
+            "left"
+          ]
+        ],
+        3
+      ],
+      [
+        "tool scene",
+        [
+          [
+            "Isolate & lock out CV-102",
+            "done"
+          ],
+          [
+            "Remove guard",
+            "done"
+          ],
+          [
+            "Replace idler",
+            "in_progress"
+          ],
+          [
+            "Refit guard",
+            "left"
+          ],
+          [
+            "Remove isolation & test run",
+            "left"
+          ],
+          [
+            "Supervisor sign-off",
+            "left"
+          ]
+        ],
+        3
+      ],
+      [
+        "tool scene",
+        [
+          [
+            "Isolate & lock out CV-102",
+            "done"
+          ],
+          [
+            "Remove guard",
+            "done"
+          ],
+          [
+            "Replace idler",
+            "in_progress"
+          ],
+          [
+            "Refit guard",
+            "left"
+          ],
+          [
+            "Remove isolation & test run",
+            "left"
+          ],
+          [
+            "Supervisor sign-off",
+            "left"
+          ]
+        ],
+        3
+      ],
+      [
+        "tool scene",
+        [
+          [
+            "Isolate & lock out CV-102",
+            "done"
+          ],
+          [
+            "Remove guard",
+            "done"
+          ],
+          [
+            "Replace idler",
+            "in_progress"
+          ],
+          [
+            "Refit guard",
+            "left"
+          ],
+          [
+            "Remove isolation & test run",
+            "left"
+          ],
+          [
+            "Supervisor sign-off",
+            "left"
+          ]
+        ],
+        3
+      ],
+      [
+        "tool scene",
+        [
+          [
+            "Isolate & lock out CV-102",
+            "done"
+          ],
+          [
+            "Remove guard",
+            "done"
+          ],
+          [
+            "Replace idler",
+            "in_progress"
+          ],
+          [
+            "Refit guard",
+            "left"
+          ],
+          [
+            "Remove isolation & test run",
+            "left"
+          ],
+          [
+            "Supervisor sign-off",
+            "left"
+          ]
+        ],
+        3
+      ],
+      [
+        "tool scene",
+        [
+          [
+            "Isolate & lock out CV-102",
+            "done"
+          ],
+          [
+            "Remove guard",
+            "done"
+          ],
+          [
+            "Replace idler",
+            "in_progress"
+          ],
+          [
+            "Refit guard",
+            "left"
+          ],
+          [
+            "Remove isolation & test run",
+            "left"
+          ],
+          [
+            "Supervisor sign-off",
+            "left"
+          ]
+        ],
+        3
+      ],
+      [
+        "tool scene",
+        [
+          [
+            "Isolate & lock out CV-102",
+            "done"
+          ],
+          [
+            "Remove guard",
+            "done"
+          ],
+          [
+            "Replace idler",
+            "in_progress"
+          ],
+          [
+            "Refit guard",
+            "left"
+          ],
+          [
+            "Remove isolation & test run",
+            "left"
+          ],
+          [
+            "Supervisor sign-off",
+            "left"
+          ]
+        ],
+        3
+      ],
+      [
+        "tool scene",
+        [
+          [
+            "Isolate & lock out CV-102",
+            "done"
+          ],
+          [
+            "Remove guard",
+            "done"
+          ],
+          [
+            "Replace idler",
+            "in_progress"
+          ],
+          [
+            "Refit guard",
+            "left"
+          ],
+          [
+            "Remove isolation & test run",
+            "left"
+          ],
+          [
+            "Supervisor sign-off",
+            "left"
+          ]
+        ],
+        3
+      ],
+      [
+        "tool scene",
+        [
+          [
+            "Isolate & lock out CV-102",
+            "done"
+          ],
+          [
+            "Remove guard",
+            "done"
+          ],
+          [
+            "Replace idler",
+            "in_progress"
+          ],
+          [
+            "Refit guard",
+            "left"
+          ],
+          [
+            "Remove isolation & test run",
+            "left"
+          ],
+          [
+            "Supervisor sign-off",
+            "left"
+          ]
+        ],
+        3
+      ],
+      [
+        "tool scene",
+        [
+          [
+            "Isolate & lock out CV-102",
+            "done"
+          ],
+          [
+            "Remove guard",
+            "done"
+          ],
+          [
+            "Replace idler",
+            "in_progress"
+          ],
+          [
+            "Refit guard",
+            "left"
+          ],
+          [
+            "Remove isolation & test run",
+            "left"
+          ],
+          [
+            "Supervisor sign-off",
+            "left"
+          ]
+        ],
+        3
+      ],
+      [
+        "after tool",
+        [
+          [
+            "Isolate & lock out CV-102",
+            "done"
+          ],
+          [
+            "Remove guard",
+            "done"
+          ],
+          [
+            "Replace idler",
+            "in_progress"
+          ],
+          [
+            "Refit guard",
+            "left"
+          ],
+          [
+            "Remove isolation & test run",
+            "left"
+          ],
+          [
+            "Supervisor sign-off",
+            "left"
+          ]
+        ],
+        3
+      ],
+      [
+        "after say 4",
+        [
+          [
+            "Isolate & lock out CV-102",
+            "done"
+          ],
+          [
+            "Remove guard",
+            "done"
+          ],
+          [
+            "Replace idler",
+            "done"
+          ],
+          [
+            "Refit guard",
+            "done"
+          ],
+          [
+            "Remove isolation & test run",
+            "left"
+          ],
+          [
+            "Supervisor sign-off",
+            "left"
+          ]
+        ],
+        3
+      ],
+      [
+        "after say 5",
+        [
+          [
+            "Isolate & lock out CV-102",
+            "done"
+          ],
+          [
+            "Remove guard",
+            "done"
+          ],
+          [
+            "Replace idler",
+            "done"
+          ],
+          [
+            "Refit guard",
+            "done"
+          ],
+          [
+            "Remove isolation & test run",
+            "done"
+          ],
+          [
+            "Supervisor sign-off",
+            "in_progress"
+          ]
+        ],
+        5
+      ],
+      [
+        "end",
+        [
+          [
+            "Isolate & lock out CV-102",
+            "done"
+          ],
+          [
+            "Remove guard",
+            "done"
+          ],
+          [
+            "Replace idler",
+            "done"
+          ],
+          [
+            "Refit guard",
+            "done"
+          ],
+          [
+            "Remove isolation & test run",
+            "done"
+          ],
+          [
+            "Supervisor sign-off",
+            "in_progress"
+          ]
+        ],
+        5
+      ]
+    ],
+    "base": "in-process app on a DB copy (sim band)"
+  },
+  "counts": {
+    "PASS": 30,
+    "WARN": 0,
+    "FAIL": 0,
+    "SKIP": 0
+  },
+  "rows": [
+    {
+      "n": 1,
+      "status": "PASS",
+      "area": "setup",
+      "check": "backend/job_agent.py present (S4)",
+      "owner": "S4",
+      "detail": "present"
+    },
+    {
+      "n": 2,
+      "status": "PASS",
+      "area": "setup",
+      "check": "new shift on the copy",
+      "owner": "S2",
+      "detail": ""
+    },
+    {
+      "n": 3,
+      "status": "PASS",
+      "area": "say 1: Conveyor's isolated, lock'",
+      "check": "HTTP 200",
+      "owner": "S2",
+      "detail": "status='ignored' intent='none'"
+    },
+    {
+      "n": 4,
+      "status": "PASS",
+      "area": "say 1: Conveyor's isolated, lock'",
+      "check": "/ws transcript with an 'acted' flag",
+      "owner": "S2",
+      "detail": "transcript=True acted={\"acted\": \"Step: Isolate & lock out CV-102 \\u00b7 Isolati..."
+    },
+    {
+      "n": 5,
+      "status": "PASS",
+      "area": "say 2: Guard's off, the return id",
+      "check": "HTTP 200",
+      "owner": "S2",
+      "detail": "status='ok' intent='report_defect'"
+    },
+    {
+      "n": 6,
+      "status": "PASS",
+      "area": "say 2: Guard's off, the return id",
+      "check": "/ws transcript with an 'acted' flag",
+      "owner": "S2",
+      "detail": "transcript=True acted={\"acted\": \"Defect DEF-1011 at S3, WO-1011 drafted \\u00b7 ..."
+    },
+    {
+      "n": 7,
+      "status": "PASS",
+      "area": "tool",
+      "check": "impact wrench checked out",
+      "owner": "S2",
+      "detail": "HTTP 200"
+    },
+    {
+      "n": 8,
+      "status": "PASS",
+      "area": "tool",
+      "check": "sim tool scene 10 s",
+      "owner": "S2",
+      "detail": "HTTP 200"
+    },
+    {
+      "n": 9,
+      "status": "PASS",
+      "area": "tool",
+      "check": "tool session ended (tool_stop)",
+      "owner": "S3",
+      "detail": "Tool use 10 s \u00b7 Impact wrench 1/2\" drive | events ['tool_start', 'tool_stop', 'wo_in_progress'] | activity ['candidate', 'idle', 'tool_active'] | motion msgs 87"
+    },
+    {
+      "n": 10,
+      "status": "PASS",
+      "area": "say 4: New idler's in, guard back",
+      "check": "HTTP 200",
+      "owner": "S2",
+      "detail": "status='ignored' intent='none'"
+    },
+    {
+      "n": 11,
+      "status": "PASS",
+      "area": "say 4: New idler's in, guard back",
+      "check": "/ws transcript with an 'acted' flag",
+      "owner": "S2",
+      "detail": "transcript=True acted={\"acted\": \"Step: Replace idler \\u00b7 Step: Refit guard\",..."
+    },
+    {
+      "n": 12,
+      "status": "PASS",
+      "area": "say 5: Job done, testing the belt",
+      "check": "HTTP 200",
+      "owner": "S2",
+      "detail": "status='ignored' intent='none'"
+    },
+    {
+      "n": 13,
+      "status": "PASS",
+      "area": "say 5: Job done, testing the belt",
+      "check": "/ws transcript with an 'acted' flag",
+      "owner": "S2",
+      "detail": "transcript=True acted={\"acted\": \"Step: Supervisor sign-off \\u00b7 Step: Remove ..."
+    },
+    {
+      "n": 14,
+      "status": "PASS",
+      "area": "checklist",
+      "check": "job checklist present",
+      "owner": "S4",
+      "detail": "6 steps: ['Isolate & lock out CV-102', 'Remove guard', 'Replace idler', 'Refit guard', 'Remove isolation & test run', 'Supervisor sign-off']"
+    },
+    {
+      "n": 15,
+      "status": "PASS",
+      "area": "checklist",
+      "check": "steps done by the end",
+      "owner": "S4",
+      "detail": "5/6 done: [('Isolate & lock out CV-102', 'done'), ('Remove guard', 'done'), ('Replace idler', 'done'), ('Refit guard', 'done'), ('Remove isolation & test run', 'done'), ('Supervisor sign-off', 'in_progress')]"
+    },
+    {
+      "n": 16,
+      "status": "PASS",
+      "area": "checklist",
+      "check": "steps flipped to done in checklist order",
+      "owner": "S4",
+      "detail": "done order ['Isolate & lock out CV-102', 'Remove guard', 'Replace idler', 'Refit guard', 'Remove isolation & test run']"
+    },
+    {
+      "n": 17,
+      "status": "PASS",
+      "area": "checklist",
+      "check": "every done step carries evidence",
+      "owner": "S4",
+      "detail": "5 with evidence"
+    },
+    {
+      "n": 18,
+      "status": "PASS",
+      "area": "checklist",
+      "check": "'Replace idler' in_progress during the tool session",
+      "owner": "S4",
+      "detail": "seen at +2.1s"
+    },
+    {
+      "n": 19,
+      "status": "PASS",
+      "area": "agent",
+      "check": "agent action: WO draft",
+      "owner": "S4",
+      "detail": "{\"id\": \"ACT-2\", \"ts\": 1794699387.3286648, \"kind\": \"work_order\", \"text\": \"Work order WO-1011 drafted: seized..."
+    },
+    {
+      "n": 20,
+      "status": "PASS",
+      "area": "agent",
+      "check": "agent action: parts request DRAFT",
+      "owner": "S4",
+      "detail": "{\"id\": \"ACT-3\", \"ts\": 1794699387.3286648, \"kind\": \"parts_request\", \"text\": \"PR-2041: return idler 152 mm \\u..."
+    },
+    {
+      "n": 21,
+      "status": "PASS",
+      "area": "agent",
+      "check": "agent action: isolation logged",
+      "owner": "S4",
+      "detail": "{\"id\": \"ACT-1\", \"ts\": 1794699387.2839725, \"kind\": \"isolation\", \"text\": \"Isolation logged; an authorized per..."
+    },
+    {
+      "n": 22,
+      "status": "PASS",
+      "area": "agent",
+      "check": "agent action: awaiting supervisor verification",
+      "owner": "S4",
+      "detail": "{\"id\": \"ACT-4\", \"ts\": 1794699399.2262447, \"kind\": \"job_done\", \"text\": \"Marked complete; awaiting supervisor..."
+    },
+    {
+      "n": 23,
+      "status": "PASS",
+      "area": "honesty",
+      "check": "nothing closed by the agent (WO never closed)",
+      "owner": "S4",
+      "detail": "WO statuses [('WO-1011', 'awaiting_verification')]"
+    },
+    {
+      "n": 24,
+      "status": "PASS",
+      "area": "contract",
+      "check": "every broadcast: ts + source in contract set",
+      "owner": "S2",
+      "detail": "184 ok"
+    },
+    {
+      "n": 25,
+      "status": "PASS",
+      "area": "db",
+      "check": "all 10 contract tables exist",
+      "owner": "S2",
+      "detail": "conveyors, defects, exposure_records, inspection_events, meta, motion_samples, shift_events, stations, tool_assignments, tool_profiles, tool_sessions, transcripts, work_orders, workers"
+    },
+    {
+      "n": 26,
+      "status": "PASS",
+      "area": "db",
+      "check": "contract tables have id, ts, source columns",
+      "owner": "S2",
+      "detail": "ok"
+    },
+    {
+      "n": 27,
+      "status": "PASS",
+      "area": "db",
+      "check": "no row has NULL id/ts/source",
+      "owner": "S2",
+      "detail": "747 rows"
+    },
+    {
+      "n": 28,
+      "status": "PASS",
+      "area": "db",
+      "check": "every source is band|user|ai|rules|system|sim",
+      "owner": "S2",
+      "detail": "ok"
+    },
+    {
+      "n": 29,
+      "status": "PASS",
+      "area": "db",
+      "check": "extra tables also carry id/ts/source",
+      "owner": "S2",
+      "detail": "none"
+    },
+    {
+      "n": 30,
+      "status": "PASS",
+      "area": "isolation",
+      "check": "no band search or real band link",
+      "owner": "-",
+      "detail": "probes=0 blocked=0"
+    }
+  ]
+}

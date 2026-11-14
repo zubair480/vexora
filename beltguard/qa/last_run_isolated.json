@@ -1,0 +1,639 @@
+{
+  "info": {
+    "base": "http://127.0.0.1:8799",
+    "started": "2026-11-14 14:50:16",
+    "defect_id": "DEF-1013",
+    "work_order_id": "WO-1014",
+    "scene_s": 8.01,
+    "tool_session_id": "TS-1040",
+    "ws_counts": {
+      "snapshot": 10,
+      "connection": 3,
+      "motion": 459,
+      "activity": 217,
+      "sim_scene": 4,
+      "event": 18,
+      "transcript": 2,
+      "assistant": 2,
+      "clarify": 1
+    },
+    "db_rows": {
+      "conveyors": 1,
+      "defects": 13,
+      "exposure_records": 32,
+      "inspection_events": 41,
+      "meta": 4,
+      "motion_samples": 0,
+      "shift_events": 493,
+      "stations": 5,
+      "tool_assignments": 4,
+      "tool_profiles": 13,
+      "tool_sessions": 40,
+      "transcripts": 32,
+      "work_orders": 14,
+      "workers": 1
+    }
+  },
+  "counts": {
+    "PASS": 74,
+    "WARN": 0,
+    "FAIL": 0,
+    "SKIP": 0
+  },
+  "verdict": "PASS",
+  "elapsed_s": 63.7,
+  "rows": [
+    {
+      "n": 1,
+      "status": "PASS",
+      "area": "preflight",
+      "check": "GET /api/health",
+      "owner": "S2",
+      "detail": "HTTP 200"
+    },
+    {
+      "n": 2,
+      "status": "PASS",
+      "area": "preflight",
+      "check": "backend is in sim mode",
+      "owner": "S2",
+      "detail": "connection.state='simulated' simulated=True"
+    },
+    {
+      "n": 3,
+      "status": "PASS",
+      "area": "preflight",
+      "check": "S4 modules loaded (not fallback)",
+      "owner": "S4",
+      "detail": "{\"exposure\": \"ok\", \"inspection\": \"ok\", \"planner\": \"ok\", \"intents\": \"ok\"}"
+    },
+    {
+      "n": 4,
+      "status": "PASS",
+      "area": "preflight",
+      "check": "S3 detector.py loaded (not stub)",
+      "owner": "S3",
+      "detail": "detector='detector.py'"
+    },
+    {
+      "n": 5,
+      "status": "PASS",
+      "area": "ws",
+      "check": "connect ws://127.0.0.1:8799/ws",
+      "owner": "S2",
+      "detail": "open"
+    },
+    {
+      "n": 6,
+      "status": "PASS",
+      "area": "ws",
+      "check": "first message on connect is a snapshot",
+      "owner": "S2",
+      "detail": "got 'snapshot'"
+    },
+    {
+      "n": 7,
+      "status": "PASS",
+      "area": "setup",
+      "check": "settle: sim scene idle 60 s",
+      "owner": "S2",
+      "detail": "HTTP 200 {\"scene\": \"idle\", \"seconds\": 60.0}"
+    },
+    {
+      "n": 8,
+      "status": "PASS",
+      "area": "setup",
+      "check": "detector idle before the test",
+      "owner": "S3",
+      "detail": "detector.state='idle'"
+    },
+    {
+      "n": 9,
+      "status": "PASS",
+      "area": "rest",
+      "check": "GET /api/state",
+      "owner": "S2",
+      "detail": "HTTP 200 in 3.02s"
+    },
+    {
+      "n": 10,
+      "status": "PASS",
+      "area": "contract",
+      "check": "snapshot shape matches CONTRACT.md",
+      "owner": "S2",
+      "detail": "all keys/types ok"
+    },
+    {
+      "n": 11,
+      "status": "PASS",
+      "area": "contract",
+      "check": "seed: CV-102 stations S1..S5 (names, pos)",
+      "owner": "S2",
+      "detail": "ok"
+    },
+    {
+      "n": 12,
+      "status": "PASS",
+      "area": "contract",
+      "check": "tool profile impact_wrench has a and source",
+      "owner": "S4",
+      "detail": "a=5.0 source='HSE Vibration risk assessment, Table 1: impact wrenches, drive size...'"
+    },
+    {
+      "n": 13,
+      "status": "PASS",
+      "area": "rest",
+      "check": "POST /api/station S3",
+      "owner": "S2",
+      "detail": "HTTP 200 {\"active_station\": \"S3\"}"
+    },
+    {
+      "n": 14,
+      "status": "PASS",
+      "area": "ws",
+      "check": "event 'station' S3 pushed",
+      "owner": "S2",
+      "detail": "source='user'"
+    },
+    {
+      "n": 15,
+      "status": "PASS",
+      "area": "ws",
+      "check": "snapshot pushed after a state change",
+      "owner": "S2",
+      "detail": "3.12 s after POST"
+    },
+    {
+      "n": 16,
+      "status": "PASS",
+      "area": "inspection",
+      "check": "report -> status ok",
+      "owner": "S4",
+      "detail": "HTTP 200 in 3.0s: {\"status\": \"ok\", \"defect\": {\"id\": \"DEF-1013\", \"ts\": 1794696638.8808897, \"source\": \"user\", \"inspection_event_id\": \"IE-..."
+    },
+    {
+      "n": 17,
+      "status": "PASS",
+      "area": "inspection",
+      "check": "defect at S3 (said 'station three')",
+      "owner": "S4",
+      "detail": "station_id='S3' source='user'"
+    },
+    {
+      "n": 18,
+      "status": "PASS",
+      "area": "inspection",
+      "check": "component + condition extracted",
+      "owner": "S4",
+      "detail": "component='Return idler' condition='seized' severity='high'"
+    },
+    {
+      "n": 19,
+      "status": "PASS",
+      "area": "inspection",
+      "check": "severity is low|medium|high|critical",
+      "owner": "S4",
+      "detail": "severity='high'"
+    },
+    {
+      "n": 20,
+      "status": "PASS",
+      "area": "inspection",
+      "check": "work-order draft linked to defect",
+      "owner": "S4",
+      "detail": "WO-1014 status='draft' defect='DEF-1013' prio='P2 Urgent' steps=9 isolation=True tool='impact_wrench' est=4.0 title='Replace seized return idler \u2014 CV-102 S3 Return ...'"
+    },
+    {
+      "n": 21,
+      "status": "PASS",
+      "area": "honesty",
+      "check": "WO steps leave isolation to an authorized person",
+      "owner": "S4",
+      "detail": "[\"Stop CV-102 with the normal stop control and tell the control room.\", \"Isolate, lock out, tag and test for zero energy. Isolation must ..."
+    },
+    {
+      "n": 22,
+      "status": "PASS",
+      "area": "ws",
+      "check": "events 'defect' + 'wo_draft' pushed",
+      "owner": "S2",
+      "detail": "defect=True wo_draft=True"
+    },
+    {
+      "n": 23,
+      "status": "PASS",
+      "area": "inspection",
+      "check": "'something is broken' -> clarify",
+      "owner": "S4",
+      "detail": "HTTP 200 in 3.0s: {\"status\": \"clarify\", \"defect\": null, \"work_order\": null, \"question\": \"Which part at station 3 (Return idlers) has the problem? For examp..."
+    },
+    {
+      "n": 24,
+      "status": "PASS",
+      "area": "ws",
+      "check": "clarify message pushed with a question",
+      "owner": "S2",
+      "detail": "Which part at station 3 (Return idlers) has the problem? For example: \"return idler seized\"."
+    },
+    {
+      "n": 25,
+      "status": "PASS",
+      "area": "inspection",
+      "check": "vague report creates no defect / WO",
+      "owner": "S4",
+      "detail": "defects 3->3, work orders 4->4"
+    },
+    {
+      "n": 26,
+      "status": "PASS",
+      "area": "rest",
+      "check": "POST /api/tool impact_wrench",
+      "owner": "S2",
+      "detail": "HTTP 200 active_tool='impact_wrench'"
+    },
+    {
+      "n": 27,
+      "status": "PASS",
+      "area": "ws",
+      "check": "event 'tool_selected'/'tool_checkout' pushed",
+      "owner": "S2",
+      "detail": "tool_checkout"
+    },
+    {
+      "n": 28,
+      "status": "PASS",
+      "area": "sim",
+      "check": "POST /api/sim/scene tool",
+      "owner": "S2",
+      "detail": "HTTP 200 {\"scene\": \"tool\", \"seconds\": 15.0}"
+    },
+    {
+      "n": 29,
+      "status": "PASS",
+      "area": "sim",
+      "check": "POST /api/sim/scene idle",
+      "owner": "S2",
+      "detail": "HTTP 200, tool scene ran 8.01 s"
+    },
+    {
+      "n": 30,
+      "status": "PASS",
+      "area": "detector",
+      "check": "tool_start event during tool scene",
+      "owner": "S3",
+      "detail": "2.01 s after scene start, session TS-1040, source='sim'"
+    },
+    {
+      "n": 31,
+      "status": "PASS",
+      "area": "detector",
+      "check": "tool_start latency <= 3 s",
+      "owner": "S3",
+      "detail": "2.01 s"
+    },
+    {
+      "n": 32,
+      "status": "PASS",
+      "area": "honesty",
+      "check": "sim tool events labelled source 'sim'",
+      "owner": "S2",
+      "detail": "tool_start source='sim'"
+    },
+    {
+      "n": 33,
+      "status": "PASS",
+      "area": "detector",
+      "check": "tool_stop event after idle (confirmed)",
+      "owner": "S3",
+      "detail": "tool_stop 1.78 s after idle: Tool use 8 s \u00b7 Impact wrench 1/2\" drive"
+    },
+    {
+      "n": 34,
+      "status": "PASS",
+      "area": "ws",
+      "check": "linked WO moved to in_progress",
+      "owner": "S2",
+      "detail": "WO-1014"
+    },
+    {
+      "n": 35,
+      "status": "PASS",
+      "area": "ws",
+      "check": "event 'exposure' pushed for the session",
+      "owner": "S2",
+      "detail": "+0.1 pts \u00b7 day 0.4 / 100"
+    },
+    {
+      "n": 36,
+      "status": "PASS",
+      "area": "tool",
+      "check": "tool session in snapshot",
+      "owner": "S2",
+      "detail": "TS-1040"
+    },
+    {
+      "n": 37,
+      "status": "PASS",
+      "area": "tool",
+      "check": "session linked to S3 + its work order",
+      "owner": "S2",
+      "detail": "station='S3' wo='WO-1014' (expected S3, 'WO-1014')"
+    },
+    {
+      "n": 38,
+      "status": "PASS",
+      "area": "tool",
+      "check": "session confirmed with selected tool",
+      "owner": "S2",
+      "detail": "status='confirmed' tool='impact_wrench' conf=0.949"
+    },
+    {
+      "n": 39,
+      "status": "PASS",
+      "area": "detector",
+      "check": "trigger time ~ scene length",
+      "owner": "S3",
+      "detail": "trigger_s=8.21 vs scene 8.01 s (err 0.20 s)"
+    },
+    {
+      "n": 40,
+      "status": "PASS",
+      "area": "honesty",
+      "check": "sim tool session row source 'sim'",
+      "owner": "S2",
+      "detail": "source='sim'"
+    },
+    {
+      "n": 41,
+      "status": "PASS",
+      "area": "exposure",
+      "check": "exposure record for the session",
+      "owner": "S2",
+      "detail": "1 record(s)"
+    },
+    {
+      "n": 42,
+      "status": "PASS",
+      "area": "exposure",
+      "check": "a = selected tool profile value",
+      "owner": "S2",
+      "detail": "record a=5.0, profile a=5.0, vib_source='HSE Vibration risk assessment, Table 1: impact ...'"
+    },
+    {
+      "n": 43,
+      "status": "PASS",
+      "area": "exposure",
+      "check": "points = 2*a^2*T (T hours)",
+      "owner": "S4",
+      "detail": "points=0.1141, 2*5.0^2*8.21s/3600=0.1141"
+    },
+    {
+      "n": 44,
+      "status": "PASS",
+      "area": "exposure",
+      "check": "record trigger_s = session trigger_s",
+      "owner": "S2",
+      "detail": "record 8.214 vs session 8.214"
+    },
+    {
+      "n": 45,
+      "status": "PASS",
+      "area": "exposure",
+      "check": "session.points = record.points",
+      "owner": "S2",
+      "detail": "session 0.11408333333333333 vs record 0.11408333333333333"
+    },
+    {
+      "n": 46,
+      "status": "PASS",
+      "area": "honesty",
+      "check": "sim exposure record source 'sim'",
+      "owner": "S2",
+      "detail": "source='sim'"
+    },
+    {
+      "n": 47,
+      "status": "PASS",
+      "area": "honesty",
+      "check": "record method says SCREENING ESTIMATE",
+      "owner": "S2",
+      "detail": "SCREENING ESTIMATE: 2 x a^2 x T, a from tool profile, T from wrist-detected trigger time"
+    },
+    {
+      "n": 48,
+      "status": "PASS",
+      "area": "exposure",
+      "check": "day total = sum of confirmed records",
+      "owner": "S4",
+      "detail": "total=0.37 sum=0.369 over 4 records"
+    },
+    {
+      "n": 49,
+      "status": "PASS",
+      "area": "exposure",
+      "check": "day status matches 100/400 thresholds",
+      "owner": "S4",
+      "detail": "status='below_action' total=0.37"
+    },
+    {
+      "n": 50,
+      "status": "PASS",
+      "area": "honesty",
+      "check": "exposure labelled SCREENING ESTIMATE",
+      "owner": "S4",
+      "detail": "SCREENING ESTIMATE - not a certified HAV measurement"
+    },
+    {
+      "n": 51,
+      "status": "PASS",
+      "area": "planner",
+      "check": "POST /api/repair/plan S5",
+      "owner": "S2",
+      "detail": "HTTP 200 in 3.02s"
+    },
+    {
+      "n": 52,
+      "status": "PASS",
+      "area": "planner",
+      "check": "requires_supervisor_review is true",
+      "owner": "S4",
+      "detail": "requires_supervisor_review=True"
+    },
+    {
+      "n": 53,
+      "status": "PASS",
+      "area": "planner",
+      "check": "added_points = 2*a^2*T for 30 min",
+      "owner": "S4",
+      "detail": "added=25.0 expected 25.00"
+    },
+    {
+      "n": 54,
+      "status": "PASS",
+      "area": "planner",
+      "check": "projected = current + added",
+      "owner": "S4",
+      "detail": "projected=25.37 current=0.37 added=25.0"
+    },
+    {
+      "n": 55,
+      "status": "PASS",
+      "area": "planner",
+      "check": "status, headline, actions present",
+      "owner": "S4",
+      "detail": "status='ok' headline='Impact wrench 1/2\" drive for 30 min adds ~25 pts: day projected at ...' actions=3"
+    },
+    {
+      "n": 56,
+      "status": "PASS",
+      "area": "planner",
+      "check": "status matches projected points",
+      "owner": "S4",
+      "detail": "status='ok' projected=25.37"
+    },
+    {
+      "n": 57,
+      "status": "PASS",
+      "area": "honesty",
+      "check": "plan says supervisor review required",
+      "owner": "S4",
+      "detail": "[\"No exposure concern projected for this job (screening estimate). The band will update the estimate from the real tr..."
+    },
+    {
+      "n": 58,
+      "status": "PASS",
+      "area": "honesty",
+      "check": "AI takes no automatic actions",
+      "owner": "S4",
+      "detail": "automatic_actions=[]"
+    },
+    {
+      "n": 59,
+      "status": "PASS",
+      "area": "ws",
+      "check": "event 'projection' S5 pushed",
+      "owner": "S2",
+      "detail": "ok"
+    },
+    {
+      "n": 60,
+      "status": "PASS",
+      "area": "planner",
+      "check": "snapshot.recommendation = S5 plan",
+      "owner": "S2",
+      "detail": "planned={\"station_id\": \"S5\", \"task\": \"Replace drive pulley lagging\", \"tool_id\": \"impact_wrench\", \"est_trigger_min\": 30.0, \"wo..."
+    },
+    {
+      "n": 61,
+      "status": "PASS",
+      "area": "planner",
+      "check": "S5 work order is 'planned'",
+      "owner": "S2",
+      "detail": "WO-1012 station='S5' status='planned'"
+    },
+    {
+      "n": 62,
+      "status": "PASS",
+      "area": "contract",
+      "check": "every event of this run is in snapshot.timeline",
+      "owner": "S2",
+      "detail": "18 events all present"
+    },
+    {
+      "n": 63,
+      "status": "PASS",
+      "area": "contract",
+      "check": "final snapshot shape matches CONTRACT.md",
+      "owner": "S2",
+      "detail": "all keys/types ok"
+    },
+    {
+      "n": 64,
+      "status": "PASS",
+      "area": "ws",
+      "check": "every message has type, ts (unix s) and source",
+      "owner": "S2",
+      "detail": "716 messages"
+    },
+    {
+      "n": 65,
+      "status": "PASS",
+      "area": "ws",
+      "check": "message payloads match CONTRACT.md",
+      "owner": "S2",
+      "detail": "types {\"snapshot\": 10, \"connection\": 3, \"motion\": 459, \"activity\": 217, \"sim_scene\": 4, \"event\": 18, \"transcript\": 2, \"assi..."
+    },
+    {
+      "n": 66,
+      "status": "PASS",
+      "area": "ws",
+      "check": "motion ~10/s, activity ~4/s",
+      "owner": "S2",
+      "detail": "motion 7.7/s, activity 3.6/s over 60 s"
+    },
+    {
+      "n": 67,
+      "status": "PASS",
+      "area": "honesty",
+      "check": "sim motion/activity labelled source 'sim'",
+      "owner": "S2",
+      "detail": "0 of 676 not 'sim'"
+    },
+    {
+      "n": 68,
+      "status": "PASS",
+      "area": "honesty",
+      "check": "sim_scene messages labelled source 'sim'",
+      "owner": "S2",
+      "detail": "sources ['sim']"
+    },
+    {
+      "n": 69,
+      "status": "PASS",
+      "area": "db",
+      "check": "all 10 contract tables exist",
+      "owner": "S2",
+      "detail": "conveyors, defects, exposure_records, inspection_events, meta, motion_samples, shift_events, stations, tool_assignments, tool_profiles, tool_sessions, transcripts, work_orders, workers"
+    },
+    {
+      "n": 70,
+      "status": "PASS",
+      "area": "db",
+      "check": "contract tables have id, ts, source columns",
+      "owner": "S2",
+      "detail": "ok"
+    },
+    {
+      "n": 71,
+      "status": "PASS",
+      "area": "db",
+      "check": "no row has NULL id/ts/source",
+      "owner": "S2",
+      "detail": "693 rows"
+    },
+    {
+      "n": 72,
+      "status": "PASS",
+      "area": "db",
+      "check": "every source is band|user|ai|rules|system|sim",
+      "owner": "S2",
+      "detail": "ok"
+    },
+    {
+      "n": 73,
+      "status": "PASS",
+      "area": "db",
+      "check": "extra tables also carry id/ts/source",
+      "owner": "S2",
+      "detail": "none"
+    },
+    {
+      "n": 74,
+      "status": "PASS",
+      "area": "db",
+      "check": "tool session + exposure persisted",
+      "owner": "S2",
+      "detail": "TS-1040 row=('sim', 'S3', 'WO-1014', 'confirmed') exposure_records=1"
+    }
+  ]
+}

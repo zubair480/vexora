@@ -1,0 +1,759 @@
+{
+  "info": {
+    "started": "2026-11-14 14:55:18",
+    "mode": "in-process, DB copy",
+    "db_copy": "C:\\Users\\zubai\\AppData\\Local\\Temp\\bg-voice-o1r8yk7i\\beltguard-voice-test.db",
+    "modules": {
+      "exposure": "ok",
+      "inspection": "ok",
+      "planner": "ok",
+      "intents": "ok"
+    },
+    "broadcasts": {
+      "event": 28,
+      "transcript": 12,
+      "assistant": 11,
+      "snapshot": 8,
+      "connection": 1
+    },
+    "db_rows": {
+      "conveyors": 1,
+      "defects": 11,
+      "exposure_records": 30,
+      "inspection_events": 37,
+      "meta": 4,
+      "motion_samples": 0,
+      "shift_events": 468,
+      "stations": 5,
+      "tool_assignments": 4,
+      "tool_profiles": 13,
+      "tool_sessions": 38,
+      "transcripts": 38,
+      "work_orders": 11,
+      "workers": 1
+    },
+    "db_copy_removed": true,
+    "base": "in-process app on C:\\Users\\zubai\\AppData\\Local\\Temp\\bg-voice-o1r8yk7i\\beltguard-voice-test.db"
+  },
+  "counts": {
+    "PASS": 89,
+    "WARN": 0,
+    "FAIL": 0,
+    "SKIP": 0
+  },
+  "verdict": "PASS",
+  "rows": [
+    {
+      "n": 1,
+      "status": "PASS",
+      "area": "setup",
+      "check": "isolated app on a DB copy (no band, no server)",
+      "owner": "-",
+      "detail": "C:\\Users\\zubai\\AppData\\Local\\Temp\\bg-voice-o1r8yk7i\\beltguard-voice-test.db"
+    },
+    {
+      "n": 2,
+      "status": "PASS",
+      "area": "setup",
+      "check": "new shift on the copy (POST /api/reset)",
+      "owner": "S2",
+      "detail": "HTTP 200"
+    },
+    {
+      "n": 3,
+      "status": "PASS",
+      "area": "setup",
+      "check": "S4 intents.py loaded",
+      "owner": "S4",
+      "detail": "intents module loaded"
+    },
+    {
+      "n": 4,
+      "status": "PASS",
+      "area": "voice: BeltGuard, I'm at station th",
+      "check": "HTTP 200 + intent select_station",
+      "owner": "S4",
+      "detail": "HTTP 200 in 0.0s, intent='select_station' status='ok'"
+    },
+    {
+      "n": 5,
+      "status": "PASS",
+      "area": "voice: BeltGuard, I'm at station th",
+      "check": "response_text present",
+      "owner": "S2",
+      "detail": "Station 3, return idlers. Ready when you are."
+    },
+    {
+      "n": 6,
+      "status": "PASS",
+      "area": "voice: BeltGuard, I'm at station th",
+      "check": "state: active_station -> S3",
+      "owner": "S2",
+      "detail": "active_station None -> 'S3'"
+    },
+    {
+      "n": 7,
+      "status": "PASS",
+      "area": "voice: BeltGuard, I'm at station th",
+      "check": "response names station 3",
+      "owner": "S4",
+      "detail": "'Station 3, return idlers. Ready when you are.'"
+    },
+    {
+      "n": 8,
+      "status": "PASS",
+      "area": "voice: BeltGuard, I'm at station th",
+      "check": "WS assistant line = response_text",
+      "owner": "S2",
+      "detail": "intent='select_station' source='rules'"
+    },
+    {
+      "n": 9,
+      "status": "PASS",
+      "area": "voice: BeltGuard, I'm at station th",
+      "check": "transcript row: source band, input voice",
+      "owner": "S2",
+      "detail": "TR-1027 source='band' input='voice' intent='select_station'"
+    },
+    {
+      "n": 10,
+      "status": "PASS",
+      "area": "voice: Return idler seized, needs r",
+      "check": "HTTP 200 + intent defect_report/report_defect",
+      "owner": "S4",
+      "detail": "HTTP 200 in 0.0s, intent='report_defect' status='ok'"
+    },
+    {
+      "n": 11,
+      "status": "PASS",
+      "area": "voice: Return idler seized, needs r",
+      "check": "response_text present",
+      "owner": "S2",
+      "detail": "Logged seized return idler at station 3, return idlers. Work order WO-1011 drafted for review."
+    },
+    {
+      "n": 12,
+      "status": "PASS",
+      "area": "voice: Return idler seized, needs r",
+      "check": "defect logged at S3 (return idler, seized)",
+      "owner": "S4",
+      "detail": "defects 0->1; DEF-1011 S3/Return idler/seized"
+    },
+    {
+      "n": 13,
+      "status": "PASS",
+      "area": "voice: Return idler seized, needs r",
+      "check": "work-order draft linked",
+      "owner": "S2",
+      "detail": "WO-1011 status='draft' isolation=True"
+    },
+    {
+      "n": 14,
+      "status": "PASS",
+      "area": "voice: Return idler seized, needs r",
+      "check": "WS assistant line = response_text",
+      "owner": "S2",
+      "detail": "intent='report_defect' source='rules'"
+    },
+    {
+      "n": 15,
+      "status": "PASS",
+      "area": "voice: Return idler seized, needs r",
+      "check": "transcript row: source band, input voice",
+      "owner": "S2",
+      "detail": "TR-1028 source='band' input='voice' intent='report_defect'"
+    },
+    {
+      "n": 16,
+      "status": "PASS",
+      "area": "voice: I'm taking the hammer drill",
+      "check": "HTTP 200 + intent chat/none",
+      "owner": "S4",
+      "detail": "HTTP 200 in 0.0s, intent='none' status='ignored'"
+    },
+    {
+      "n": 17,
+      "status": "PASS",
+      "area": "voice: I'm taking the hammer drill",
+      "check": "silent: status ignored, no response",
+      "owner": "S4",
+      "detail": "status='ignored' response_text=None"
+    },
+    {
+      "n": 18,
+      "status": "PASS",
+      "area": "voice: I'm taking the hammer drill",
+      "check": "no state change (station, tool, defects, WOs, checkout)",
+      "owner": "S2",
+      "detail": "unchanged"
+    },
+    {
+      "n": 19,
+      "status": "PASS",
+      "area": "voice: I'm taking the hammer drill",
+      "check": "silent: no assistant line",
+      "owner": "S2",
+      "detail": "none"
+    },
+    {
+      "n": 20,
+      "status": "PASS",
+      "area": "voice: I'm taking the hammer drill",
+      "check": "transcript row: source band, input voice",
+      "owner": "S2",
+      "detail": "TR-1029 source='band' input='voice' intent='none'"
+    },
+    {
+      "n": 21,
+      "status": "PASS",
+      "area": "voice: Idler replaced, job done",
+      "check": "HTTP 200 + intent chat/none",
+      "owner": "S4",
+      "detail": "HTTP 200 in 0.0s, intent='none' status='ignored'"
+    },
+    {
+      "n": 22,
+      "status": "PASS",
+      "area": "voice: Idler replaced, job done",
+      "check": "silent: status ignored, no response",
+      "owner": "S4",
+      "detail": "status='ignored' response_text=None"
+    },
+    {
+      "n": 23,
+      "status": "PASS",
+      "area": "voice: Idler replaced, job done",
+      "check": "no state change (station, tool, defects, WOs, checkout)",
+      "owner": "S2",
+      "detail": "unchanged"
+    },
+    {
+      "n": 24,
+      "status": "PASS",
+      "area": "voice: Idler replaced, job done",
+      "check": "silent: no assistant line",
+      "owner": "S2",
+      "detail": "none"
+    },
+    {
+      "n": 25,
+      "status": "PASS",
+      "area": "voice: Idler replaced, job done",
+      "check": "transcript row: source band, input voice",
+      "owner": "S2",
+      "detail": "TR-1030 source='band' input='voice' intent='none'"
+    },
+    {
+      "n": 26,
+      "status": "PASS",
+      "area": "voice: We need to do something base",
+      "check": "HTTP 200 + intent chat/none",
+      "owner": "S4",
+      "detail": "HTTP 200 in 0.0s, intent='none' status='ignored'"
+    },
+    {
+      "n": 27,
+      "status": "PASS",
+      "area": "voice: We need to do something base",
+      "check": "silent: status ignored, no response",
+      "owner": "S4",
+      "detail": "status='ignored' response_text=None"
+    },
+    {
+      "n": 28,
+      "status": "PASS",
+      "area": "voice: We need to do something base",
+      "check": "no state change (station, tool, defects, WOs, checkout)",
+      "owner": "S2",
+      "detail": "unchanged"
+    },
+    {
+      "n": 29,
+      "status": "PASS",
+      "area": "voice: We need to do something base",
+      "check": "silent: no assistant line",
+      "owner": "S2",
+      "detail": "none"
+    },
+    {
+      "n": 30,
+      "status": "PASS",
+      "area": "voice: We need to do something base",
+      "check": "transcript row: source band, input voice",
+      "owner": "S2",
+      "detail": "TR-1031 source='band' input='voice' intent='none'"
+    },
+    {
+      "n": 31,
+      "status": "PASS",
+      "area": "voice: BeltGuard, I'm taking the ha",
+      "check": "HTTP 200 + intent tool_checkout",
+      "owner": "S4",
+      "detail": "HTTP 200 in 0.0s, intent='tool_checkout' status='ok'"
+    },
+    {
+      "n": 32,
+      "status": "PASS",
+      "area": "voice: BeltGuard, I'm taking the ha",
+      "check": "response_text present",
+      "owner": "S2",
+      "detail": "Hammer drill assigned to you. I'll time it from your band. About 24 minutes on it before the action value."
+    },
+    {
+      "n": 33,
+      "status": "PASS",
+      "area": "voice: BeltGuard, I'm taking the ha",
+      "check": "state: hammer drill checked out",
+      "owner": "S2",
+      "detail": "active_tool='hammer_drill' assignment={\"id\": \"TA-1004\", \"tool\": {\"id\": \"hammer_drill\", \"name\": \"Hammer drill\", \"category\": \"p..."
+    },
+    {
+      "n": 34,
+      "status": "PASS",
+      "area": "voice: BeltGuard, I'm taking the ha",
+      "check": "response names the hammer drill",
+      "owner": "S4",
+      "detail": "\"Hammer drill assigned to you. I'll time it from your band. About 24 minutes on it before the action value.\""
+    },
+    {
+      "n": 35,
+      "status": "PASS",
+      "area": "voice: BeltGuard, I'm taking the ha",
+      "check": "WS assistant line = response_text",
+      "owner": "S2",
+      "detail": "intent='tool_checkout' source='rules'"
+    },
+    {
+      "n": 36,
+      "status": "PASS",
+      "area": "voice: BeltGuard, I'm taking the ha",
+      "check": "transcript row: source band, input voice",
+      "owner": "S2",
+      "detail": "TR-1032 source='band' input='voice' intent='tool_checkout'"
+    },
+    {
+      "n": 37,
+      "status": "PASS",
+      "area": "voice: BeltGuard, how long can I ke",
+      "check": "HTTP 200 + intent exposure_query",
+      "owner": "S4",
+      "detail": "HTTP 200 in 0.0s, intent='exposure_query' status='ok'"
+    },
+    {
+      "n": 38,
+      "status": "PASS",
+      "area": "voice: BeltGuard, how long can I ke",
+      "check": "response_text present",
+      "owner": "S2",
+      "detail": "You're at 0 points, below the 100-point action value. About 24 minutes left with the hammer drill before 100."
+    },
+    {
+      "n": 39,
+      "status": "PASS",
+      "area": "voice: BeltGuard, how long can I ke",
+      "check": "response gives minutes left",
+      "owner": "S4",
+      "detail": "\"You're at 0 points, below the 100-point action value. About 24 minutes left with the hammer drill before 100.\""
+    },
+    {
+      "n": 40,
+      "status": "PASS",
+      "area": "voice: BeltGuard, how long can I ke",
+      "check": "no state change for a question",
+      "owner": "S2",
+      "detail": "station/tool/defects unchanged"
+    },
+    {
+      "n": 41,
+      "status": "PASS",
+      "area": "voice: BeltGuard, how long can I ke",
+      "check": "WS assistant line = response_text",
+      "owner": "S2",
+      "detail": "intent='exposure_query' source='rules'"
+    },
+    {
+      "n": 42,
+      "status": "PASS",
+      "area": "voice: BeltGuard, how long can I ke",
+      "check": "transcript row: source band, input voice",
+      "owner": "S2",
+      "detail": "TR-1033 source='band' input='voice' intent='exposure_query'"
+    },
+    {
+      "n": 43,
+      "status": "PASS",
+      "area": "voice: BeltGuard, done, returning t",
+      "check": "HTTP 200 + intent tool_return",
+      "owner": "S4",
+      "detail": "HTTP 200 in 0.0s, intent='tool_return' status='ok'"
+    },
+    {
+      "n": 44,
+      "status": "PASS",
+      "area": "voice: BeltGuard, done, returning t",
+      "check": "response_text present",
+      "owner": "S2",
+      "detail": "Drill returned. 0 points with it today."
+    },
+    {
+      "n": 45,
+      "status": "PASS",
+      "area": "voice: BeltGuard, done, returning t",
+      "check": "state: tool returned (no open checkout)",
+      "owner": "S2",
+      "detail": "active_tool=None assignment={}"
+    },
+    {
+      "n": 46,
+      "status": "PASS",
+      "area": "voice: BeltGuard, done, returning t",
+      "check": "response summarises the return",
+      "owner": "S4",
+      "detail": "'Drill returned. 0 points with it today.'"
+    },
+    {
+      "n": 47,
+      "status": "PASS",
+      "area": "voice: BeltGuard, done, returning t",
+      "check": "WS assistant line = response_text",
+      "owner": "S2",
+      "detail": "intent='tool_return' source='rules'"
+    },
+    {
+      "n": 48,
+      "status": "PASS",
+      "area": "voice: BeltGuard, done, returning t",
+      "check": "transcript row: source band, input voice",
+      "owner": "S2",
+      "detail": "TR-1034 source='band' input='voice' intent='tool_return'"
+    },
+    {
+      "n": 49,
+      "status": "PASS",
+      "area": "voice: BeltGuard, idler replaced, j",
+      "check": "HTTP 200 + intent job_complete",
+      "owner": "S4",
+      "detail": "HTTP 200 in 0.0s, intent='job_complete' status='ok'"
+    },
+    {
+      "n": 50,
+      "status": "PASS",
+      "area": "voice: BeltGuard, idler replaced, j",
+      "check": "response_text present",
+      "owner": "S2",
+      "detail": "WO-1011 marked awaiting supervisor verification. BeltGuard never closes work on its own."
+    },
+    {
+      "n": 51,
+      "status": "PASS",
+      "area": "voice: BeltGuard, idler replaced, j",
+      "check": "state: S3 WO -> awaiting_verification",
+      "owner": "S2",
+      "detail": "WO-1011 'draft' -> 'awaiting_verification'"
+    },
+    {
+      "n": 52,
+      "status": "PASS",
+      "area": "voice: BeltGuard, idler replaced, j",
+      "check": "honesty: AI never closes a work order",
+      "owner": "S2",
+      "detail": "status='awaiting_verification'"
+    },
+    {
+      "n": 53,
+      "status": "PASS",
+      "area": "voice: BeltGuard, idler replaced, j",
+      "check": "response says a supervisor must verify",
+      "owner": "S4",
+      "detail": "'WO-1011 marked awaiting supervisor verification. BeltGuard never closes work on its own.'"
+    },
+    {
+      "n": 54,
+      "status": "PASS",
+      "area": "voice: BeltGuard, idler replaced, j",
+      "check": "WS assistant line = response_text",
+      "owner": "S2",
+      "detail": "intent='job_complete' source='rules'"
+    },
+    {
+      "n": 55,
+      "status": "PASS",
+      "area": "voice: BeltGuard, idler replaced, j",
+      "check": "transcript row: source band, input voice",
+      "owner": "S2",
+      "detail": "TR-1035 source='band' input='voice' intent='job_complete'"
+    },
+    {
+      "n": 56,
+      "status": "PASS",
+      "area": "voice: Conveyor isolated",
+      "check": "HTTP 200 + intent chat/none",
+      "owner": "S4",
+      "detail": "HTTP 200 in 0.0s, intent='none' status='ignored'"
+    },
+    {
+      "n": 57,
+      "status": "PASS",
+      "area": "voice: Conveyor isolated",
+      "check": "silent: status ignored, no response",
+      "owner": "S4",
+      "detail": "status='ignored' response_text=None"
+    },
+    {
+      "n": 58,
+      "status": "PASS",
+      "area": "voice: Conveyor isolated",
+      "check": "no state change (station, tool, defects, WOs, checkout)",
+      "owner": "S2",
+      "detail": "unchanged"
+    },
+    {
+      "n": 59,
+      "status": "PASS",
+      "area": "voice: Conveyor isolated",
+      "check": "silent: no assistant line",
+      "owner": "S2",
+      "detail": "none"
+    },
+    {
+      "n": 60,
+      "status": "PASS",
+      "area": "voice: Conveyor isolated",
+      "check": "transcript row: source band, input voice",
+      "owner": "S2",
+      "detail": "TR-1036 source='band' input='voice' intent='none'"
+    },
+    {
+      "n": 61,
+      "status": "PASS",
+      "area": "voice: Belt guard, conveyor isolate",
+      "check": "HTTP 200 + intent isolation_claim",
+      "owner": "S4",
+      "detail": "HTTP 200 in 0.1s, intent='isolation_claim' status='ok'"
+    },
+    {
+      "n": 62,
+      "status": "PASS",
+      "area": "voice: Belt guard, conveyor isolate",
+      "check": "response_text present",
+      "owner": "S2",
+      "detail": "Isolation noted. An authorized person must verify it before work starts."
+    },
+    {
+      "n": 63,
+      "status": "PASS",
+      "area": "voice: Belt guard, conveyor isolate",
+      "check": "honesty: response defers to an authorized person",
+      "owner": "S4",
+      "detail": "'Isolation noted. An authorized person must verify it before work starts.'"
+    },
+    {
+      "n": 64,
+      "status": "PASS",
+      "area": "voice: Belt guard, conveyor isolate",
+      "check": "honesty: no 'isolation verified' state set by AI",
+      "owner": "S2",
+      "detail": "flags=[] requires_isolation=[True]"
+    },
+    {
+      "n": 65,
+      "status": "PASS",
+      "area": "voice: Belt guard, conveyor isolate",
+      "check": "WS assistant line = response_text",
+      "owner": "S2",
+      "detail": "intent='isolation_claim' source='rules'"
+    },
+    {
+      "n": 66,
+      "status": "PASS",
+      "area": "voice: Belt guard, conveyor isolate",
+      "check": "transcript row: source band, input voice",
+      "owner": "S2",
+      "detail": "TR-1037 source='band' input='voice' intent='isolation_claim'"
+    },
+    {
+      "n": 67,
+      "status": "PASS",
+      "area": "voice: Hey BeltGuard, what can I sa",
+      "check": "HTTP 200 + intent help",
+      "owner": "S4",
+      "detail": "HTTP 200 in 0.0s, intent='help' status='ok'"
+    },
+    {
+      "n": 68,
+      "status": "PASS",
+      "area": "voice: Hey BeltGuard, what can I sa",
+      "check": "response_text present",
+      "owner": "S2",
+      "detail": "Say BeltGuard first, then a command. For example: BeltGuard, I'm at station three. BeltGuard, taking the hammer drill..."
+    },
+    {
+      "n": 69,
+      "status": "PASS",
+      "area": "voice: Hey BeltGuard, what can I sa",
+      "check": "help gives example commands",
+      "owner": "S4",
+      "detail": "5 examples, covers ['station', 'defect', 'tool', 'exposure', 'return', 'job done']"
+    },
+    {
+      "n": 70,
+      "status": "PASS",
+      "area": "voice: Hey BeltGuard, what can I sa",
+      "check": "help covers the core commands (WARN only)",
+      "owner": "S4",
+      "detail": "covers ['station', 'defect', 'tool', 'exposure', 'return', 'job done'] of ['station', 'defect', 'tool', 'exposure', 'return', 'job done']: \"Say BeltGuard first, then a command. For example: BeltGuard, I'm at station three. BeltGuard, taking the hammer drill. BeltGuard, how long can I keep going. BeltGuard, done with the drill. BeltGuard, job done. To report a defect, just say it, like: return idler seized.\""
+    },
+    {
+      "n": 71,
+      "status": "PASS",
+      "area": "voice: Hey BeltGuard, what can I sa",
+      "check": "no state change for help",
+      "owner": "S2",
+      "detail": "unchanged"
+    },
+    {
+      "n": 72,
+      "status": "PASS",
+      "area": "voice: Hey BeltGuard, what can I sa",
+      "check": "WS assistant line = response_text",
+      "owner": "S2",
+      "detail": "intent='help' source='rules'"
+    },
+    {
+      "n": 73,
+      "status": "PASS",
+      "area": "voice: Hey BeltGuard, what can I sa",
+      "check": "transcript row: source band, input voice",
+      "owner": "S2",
+      "detail": "TR-1038 source='band' input='voice' intent='help'"
+    },
+    {
+      "n": 74,
+      "status": "PASS",
+      "area": "ingest",
+      "check": "test link accepted (ack)",
+      "owner": "S2",
+      "detail": "{\"type\": \"ack\", \"ready\": true, \"band\": 7}"
+    },
+    {
+      "n": 75,
+      "status": "PASS",
+      "area": "ingest",
+      "check": "test link labelled source 'sim'",
+      "owner": "S2",
+      "detail": "band_live source='sim'"
+    },
+    {
+      "n": 76,
+      "status": "PASS",
+      "area": "band events",
+      "check": "free-fall -> safety event",
+      "owner": "S2",
+      "detail": "Possible drop or fall near S3 Return idlers: check on W-01"
+    },
+    {
+      "n": 77,
+      "status": "PASS",
+      "area": "band events",
+      "check": "safety: a person must check (no auto action)",
+      "owner": "S2",
+      "detail": "Band free-fall event. A person must check; BeltGuard only reports it."
+    },
+    {
+      "n": 78,
+      "status": "PASS",
+      "area": "band events",
+      "check": "free-fall -> assistant line",
+      "owner": "S2",
+      "detail": "Possible drop or fall near S3 Return idlers: check on W-01"
+    },
+    {
+      "n": 79,
+      "status": "PASS",
+      "area": "band events",
+      "check": "double-tap, nothing pending -> 'nothing to confirm'",
+      "owner": "S2",
+      "detail": "Double-tap: nothing to confirm"
+    },
+    {
+      "n": 80,
+      "status": "PASS",
+      "area": "band events",
+      "check": "double-tap confirms the unresolved session",
+      "owner": "S2",
+      "detail": "TS-1038 status='confirmed' \u00b7 Confirmed by double-tap: TS-1038, 12 s, +0.17 pts"
+    },
+    {
+      "n": 81,
+      "status": "PASS",
+      "area": "band events",
+      "check": "exposure record = 2*a^2*T (12 s @ 5 m/s2)",
+      "owner": "S4",
+      "detail": "1 record(s), points=0.16666666666666669, expected 0.1667"
+    },
+    {
+      "n": 82,
+      "status": "PASS",
+      "area": "isolation",
+      "check": "no band search or real band link (blocked, never started)",
+      "owner": "-",
+      "detail": "probes=0, search requests blocked=0, real-bridge attempts=0"
+    },
+    {
+      "n": 83,
+      "status": "PASS",
+      "area": "contract",
+      "check": "every broadcast: type, ts, source in contract set",
+      "owner": "S2",
+      "detail": "60 messages {\"event\": 28, \"transcript\": 12, \"assistant\": 11, \"snapshot\": 8, \"connection\": 1}"
+    },
+    {
+      "n": 84,
+      "status": "PASS",
+      "area": "db",
+      "check": "all 10 contract tables exist",
+      "owner": "S2",
+      "detail": "conveyors, defects, exposure_records, inspection_events, meta, motion_samples, shift_events, stations, tool_assignments, tool_profiles, tool_sessions, transcripts, work_orders, workers"
+    },
+    {
+      "n": 85,
+      "status": "PASS",
+      "area": "db",
+      "check": "contract tables have id, ts, source columns",
+      "owner": "S2",
+      "detail": "ok"
+    },
+    {
+      "n": 86,
+      "status": "PASS",
+      "area": "db",
+      "check": "no row has NULL id/ts/source",
+      "owner": "S2",
+      "detail": "661 rows"
+    },
+    {
+      "n": 87,
+      "status": "PASS",
+      "area": "db",
+      "check": "every source is band|user|ai|rules|system|sim",
+      "owner": "S2",
+      "detail": "ok"
+    },
+    {
+      "n": 88,
+      "status": "PASS",
+      "area": "db",
+      "check": "extra tables also carry id/ts/source",
+      "owner": "S2",
+      "detail": "none"
+    },
+    {
+      "n": 89,
+      "status": "PASS",
+      "area": "ui",
+      "check": "live page handles the assistant line",
+      "owner": "S8",
+      "detail": "handled in ['app3.js']"
+    }
+  ]
+}

@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Band link · BeltGuard</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#FFFFFF;--muted:#F4F4F5;--fg:#09090B;--mfg:#71717A;--border:#E4E4E7;--primary:#18181B;--ok:#10B981;--warn:#F59E0B;--bad:#EF4444;--x:#2563EB;--y:#10B981;--z:#F59E0B}
+*{box-sizing:border-box}
+body{margin:0;background:var(--muted);color:var(--fg);font:14px/1.5 Geist,system-ui,sans-serif;-webkit-font-smoothing:antialiased}
+.wrap{max-width:980px;margin:0 auto;padding:32px 24px 48px;display:grid;gap:16px}
+.top{display:flex;align-items:center;justify-content:space-between;gap:16px}
+.brand{display:flex;align-items:center;gap:10px;font-weight:600}
+.brand span{color:var(--mfg);font-weight:500}
+.card{background:var(--bg);border:1px solid var(--border);border-radius:12px;padding:20px 24px;box-shadow:0 1px 2px rgb(0 0 0 / .05)}
+.hero{display:flex;align-items:center;justify-content:space-between;gap:24px;flex-wrap:wrap}
+h1{font-size:24px;line-height:1.2;margin:0;letter-spacing:-.01em}
+h2{font-size:15px;margin:0 0 12px}
+.state{display:inline-flex;align-items:center;gap:8px;margin-top:6px;color:var(--mfg)}
+.dot{width:9px;height:9px;border-radius:50%;background:#A1A1AA}
+.btn{height:40px;padding:0 18px;border-radius:8px;border:1px solid var(--primary);background:var(--primary);color:#FAFAFA;font:500 14px Geist,system-ui,sans-serif;cursor:pointer}
+.btn.secondary{background:var(--bg);color:var(--fg);border-color:var(--border)}
+.hint{margin:14px 0 0;color:var(--mfg);max-width:70ch}
+.stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:16px}
+.stat label{display:block;color:var(--mfg);font-size:13px}
+.stat b{display:block;margin-top:4px;font:500 26px/1.1 'Geist Mono',ui-monospace,monospace;font-variant-numeric:tabular-nums}
+.stat small{color:var(--mfg);font-size:12px}
+canvas{display:block;width:100%;height:150px;background:var(--bg)}
+.legend{display:flex;gap:16px;margin-top:10px;color:var(--mfg);font:12px 'Geist Mono',ui-monospace,monospace;font-variant-numeric:tabular-nums;flex-wrap:wrap}
+.legend i{display:inline-block;width:10px;height:2px;margin-right:6px;vertical-align:middle}
+@media (max-width:720px){.stats{grid-template-columns:repeat(2,minmax(0,1fr))}.wrap{padding:20px 16px 40px}}
+</style>
+</head>
+<body>
+<main class="wrap">
+  <div class="top">
+    <div class="brand">BeltGuard <span>/ Band link</span></div>
+    <a href="/" target="beltguard-dashboard" style="color:var(--mfg);font-size:13px">Open dashboard</a>
+  </div>
+
+  <section class="card">
+    <div class="hero">
+      <div>
+        <h1>Band 07</h1>
+        <div class="state"><span class="dot" id="dot"></span><span id="detail">Not connected</span></div>
+      </div>
+      <button class="btn" id="connect" type="button">Connect band 07</button>
+    </div>
+    <p class="hint">Keep this tab open. It holds band 07's Bluetooth link (the kit's own connection code) and streams every reading to the BeltGuard dashboard, so the dashboard can reload without losing the band.</p>
+  </section>
+
+  <section class="card stats">
+    <div class="stat"><label>Readings per second</label><b id="hz">–</b><small>measured on the band clock</small></div>
+    <div class="stat"><label>Sent to BeltGuard</label><b id="sent">0</b><small>samples this session</small></div>
+    <div class="stat"><label>Dashboard link</label><b id="ingest">–</b><small>/ws/ingest</small></div>
+    <div class="stat"><label>Movement now</label><b id="move">–</b><small>accel change, mg RMS</small></div>
+  </section>
+
+  <section class="card">
+    <h2>Accelerometer <span style="color:var(--mfg);font-weight:400">g</span></h2>
+    <canvas id="acc"></canvas>
+    <div class="legend" id="accv"></div>
+  </section>
+
+  <section class="card">
+    <h2>Gyroscope <span style="color:var(--mfg);font-weight:400">°/s</span></h2>
+    <canvas id="gyr"></canvas>
+    <div class="legend" id="gyrv"></div>
+  </section>
+</main>
+<script type="module" src="bandlink.js"></script>
+<script type="module" src="bridge.js"></script>
+<script type="module" src="voice.js"></script>
+</body>
+</html>

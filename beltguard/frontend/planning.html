@@ -1,0 +1,303 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>BeltGuard planning</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --background:#FFFFFF; --muted:#F4F4F5; --card:#FFFFFF;
+    --foreground:#09090B; --muted-foreground:#71717A;
+    --border:#E4E4E7; --input:#E4E4E7; --ring:#A1A1AA;
+    --primary:#18181B; --primary-foreground:#FAFAFA;
+    --destructive:#EF4444; --warning:#F59E0B; --success:#10B981; --info:#3B82F6;
+    --tool:#F97316;
+    --radius:8px;
+    --shadow-sm:0 1px 2px 0 rgb(0 0 0 / .05);
+    --zone-below:#F4F4F5; --zone-action:#FEF3C7; --zone-limit:#FEE2E2;
+    --sans:"Geist", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+    --mono:"Geist Mono", ui-monospace, "Cascadia Mono", Consolas, monospace;
+  }
+  * { box-sizing:border-box; }
+  html, body { margin:0; }
+  body { background:var(--background); color:var(--foreground); font:400 14px/1.5 var(--sans); -webkit-font-smoothing:antialiased; }
+  p { margin:0; }
+  .mono { font-family:var(--mono); font-variant-numeric:tabular-nums; }
+  .muted { color:var(--muted-foreground); }
+
+  /* top bar */
+  .topbar { height:56px; display:flex; align-items:center; justify-content:space-between; gap:16px; padding:0 24px;
+            border-bottom:1px solid var(--border); background:var(--background); }
+  .brand { display:flex; align-items:center; gap:10px; font-weight:600; letter-spacing:-.01em; white-space:nowrap; }
+  .logo { width:24px; height:24px; border-radius:6px; background:var(--primary); display:grid; place-items:center; }
+  .logo i { width:12px; height:2px; border-radius:1px; background:var(--primary-foreground); box-shadow:0 -4px 0 var(--primary-foreground), 0 4px 0 var(--primary-foreground); }
+  .crumb { color:var(--muted-foreground); font-weight:500; }
+  .top-meta { display:flex; align-items:center; gap:12px; font-size:13px; color:var(--muted-foreground); min-width:0; }
+  .vsep { width:1px; height:16px; background:var(--border); }
+
+  /* layout */
+  .main { max-width:1200px; margin:0 auto; padding:24px; display:grid; gap:24px; }
+  .grid { display:grid; grid-template-columns:minmax(0,1.45fr) minmax(0,1fr); gap:24px; align-items:start; }
+
+  /* card */
+  .card { background:var(--card); border:1px solid var(--border); border-radius:var(--radius); box-shadow:var(--shadow-sm); min-width:0; }
+  .card-header { display:flex; justify-content:space-between; align-items:flex-start; gap:12px; padding:16px 16px 0; }
+  .card-title { margin:0; font:600 16px/1.3 var(--sans); letter-spacing:-.01em; }
+  .card-desc { margin-top:2px; font-size:13px; color:var(--muted-foreground); }
+  .card-content { padding:16px; }
+
+  /* badge */
+  .badge { display:inline-flex; align-items:center; height:22px; padding:0 8px; border-radius:6px; border:1px solid transparent;
+           font:600 12px/1 var(--sans); white-space:nowrap; }
+  .badge.default { background:var(--primary); color:var(--primary-foreground); }
+  .badge.secondary { background:var(--muted); color:var(--foreground); }
+  .badge.outline { border-color:var(--border); color:var(--foreground); background:var(--card); }
+  .badge.success { background:rgba(16,185,129,.12); color:#047857; }
+  .badge.warning { background:rgba(245,158,11,.16); color:#B45309; }
+  .badge.danger { background:rgba(239,68,68,.10); color:#B91C1C; }
+  .badge.destructive { background:var(--destructive); color:#FFFFFF; }
+
+  /* button, input, select */
+  .btn { height:36px; padding:0 16px; border-radius:6px; border:1px solid transparent; font:500 14px var(--sans); cursor:pointer;
+         display:inline-flex; align-items:center; justify-content:center; gap:8px; text-decoration:none; white-space:nowrap; }
+  .btn.default { background:var(--primary); color:var(--primary-foreground); }
+  .btn.default:hover:not(:disabled) { background:#27272A; }
+  .btn.outline { background:var(--background); border-color:var(--input); color:var(--foreground); }
+  .btn.outline:hover:not(:disabled) { background:var(--muted); }
+  .btn.ghost { background:transparent; color:var(--foreground); }
+  .btn.ghost:hover { background:var(--muted); }
+  .btn.sm { height:32px; padding:0 12px; font-size:13px; }
+  .btn:disabled { opacity:.5; cursor:not-allowed; }
+  input, select { width:100%; min-width:0; height:36px; padding:0 12px; border:1px solid var(--input); border-radius:6px;
+                  background:var(--background); color:var(--foreground); font:400 14px var(--sans); }
+  input::placeholder { color:var(--muted-foreground); }
+  input[type=number] { font-family:var(--mono); font-variant-numeric:tabular-nums; }
+  input:focus, select:focus { outline:none; }
+  .btn:focus-visible, input:focus-visible, select:focus-visible, summary:focus-visible, a:focus-visible {
+    outline:2px solid var(--ring); outline-offset:2px; }
+
+  /* exposure */
+  .exp-row { display:flex; align-items:flex-end; justify-content:space-between; gap:24px; flex-wrap:wrap; }
+  .kpi { font:500 40px/1 var(--mono); font-variant-numeric:tabular-nums; letter-spacing:-.02em; }
+  .unit { font:400 14px var(--sans); color:var(--muted-foreground); margin-left:6px; letter-spacing:0; }
+  .minis { display:flex; gap:32px; }
+  .mini-label { font-size:12px; color:var(--muted-foreground); }
+  .mini-val { font:500 18px/1.3 var(--mono); font-variant-numeric:tabular-nums; }
+  .mini-val .unit { font-size:12px; margin-left:4px; }
+  .scale { margin-top:24px; }
+  .bar { position:relative; }
+  .track { position:relative; height:10px; border-radius:6px; overflow:hidden; background:var(--zone-below); }
+  .zone { position:absolute; top:0; bottom:0; }
+  .z1 { left:0; width:20%; background:var(--zone-below); }
+  .z2 { left:20%; width:60%; background:var(--zone-action); }
+  .z3 { left:80%; width:20%; background:var(--zone-limit); }
+  .fill { position:absolute; left:0; top:0; bottom:0; width:0; background:var(--primary); border-radius:6px; transition:width .4s ease; }
+  .proj { position:absolute; top:0; bottom:0; border-radius:0 6px 6px 0;
+          background:repeating-linear-gradient(135deg, rgba(24,24,27,.45) 0 2px, transparent 2px 5px); }
+  .mark { position:absolute; top:-3px; bottom:-3px; width:1px; background:var(--ring); }
+  .m1 { left:20%; } .m2 { left:80%; }
+  .over { position:absolute; right:-14px; top:-5px; font:500 12px/20px var(--mono); color:var(--muted-foreground); }
+  .ticks { position:relative; height:18px; margin-top:6px; font:400 11px/18px var(--mono); color:var(--muted-foreground); }
+  .ticks > span { position:absolute; transform:translateX(-50%); white-space:nowrap; }
+  .ticks > span:first-child { transform:none; } .ticks > span:last-child { transform:translateX(-100%); }
+  .ticks b { font-weight:500; color:var(--foreground); }
+  .proj-row { display:flex; align-items:center; gap:8px; margin-top:12px; font-size:13px; color:var(--muted-foreground); }
+  .proj-row b { font:500 13px var(--mono); color:var(--foreground); }
+  .sw { width:14px; height:8px; border-radius:2px; border:1px solid #D4D4D8;
+        background:repeating-linear-gradient(135deg, rgba(24,24,27,.5) 0 2px, transparent 2px 4px); }
+  .caption { margin-top:12px; font-size:12px; color:var(--muted-foreground); }
+  details.more { margin-top:12px; border-top:1px solid var(--border); padding-top:8px; }
+  details.more summary { list-style:none; cursor:pointer; display:inline-flex; align-items:center; gap:6px; height:32px; padding:0 8px;
+                         margin-left:-8px; border-radius:6px; font-size:13px; font-weight:500; }
+  details.more summary::-webkit-details-marker { display:none; }
+  details.more summary:hover { background:var(--muted); }
+  details.more summary::after { content:""; width:6px; height:6px; border-right:1.5px solid currentColor; border-bottom:1.5px solid currentColor;
+                                transform:rotate(45deg) translateY(-2px); }
+  details.more[open] summary::after { transform:rotate(-135deg) translateY(-1px); }
+  .formula { margin-top:8px; font-size:12px; color:var(--muted-foreground); }
+
+  /* table */
+  .table-wrap { overflow-x:auto; }
+  table { width:100%; border-collapse:collapse; font-size:13px; }
+  th { height:36px; padding:0 12px; text-align:left; font-weight:500; color:var(--muted-foreground); border-bottom:1px solid var(--border); white-space:nowrap; }
+  td { padding:10px 12px; border-bottom:1px solid var(--border); vertical-align:middle; }
+  tbody tr:last-child td { border-bottom:0; }
+  tbody tr:hover td { background:rgba(244,244,245,.5); }
+  th:first-child, td:first-child { padding-left:16px; } th:last-child, td:last-child { padding-right:16px; }
+  th.num, td.num { text-align:right; }
+  td.num { font-family:var(--mono); font-variant-numeric:tabular-nums; }
+  .wo-id { font:500 12px/1.4 var(--mono); color:var(--muted-foreground); }
+  .wo-title { font-weight:500; }
+  .sub { display:flex; align-items:center; gap:6px; flex-wrap:wrap; margin-top:2px; font-size:12px; color:var(--muted-foreground); }
+  .empty { color:var(--muted-foreground); font-size:13px; }
+
+  /* plan */
+  .form { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+  .field { display:grid; gap:6px; min-width:0; }
+  .field.wide { grid-column:1 / -1; }
+  .field label { font-size:13px; font-weight:500; }
+  .form-actions { grid-column:1 / -1; display:flex; align-items:center; gap:12px; flex-wrap:wrap; }
+  .hint { font-size:12px; color:var(--muted-foreground); }
+  .error { font-size:12px; color:#B91C1C; }
+  .rec { margin-top:16px; padding-top:16px; border-top:1px solid var(--border); }
+  .rec-top { display:flex; justify-content:space-between; align-items:flex-start; gap:12px; }
+  .badges { display:flex; gap:6px; flex-wrap:wrap; justify-content:flex-end; }
+  .rec-sub { margin-top:6px; font:400 12px var(--mono); color:var(--muted-foreground); font-variant-numeric:tabular-nums; }
+  .job { margin-top:12px; font-size:13px; }
+  .job .task { font-weight:500; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .opts { list-style:none; margin:12px 0 0; padding:0; border:1px solid var(--border); border-radius:6px; }
+  .opts li { display:flex; justify-content:space-between; align-items:center; gap:12px; padding:10px 12px; border-top:1px solid var(--border); font-size:13px; }
+  .opts li:first-child { border-top:0; }
+  .opt-sub { display:block; font-size:12px; color:var(--muted-foreground); }
+  .opt-val { font-family:var(--mono); font-variant-numeric:tabular-nums; color:var(--muted-foreground); white-space:nowrap; }
+  .decide { margin-top:16px; padding-top:16px; border-top:1px solid var(--border); display:grid; gap:12px; }
+  .decide-row { display:flex; gap:8px; flex-wrap:wrap; }
+  .notice { font-size:12px; color:var(--muted-foreground); }
+  .log { list-style:none; margin:0; padding:0; }
+  .log li { display:grid; grid-template-columns:auto minmax(0,1fr); gap:0 12px; padding:8px 0; border-top:1px solid var(--border); font-size:13px; }
+  .log time { font:400 12px/1.6 var(--mono); color:var(--muted-foreground); }
+  .log .what { font-weight:500; }
+  .log .detail { grid-column:2; font-size:12px; color:var(--muted-foreground); }
+  .log-head { display:flex; justify-content:space-between; align-items:center; }
+  .log-head p { font-size:13px; font-weight:500; }
+
+  @media (max-width:1080px) { .grid { grid-template-columns:minmax(0,1fr); } }
+  @media (max-width:640px) {
+    .topbar { height:auto; min-height:56px; padding:10px 16px; flex-wrap:wrap; row-gap:8px; }
+    .hide-sm { display:none; }
+    .main { padding:16px; gap:16px; }
+    .form { grid-template-columns:minmax(0,1fr); }
+    .minis { gap:24px; }
+    .tick-word { display:none; }
+  }
+</style>
+</head>
+<body>
+<header class="topbar">
+  <div class="brand"><span class="logo" aria-hidden="true"><i></i></span>BeltGuard<span class="crumb">/ Planning</span></div>
+  <div class="top-meta">
+    <span class="mono hide-sm" id="asset">CV-102</span>
+    <span class="vsep hide-sm"></span>
+    <span class="hide-sm" id="worker">W-01</span>
+    <span class="badge outline" id="conn">Connecting</span>
+    <span class="mono hide-sm" id="clock"></span>
+    <a class="btn ghost sm" href="/supervisor.html">Control room</a><a class="btn ghost sm" href="/">Dashboard</a>
+  </div>
+</header>
+
+<main class="main">
+  <section class="card" aria-labelledby="exp-h">
+    <div class="card-header">
+      <div><h2 class="card-title" id="exp-h">Exposure today</h2><p class="card-desc" id="exp-desc">Technician W-01</p></div>
+      <span class="badge secondary" id="exp-status">Waiting</span>
+    </div>
+    <div class="card-content">
+      <div class="exp-row">
+        <div class="kpi"><span id="exp-total">–</span><span class="unit">pts</span></div>
+        <div class="minis" id="minis">
+          <div><p class="mini-label">To action value</p><p class="mini-val"><span id="min-eav">–</span><span class="unit">min</span></p></div>
+          <div><p class="mini-label">To limit value</p><p class="mini-val"><span id="min-elv">–</span><span class="unit">min</span></p></div>
+        </div>
+      </div>
+
+      <div class="scale">
+        <div class="bar" id="gauge" role="img" aria-label="Exposure scale">
+          <div class="track">
+            <i class="zone z1"></i><i class="zone z2"></i><i class="zone z3"></i>
+            <i class="proj" id="g-proj" hidden></i>
+            <i class="fill" id="g-fill"></i>
+          </div>
+          <i class="mark m1"></i><i class="mark m2"></i>
+          <span class="over" id="g-off" hidden title="Projected total is beyond 500 points">&rsaquo;</span>
+        </div>
+        <div class="ticks" aria-hidden="true">
+          <span style="left:0%">0</span>
+          <span style="left:20%"><b>100</b><span class="tick-word"> action</span></span>
+          <span style="left:80%"><b>400</b><span class="tick-word"> limit</span></span>
+          <span style="left:100%">500</span>
+        </div>
+        <div class="proj-row" id="proj-row" hidden><span class="sw"></span>After planned job <b id="proj-val">–</b></div>
+      </div>
+
+      <p class="caption">Screening estimate — not a certified HAV measurement</p>
+
+      <details class="more">
+        <summary>By tool</summary>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Tool</th><th class="num">m/s²</th><th class="num">Sessions</th><th class="num">Trigger</th><th class="num">Points</th></tr></thead>
+            <tbody id="by-tool"><tr><td colspan="5" class="empty">No tool use yet today.</td></tr></tbody>
+          </table>
+        </div>
+        <p class="formula">Points = 2 × a² × T. a from the tool profile (HSE Table 1), T from the band. 100 = action value, 400 = limit value.</p>
+      </details>
+    </div>
+  </section>
+
+  <div class="grid">
+    <section class="card" aria-labelledby="wo-h">
+      <div class="card-header">
+        <div><h2 class="card-title" id="wo-h">Work orders</h2><p class="card-desc">Open · isolation by an authorized person · never closed by BeltGuard</p></div>
+        <span class="badge secondary mono" id="wo-count">0</span>
+      </div>
+      <div class="card-content" style="padding:12px 0 4px">
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Work order</th><th>Station</th><th>Priority</th><th>Status</th><th>Tool</th></tr></thead>
+            <tbody id="wo-body"><tr><td colspan="5" class="empty">No open work orders.</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <section class="card" aria-labelledby="plan-h">
+      <div class="card-header">
+        <div><h2 class="card-title" id="plan-h">Plan a repair</h2><p class="card-desc">Exposure check before the job starts</p></div>
+      </div>
+      <div class="card-content">
+        <form class="form" id="plan-form" novalidate>
+          <div class="field">
+            <label for="f-station">Station</label>
+            <select id="f-station" required></select>
+          </div>
+          <div class="field">
+            <label for="f-min">Minutes</label>
+            <input id="f-min" type="number" min="0.5" max="480" step="0.5" inputmode="decimal" placeholder="30" required>
+          </div>
+          <div class="field wide">
+            <label for="f-task">Task</label>
+            <input id="f-task" type="text" maxlength="120" placeholder="De-scale discharge-chute frame">
+          </div>
+          <div class="field wide">
+            <label for="f-tool">Tool</label>
+            <select id="f-tool" required></select>
+          </div>
+          <div class="form-actions">
+            <button class="btn default" id="f-submit" type="submit">Project exposure</button>
+            <span class="hint" id="f-hint" aria-live="polite"></span>
+          </div>
+        </form>
+
+        <div class="rec" id="rec" aria-live="polite"><p class="empty">Plan a repair to see its exposure.</p></div>
+
+        <div class="decide">
+          <input id="d-note" type="text" maxlength="160" placeholder="Note (optional)" aria-label="Decision note (optional)">
+          <div class="decide-row">
+            <button class="btn outline" type="button" data-decision="approve" disabled>Approve</button>
+            <button class="btn outline" type="button" data-decision="reassign" disabled>Reassign</button>
+            <button class="btn outline" type="button" data-decision="method" disabled>Change method</button>
+          </div>
+          <p class="notice">Recorded on this page only. BeltGuard never acts on its own.</p>
+          <div class="log-head"><p>Decisions</p><button class="btn ghost sm" type="button" id="log-clear" hidden>Clear</button></div>
+          <ul class="log" id="log"><li><span></span><span class="empty">None yet.</span></li></ul>
+        </div>
+      </div>
+    </section>
+  </div>
+</main>
+
+<script src="planning.js" defer></script>
+</body>
+</html>

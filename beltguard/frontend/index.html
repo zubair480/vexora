@@ -1,0 +1,272 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>BeltGuard · CV-102</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="v3.css?v=11">
+<script type="importmap">
+{ "imports": {
+  "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+  "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+} }
+</script>
+</head>
+<body>
+<header class="topbar">
+  <div class="tb-left">
+    <a class="logo" href="./" aria-label="BeltGuard">
+      <svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true">
+        <rect width="24" height="24" rx="6" fill="#18181B"/>
+        <circle cx="7.6" cy="12" r="2.7" fill="none" stroke="#FAFAFA" stroke-width="1.6"/>
+        <circle cx="16.4" cy="12" r="2.7" fill="none" stroke="#FAFAFA" stroke-width="1.6"/>
+        <path d="M7.6 9.3h8.8M7.6 14.7h8.8" stroke="#FAFAFA" stroke-width="1.6" stroke-linecap="round"/>
+      </svg>
+      <span>BeltGuard</span>
+    </a>
+    <span class="vsep" aria-hidden="true"></span>
+    <span class="tb-asset" id="assetName">CV-102</span>
+    <span class="tb-slash" aria-hidden="true">/</span>
+    <span class="tb-station" id="workerName">Technician W-01</span>
+  </div>
+  <div class="tb-right">
+    <span id="demoBanner" class="badge warning" hidden><i class="dot"></i>Demo replay · illustrative values</span>
+    <span id="modePill" class="badge outline" hidden><i class="dot"></i><span>Connecting…</span></span>
+    <a class="btn ghost sm" href="bridge.html" target="beltguard-bandlink" rel="noopener">Band link</a>
+    <button class="btn outline sm" type="button" data-action="open-sheet">Details</button>
+    <a class="btn ghost sm" href="supervisor.html">Supervisor view</a>
+    <span class="clock" id="clock">--:--:--</span>
+  </div>
+</header>
+
+<section class="flow" aria-label="Workflow">
+  <div class="flow-row">
+    <div class="tabs-list mode-tabs" role="tablist" aria-label="Mode">
+      <button class="tab" role="tab" type="button" aria-selected="true" data-action="mode" data-mode="tool">Tool checkout</button>
+      <button class="tab" role="tab" type="button" aria-selected="false" data-action="mode" data-mode="inspection">Inspection</button>
+    </div>
+    <p class="flow-lead" id="flowLead">Unlock a tool, and BeltGuard times its vibration from your wrist band and tells you when to stop.</p>
+    <span class="auto-chip" id="autoChip" hidden></span>
+  </div>
+  <ol class="stepper" id="stepper"></ol>
+</section>
+
+<main class="shell">
+  <div class="left-col">
+  <section class="card stage-card" aria-label="Conveyor CV-102, 3D view">
+    <div id="stage" class="stage"></div>
+    <div id="stageFallback" class="stage-fallback" hidden>3D view unavailable. The rest of the dashboard still works.</div>
+  </section>
+  <section class="card live-panel" id="livePanel" data-live-panel hidden aria-label="Live: what the technician says, the job, and what BeltGuard did">
+    <div class="lp-col">
+      <div class="lp-head"><span class="lp-title"><i class="live-dot" id="lpLiveDot" aria-hidden="true"></i>Technician</span><span class="lp-meta" id="lpTechMeta">Listening on band 07</span></div>
+      <ul class="lp-list" id="lpTechList" aria-live="polite"></ul>
+    </div>
+    <div class="lp-col">
+      <div class="lp-head"><span class="lp-title">Job</span><span class="lp-meta" id="lpJobMeta"></span></div>
+      <ul class="lp-list" id="lpJobList"></ul>
+    </div>
+    <div class="lp-col">
+      <div class="lp-head"><span class="lp-title">BeltGuard did</span><span class="lp-meta" id="lpAgentMeta"></span></div>
+      <ul class="lp-list" id="lpAgentList" aria-live="polite"></ul>
+    </div>
+  </section>
+  </div>
+
+  <section class="card step-card" aria-label="Current step">
+    <div class="step-body">
+
+      <!-- 1 Pick tool: "Start of shift" (Start) → the technician walks to the crib → "Pick a tool" -->
+      <div class="step centered" id="step-1">
+        <span class="hero-ico" id="s1Ico" aria-hidden="true"><svg width="24" height="24" viewBox="0 0 24 24"><path d="M14.7 6.3a4 4 0 0 0-5.4 5.4L3.6 17.4a1.4 1.4 0 0 0 2 2l5.7-5.7a4 4 0 0 0 5.4-5.4l-2.4 2.4-2-.6-.6-2 2.4-2.4Z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></svg></span>
+        <h2 class="step-title" id="s1Title">Start of shift</h2>
+        <p class="step-desc" id="s1Desc">Pick the tool you're about to use. BeltGuard times it from your wrist band.</p>
+        <div class="crib" id="crib" role="radiogroup" aria-label="Tool crib" hidden></div>
+        <div class="today-bar" id="s1TodayBar">
+          <div class="tb-head"><span class="tb-label">Today</span><span class="tb-val" id="s1Today">0.00 pts</span></div>
+          <div class="progress sm" role="progressbar" aria-valuemin="0" aria-valuemax="400" aria-label="Today's exposure points, 0 to 400"><i class="fill" id="s1Fill"></i><i class="tick act" style="left:25%"></i><i class="tick lim" style="left:100%"></i><i class="pos" id="s1Pos"></i></div>
+          <div class="scale"><span style="left:0">0</span><span style="left:25%">100 action</span><span class="r" style="left:100%">400 limit</span></div>
+        </div>
+        <p class="why" id="s1Why">No vibration exposure yet today. Exposure action value 100, limit value 400.</p>
+        <p class="inline-note" id="s1Note" hidden></p>
+        <button class="btn primary block" type="button" data-action="start-shift" id="startBtn">Start</button>
+      </div>
+
+      <!-- 2 Locked to you -->
+      <div class="step centered" id="step-2" hidden>
+        <div class="lock-card">
+          <span class="lock-ico" aria-hidden="true"><svg width="20" height="20" viewBox="0 0 16 16"><rect x="3" y="7" width="10" height="7.5" rx="1.5" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M5.5 7V5a2.5 2.5 0 0 1 5 0v2" fill="none" stroke="currentColor" stroke-width="1.5"/></svg></span>
+          <div class="lock-text">
+            <h2 class="lock-title" id="s2Title">Tool locked to you</h2>
+            <p class="lock-meta" id="s2Meta"></p>
+          </div>
+        </div>
+        <p class="lock-note" id="s2Desc">Only this person's trigger time counts toward this checkout.</p>
+        <div class="stats three">
+          <div class="stat"><span class="stat-label">Vibration magnitude</span><span class="stat-value"><b id="s2Mag">—</b><small>m/s²</small></span></div>
+          <div class="stat"><span class="stat-label">Points per hour</span><span class="stat-value"><b id="s2Rate">—</b><small>pts/h</small></span></div>
+          <div class="stat"><span class="stat-label">To action value</span><span class="stat-value"><b id="s2ToAction">—</b><small>min</small></span></div>
+        </div>
+        <div class="today-bar" id="s2TodayBar">
+          <div class="tb-head"><span class="tb-label">Today</span><span class="tb-val" id="s2Today">0.00 pts</span></div>
+          <div class="progress sm" role="progressbar" aria-valuemin="0" aria-valuemax="400" aria-label="Today's exposure points, 0 to 400"><i class="fill" id="s2Fill"></i><i class="tick act" style="left:25%"></i><i class="tick lim" style="left:100%"></i><i class="pos" id="s2Pos"></i></div>
+          <div class="scale"><span style="left:0">0</span><span style="left:25%">100 action</span><span class="r" style="left:100%">400 limit</span></div>
+        </div>
+        <p class="next-line" id="s2Next">Next: start the tool. BeltGuard times it from your wrist.</p>
+        <div class="step-actions" id="s2Action"></div>
+        <p class="why sm" id="s2Why">Source of the magnitude is recorded with every session.</p>
+      </div>
+
+      <!-- 3 Using tool -->
+      <div class="step centered" id="step-3" hidden>
+        <h2 class="step-title" id="s3Title">Using the tool</h2>
+        <div class="live-row">
+          <span class="live-left"><span class="badge secondary" id="actBadge"><i class="dot"></i><span id="actState">Idle</span></span><span class="badge warning sim-chip" id="simChip" hidden><i class="dot"></i>Simulated band · testing</span></span>
+          <span class="mono muted small" id="rateInfo">No motion data yet</span>
+        </div>
+        <div class="spark-wrap tall">
+          <canvas id="spark" class="spark"></canvas>
+          <div class="spark-empty" id="sparkEmpty">No band connected. Open the Band link tab to connect band 07.</div>
+        </div>
+        <div class="stats three">
+          <div class="stat"><span class="stat-label" id="s3TrigLabel">Trigger time</span><span class="stat-value"><b id="s3Trig">0:00</b><small>m:ss</small></span></div>
+          <div class="stat"><span class="stat-label">With this tool</span><span class="stat-value"><b id="s3Pts">+0.00</b><small>pts</small></span><span class="stat-prov" id="s3Prov"></span></div>
+          <div class="stat"><span class="stat-label">Today</span><span class="stat-value"><b id="s3Today">0.00</b><small>pts</small></span></div>
+        </div>
+        <p class="why" id="s3Why">Points rise only while the band detects the tool running: 2 · a² · T.</p>
+        <div class="step-actions" id="s3Action"></div>
+      </div>
+
+      <!-- 4 Exposure verdict -->
+      <div class="step centered" id="step-4" hidden>
+        <div class="verdict" id="verdict" data-level="ok">
+          <h2 class="verdict-title" id="vTitle">Within the safe limit</h2>
+          <p class="verdict-sub" id="vSub">Below the 100-point exposure action value.</p>
+        </div>
+        <div class="kpi-row">
+          <span class="kpi" id="expTotal">0.00</span><span class="kpi-unit">pts today, confirmed</span>
+        </div>
+        <p class="prov-line" id="vProv" hidden></p>
+        <div class="progress" id="expBar" role="progressbar" aria-valuemin="0" aria-valuemax="400" aria-valuenow="0" aria-label="Exposure points, 0 to 400">
+          <i class="proj" id="expProv"></i><i class="fill" id="expFill"></i>
+          <i class="tick act" style="left:25%"></i><i class="tick lim" style="left:100%"></i>
+        </div>
+        <div class="scale"><span style="left:0">0</span><span style="left:25%">100 action value</span><span class="r" style="left:100%">400 limit value</span></div>
+        <p class="caption">Screening estimate — not a certified HAV measurement</p>
+        <div class="stats two">
+          <div class="stat"><span class="stat-label">To action value</span><span class="stat-value"><b id="vToAction">—</b><small>min</small></span></div>
+          <div class="stat"><span class="stat-label">To limit value</span><span class="stat-value"><b id="vToLimit">—</b><small>min</small></span></div>
+        </div>
+        <p class="why" id="vWhy">Minutes left assume the tool you checked out.</p>
+        <div class="step-actions">
+          <button class="btn primary" type="button" data-action="go-step" data-step="5">Return the tool</button>
+          <button class="btn outline" type="button" data-action="go-step" data-step="3">Keep using it</button>
+        </div>
+      </div>
+
+      <!-- 5 Return tool -->
+      <div class="step centered" id="step-5" hidden>
+        <h2 class="step-title" id="s5Title">Return the tool</h2>
+        <p class="step-desc" id="s5Desc">Session summary for this checkout.</p>
+        <div class="stats three">
+          <div class="stat"><span class="stat-label">Trigger time</span><span class="stat-value"><b id="s5Trig">0.0</b><small>min</small></span></div>
+          <div class="stat"><span class="stat-label">Points added</span><span class="stat-value"><b id="s5Pts">+0.00</b><small>pts</small></span></div>
+          <div class="stat"><span class="stat-label">Today</span><span class="stat-value"><b id="s5Today">0.00</b><small>pts</small></span></div>
+        </div>
+        <ul class="session-list" id="s5Sessions"></ul>
+        <p class="why" id="s5Why">Returning the tool closes the checkout. Today's points stay on the technician's record.</p>
+        <div class="today-bar" id="s5tTodayBar">
+          <div class="tb-head"><span class="tb-label">Today</span><span class="tb-val" id="s5tToday">0.00 pts</span></div>
+          <div class="progress sm" role="progressbar" aria-valuemin="0" aria-valuemax="400" aria-label="Today's exposure points, 0 to 400"><i class="fill" id="s5tFill"></i><i class="tick act" style="left:25%"></i><i class="tick lim" style="left:100%"></i><i class="pos" id="s5tPos"></i></div>
+          <div class="scale"><span style="left:0">0</span><span style="left:25%">100 action</span><span class="r" style="left:100%">400 limit</span></div>
+        </div>
+        <p class="inline-note" id="s5Note" hidden></p>
+        <div class="step-actions" id="s5Action"></div>
+      </div>
+
+      <!-- Inspection (secondary tab) -->
+      <div class="step" id="insp" hidden>
+        <h2 class="step-title">Inspection</h2>
+        <p class="step-desc">Say the station, the part and what is wrong. BeltGuard checks the station and drafts a work order.</p>
+        <p class="listen" id="listen"><i class="ldot" aria-hidden="true"></i><span id="listenText">Listening on band 07</span></p>
+        <ul class="voice-log" id="voiceLog" aria-label="Latest reports" aria-live="polite"></ul>
+        <form id="reportForm" class="report-row" autocomplete="off">
+          <input id="reportInput" class="input" type="text" aria-label="Typed defect report" placeholder="Or type the report" title="Example: Conveyor CV-102, station three, return idler seized, needs replacement.">
+          <button class="btn primary" type="submit">Report</button>
+        </form>
+        <div class="alert warning" id="clarify" hidden></div>
+        <div class="insp-sum" id="inspWo"></div>
+        <ul class="stations compact" id="stationList" aria-label="Stations"></ul>
+      </div>
+
+    </div>
+    <div class="pending-card" id="pendingCard" hidden role="status" aria-label="Tool session to confirm"><div id="pendingBody"></div></div>
+    <div class="convo" id="convo" hidden aria-label="Conversation with BeltGuard">
+      <ul id="convoList" aria-live="polite"></ul>
+    </div>
+    <div class="step-foot">
+      <span class="foot-left"><span class="lock-foot" id="lockFoot" hidden></span><span class="muted" id="stepCount">Step 1 of 5</span></span>
+      <span class="step-nav" id="stepNav">
+        <button class="btn ghost sm" type="button" data-action="step-prev" id="stepPrev">Back</button>
+        <button class="btn ghost sm" type="button" data-action="step-next" id="stepNext">Next</button>
+      </span>
+    </div>
+  </section>
+</main>
+
+<div class="sheet-overlay" id="sheetOverlay" hidden data-action="close-sheet"></div>
+<aside class="sheet" id="sheet" hidden role="dialog" aria-labelledby="sheetTitle">
+  <div class="sheet-head">
+    <div class="head-text"><h2 class="card-title" id="sheetTitle">Details</h2><p class="card-desc">Raw wrist signals, the shift timeline and every exposure record</p>
+      <label class="switch-row"><input type="checkbox" id="voiceToggle" checked> Speak BeltGuard's replies aloud</label></div>
+    <button class="btn ghost icon" type="button" data-action="close-sheet" aria-label="Close">
+      <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><path d="M4 4l8 8M12 4l-8 8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+    </button>
+  </div>
+  <div class="sheet-tabs">
+    <div class="tabs-list" role="tablist" aria-label="Details">
+      <button class="tab" role="tab" type="button" aria-selected="true" data-action="dtab" data-tab="signals">Signals</button>
+      <button class="tab" role="tab" type="button" aria-selected="false" data-action="dtab" data-tab="timeline">Timeline</button>
+      <button class="tab" role="tab" type="button" aria-selected="false" data-action="dtab" data-tab="records">Exposure records</button>
+    </div>
+    <span class="tab-meta" id="tabMeta"></span>
+  </div>
+  <div class="sheet-body">
+    <div class="dpanel" id="dpanel-signals">
+      <div class="sig">
+        <div class="sig-head"><span class="sig-title">Accelerometer <span class="muted">g</span></span>
+          <span class="sig-vals"><span class="sx">x <b id="ax">—</b></span><span class="sy">y <b id="ay">—</b></span><span class="sz">z <b id="az">—</b></span></span></div>
+        <div class="chart-wrap"><canvas id="accelChart" class="strip"></canvas><div class="spark-empty" data-empty>No band connected.</div></div>
+      </div>
+      <div class="sig">
+        <div class="sig-head"><span class="sig-title">Gyroscope <span class="muted">°/s</span></span>
+          <span class="sig-vals"><span class="sx">x <b id="gx">—</b></span><span class="sy">y <b id="gy">—</b></span><span class="sz">z <b id="gz">—</b></span></span></div>
+        <div class="chart-wrap"><canvas id="gyroChart" class="strip"></canvas><div class="spark-empty" data-empty>No band connected.</div></div>
+      </div>
+      <p class="sig-foot" id="actFeat">Detector features appear with motion data.</p>
+    </div>
+    <div class="dpanel" id="dpanel-timeline" hidden><div class="tl" id="timeline"></div></div>
+    <div class="dpanel" id="dpanel-records" hidden>
+      <div id="expRows"></div>
+      <div class="method">
+        <p><b>Method.</b> HSE points = 2 · a² · T (hours). a comes from the checked-out tool's profile and its recorded source; T is the trigger time the wrist band detected.</p>
+        <p>The band does not measure vibration at the hand. Screening estimate — not a certified HAV measurement.</p>
+      </div>
+    </div>
+  </div>
+</aside>
+
+<div class="safety" id="safety" role="alert" hidden>
+  <svg width="18" height="18" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 1.8 15 14H1L8 1.8Z" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/><path d="M8 6v3.6M8 11.6v.4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+  <span class="safety-text" id="safetyText">Possible drop or fall: check on W-01</span>
+  <span class="safety-time mono" id="safetyTime"></span>
+  <button class="btn sm safety-ack" type="button" data-action="ack-safety">Acknowledge</button>
+</div>
+<div class="toasts" id="toasts" aria-live="polite"></div>
+<div class="popover" id="popover" hidden></div>
+<script type="module" src="bandlink.js"></script>
+<script type="module" src="app3.js?v=16"></script>
+</body>
+</html>

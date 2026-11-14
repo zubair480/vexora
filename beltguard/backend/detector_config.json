@@ -1,0 +1,20 @@
+{
+  "by_rate": {
+    "416": {
+      "hf_ratio_center": 0.93,
+      "hf_ratio_width": 0.02
+    },
+    "50": {
+      "hf_ratio_center": 0.75,
+      "hf_ratio_width": 0.04
+    }
+  },
+  "_meta": {
+    "written": "2026-11-14 15:20 by S3 (hand-set, PROVISIONAL)",
+    "why": "Real band-07 handling (user handling/talking with the band on, double-tap/pick-up) was the only real false-positive class seen. At 416/s it ran hf_ratio 0.85-0.88 with a steady grip; at 50/s 0.48-0.80. A buzz held still is >=0.97 (416/s).",
+    "negatives_real": ["20261114-135725 (50/s, double-tap/handling)", "20261114-135851 (50/s handling)", "20261114-143000 14:30:45-54 (416/s handling + talking, confirmed by S0)"],
+    "positives": "synthetic only (phone buzz 175/230 Hz, pulsed 0.9/0.9, broadband tool) - no real phone-buzz recording yet",
+    "result": "real files 13:57-14:59: 0 false tool sessions; synthetic positives at 416/208/50: all detected; S2 sim tool scene confirmed at 416/208 (tool_start latency 2.0 s)",
+    "replace_with": "python tools/analyze.py --write after the real label runs (keeps these 'by_rate' keys only for rates it cannot tune)"
+  }
+}

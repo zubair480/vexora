@@ -1,0 +1,8 @@
+.env
+data/*.db
+data/*.db-*
+data/raw/
+__pycache__/
+*.pyc
+tools/out/
+ops/heartbeat.log

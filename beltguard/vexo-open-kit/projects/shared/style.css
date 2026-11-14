@@ -1,0 +1,27 @@
+/* One style sheet for every project page. Plain CSS, nothing to build. */
+:root { color-scheme: light dark; --ink: #1c2330; --paper: #f7f8fa; --card: #ffffff; --line: #d5dae2; --accent: #2f6fed; --soft: #5b6676; }
+@media (prefers-color-scheme: dark) {
+  :root { --ink: #e8ecf2; --paper: #12161d; --card: #1b212b; --line: #333c4a; --accent: #7aa5ff; --soft: #9aa5b5; }
+}
+* { box-sizing: border-box; }
+body { margin: 0 auto; padding: 16px; max-width: 760px; font: 16px/1.5 system-ui, sans-serif; color: var(--ink); background: var(--paper); }
+h1 { margin: 8px 0 4px; font-size: 1.6rem; }
+p { margin: 8px 0; }
+.soft { color: var(--soft); font-size: 0.92rem; }
+.row { display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: center; }
+.card { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 12px 16px; margin: 12px 0; }
+button, select, input { font: inherit; color: inherit; padding: 6px 12px; border: 1px solid var(--line); border-radius: 8px; background: var(--card); }
+button { cursor: pointer; }
+button:hover:not(:disabled) { border-color: var(--accent); }
+button:disabled { opacity: 0.45; cursor: default; }
+#connect { background: var(--accent); border-color: var(--accent); color: #fff; }
+#number { width: 5em; }
+#message { min-height: 1.5em; font-weight: 600; }
+#light { display: inline-block; width: 18px; height: 18px; border-radius: 50%; border: 1px solid var(--line); vertical-align: -3px; background: #000; }
+.pretend-only { border-style: dashed; }
+.big { font-size: 2.6rem; font-weight: 700; line-height: 1.2; margin: 4px 0; font-variant-numeric: tabular-nums; }
+canvas { display: block; width: 100%; height: auto; border-radius: 8px; background: #0d1117; }
+table { border-collapse: collapse; }
+td, th { padding: 2px 14px 2px 0; text-align: left; }
+ol, ul { margin: 4px 0; padding-left: 1.4em; }
+[hidden] { display: none !important; }

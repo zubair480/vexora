@@ -1,0 +1,20 @@
+{
+  "v": 5,
+  "createdOnFiles": {"v": 1, "at": "2026-11-14T21:52:00Z"},
+  "lists": "css",
+  "format": {"v": 1, "shared": ["project/deck.css"]},
+  "title": "BeltGuard pitch",
+  "order": ["cover", "problem", "flow", "band", "honesty", "whynow"],
+  "sections": {
+    "s1": {"description": "What BeltGuard is, in one line.", "start": "cover"},
+    "s2": {"description": "Why trigger time is the weak input in hand-arm vibration control.", "start": "problem"},
+    "s3": {"description": "The live flow from walk to next-job check, and why it needs the band.", "start": "flow"},
+    "s4": {"description": "What we claim and don’t, why now, and who pays.", "start": "honesty"}
+  },
+  "faces": {
+    "ibm-plex-sans": {"family": "IBM Plex Sans", "href": "https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&display=swap"},
+    "ibm-plex-sans-condensed": {"family": "IBM Plex Sans Condensed", "href": "https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Condensed:wght@500;600&display=swap"},
+    "ibm-plex-mono": {"family": "IBM Plex Mono", "href": "https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&display=swap"}
+  },
+  "designSystems": []
+}

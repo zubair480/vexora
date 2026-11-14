@@ -1,0 +1,1221 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>The Bluetooth contract, explained · Vexo Open</title>
+<!-- One file, nothing loaded from anywhere. The same content as bluetooth-contract.md. -->
+<style>
+:root {
+  --bg: #f4f5f7; --panel: #fff; --text: #14171a; --muted: #5d6670; --line: #d9dde2; --accent: #1463d8; --code: #eef0f3;
+  --warn-bg: #fff4d6; --warn-text: #5c4300; --bad: #c0362c; --head: #e3e6ea; --head-text: #3a424a;
+  --c0: #cfe3ff; --c1: #ffe0c2; --c2: #cdeed9; --c3: #ead7fb; --c4: #fff0b0; --c5: #ffd6de; --c6: #c9eef0; --c7: #e4e8b8;
+  --on: #14171a;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #111418; --panel: #1b2026; --text: #eef1f4; --muted: #9aa5b0; --line: #313840; --accent: #6eaeff; --code: #262d35;
+    --warn-bg: #3d3210; --warn-text: #ffe9a8; --bad: #ff7b70; --head: #2c333b; --head-text: #c5ccd3;
+    --c0: #1d3f6e; --c1: #6b3d12; --c2: #1c5234; --c3: #4a2f6b; --c4: #5c4d0c; --c5: #6b2534; --c6: #14525a; --c7: #4a4f1a;
+    --on: #fff;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #111418; --panel: #1b2026; --text: #eef1f4; --muted: #9aa5b0; --line: #313840; --accent: #6eaeff; --code: #262d35;
+  --warn-bg: #3d3210; --warn-text: #ffe9a8; --bad: #ff7b70; --head: #2c333b; --head-text: #c5ccd3;
+  --c0: #1d3f6e; --c1: #6b3d12; --c2: #1c5234; --c3: #4a2f6b; --c4: #5c4d0c; --c5: #6b2534; --c6: #14525a; --c7: #4a4f1a;
+  --on: #fff;
+}
+* { box-sizing: border-box; }
+html { scroll-padding-top: 72px; -webkit-text-size-adjust: 100%; }
+body { margin: 0; background: var(--bg); color: var(--text); font: 17px/1.55 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+code, pre, .hex, .meta, input { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+a { color: var(--accent); }
+.top { position: sticky; top: 0; z-index: 5; display: flex; align-items: center; gap: 12px; height: 56px; padding: 0 16px; background: var(--panel); border-bottom: 1px solid var(--line); }
+.top .brand { font-weight: 700; flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+button { font: inherit; color: inherit; cursor: pointer; }
+.top button, .decoder .row button { min-height: 40px; padding: 6px 14px; border-radius: 10px; border: 1px solid var(--line); background: var(--panel); }
+button:focus-visible, input:focus-visible, a:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+#menu { display: none; }
+.layout { display: grid; grid-template-columns: 280px minmax(0, 1fr); max-width: 1500px; margin: 0 auto; }
+#index { position: sticky; top: 56px; align-self: start; height: calc(100vh - 56px); overflow-y: auto; padding: 18px 10px 40px 16px; border-right: 1px solid var(--line); font-size: 15px; }
+#index a { display: block; padding: 4px 10px; border-radius: 8px; color: var(--text); text-decoration: none; border-left: 3px solid transparent; }
+#index a.l2 { font-weight: 700; margin-top: 10px; }
+#index a.l3 { padding-left: 22px; color: var(--muted); }
+#index a:hover { background: var(--code); }
+#index a.here { border-left-color: var(--accent); color: var(--accent); background: var(--code); }
+main { min-width: 0; padding: 8px 40px 80px; max-width: 1080px; }
+h1 { font-size: 2.2rem; line-height: 1.15; margin: 28px 0 12px; }
+h2 { font-size: 1.7rem; margin: 0 0 12px; padding-top: 8px; }
+h3 { font-size: 1.3rem; margin: 44px 0 6px; padding-top: 18px; border-top: 2px solid var(--line); }
+section { margin-top: 48px; }
+.anchor { margin-left: 8px; color: var(--muted); text-decoration: none; opacity: 0; font-weight: 400; }
+h2:hover .anchor, h3:hover .anchor, .anchor:focus { opacity: 1; }
+p, ul, ol { margin: 10px 0; }
+li { margin: 5px 0; }
+em { color: var(--muted); }
+h3 + p > em:only-child { display: inline-block; font-style: normal; font-size: 14px; padding: 2px 10px; border: 1px solid var(--line); border-radius: 999px; background: var(--panel); }
+code { background: var(--code); padding: 1px 5px; border-radius: 5px; font-size: .9em; overflow-wrap: anywhere; }
+pre { margin: 0; padding: 14px 16px; overflow-x: auto; background: var(--panel); border: 1px solid var(--line); border-radius: 12px; font-size: 14.5px; line-height: 1.5; }
+pre code { background: none; padding: 0; font-size: inherit; overflow-wrap: normal; }
+pre.plain { margin: 10px 0; white-space: pre-wrap; }
+pre.plain code { overflow-wrap: anywhere; }
+figure.code { margin: 12px 0; }
+figure.code figcaption { font-size: 13px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); margin-bottom: 4px; }
+blockquote { margin: 16px 0; padding: 12px 16px; background: var(--warn-bg); color: var(--warn-text); border-radius: 12px; }
+blockquote code { background: rgba(127, 127, 127, .2); }
+.table { overflow-x: auto; margin: 12px 0; border: 1px solid var(--line); border-radius: 12px; background: var(--panel); }
+table { border-collapse: collapse; width: 100%; font-size: 15px; }
+th, td { text-align: left; vertical-align: top; padding: 8px 12px; border-bottom: 1px solid var(--line); }
+th { font-size: 13px; letter-spacing: .05em; text-transform: uppercase; color: var(--muted); white-space: nowrap; }
+tr:last-child td { border-bottom: 0; }
+td:first-child { white-space: nowrap; }
+td code { overflow-wrap: normal; white-space: nowrap; }
+
+.diagram { display: grid; grid-template-columns: minmax(150px, 1fr) minmax(0, 2.4fr) minmax(150px, 1fr); gap: 0; align-items: stretch; margin: 16px 0; }
+.diagram .node { display: flex; flex-direction: column; justify-content: center; gap: 4px; padding: 18px; background: var(--panel); border: 2px solid var(--text); border-radius: 16px; font-size: 14px; color: var(--muted); }
+.diagram .node .big { font-size: 1.25rem; font-weight: 700; color: var(--text); }
+.diagram .node.band { border-color: var(--accent); }
+.diagram .pipes { display: flex; flex-direction: column; justify-content: center; gap: 12px; padding: 10px 0; }
+.diagram .pipe { position: relative; display: flex; flex-direction: column; align-items: center; text-align: center; padding: 8px 26px; font-size: 14px; }
+.diagram .pipe .label { font-size: 15px; }
+.diagram .pipe::before { content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 3px; background: currentColor; }
+.diagram .pipe::after { content: ""; position: absolute; bottom: -6px; border: 7px solid transparent; }
+.diagram .pipe.rx { color: #c2570a; } .diagram .pipe.rx::after { right: -2px; border-left-color: currentColor; border-right-width: 0; }
+.diagram .pipe.tx { color: var(--accent); } .diagram .pipe.tx::after { left: -2px; border-right-color: currentColor; border-left-width: 0; }
+.diagram .pipe.usb { color: var(--muted); } .diagram .pipe.usb::before { background: repeating-linear-gradient(90deg, currentColor 0 8px, transparent 8px 14px); }
+.diagram .pipe.usb::after { display: none; }
+.diagram .pipe .arrow { color: var(--text); }
+
+.frame { margin: 14px 0 20px; }
+.frame .caption { margin: 0 0 6px; font-weight: 600; }
+.frame-view { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 12px; }
+.summary { margin: 0 0 8px; font-size: 14px; color: var(--muted); }
+.summary b { color: var(--text); }
+.boxes { display: flex; flex-wrap: wrap; gap: 4px; }
+.box { flex: 1 1 86px; min-width: 86px; display: flex; flex-direction: column; align-items: flex-start; gap: 1px; padding: 6px 8px; border: 2px solid transparent; border-radius: 8px; color: var(--text); text-align: left; }
+.box .name { font-weight: 700; font-size: 15px; overflow-wrap: anywhere; }
+.box .meta { font-size: 11.5px; opacity: .8; }
+.hex { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 10px; font-size: 16px; }
+.bytes { display: inline-flex; flex-wrap: wrap; gap: 0; padding: 3px 4px; border-radius: 6px; border: 2px solid transparent; cursor: default; }
+.byte { padding: 0 3px; }
+.ch { background: var(--head); color: var(--head-text); }
+.c0 { background: var(--c0); } .c1 { background: var(--c1); } .c2 { background: var(--c2); } .c3 { background: var(--c3); }
+.c4 { background: var(--c4); } .c5 { background: var(--c5); } .c6 { background: var(--c6); } .c7 { background: var(--c7); }
+.box.on, .bytes.on { border-color: var(--on); }
+.readout { margin: 10px 0 0; padding: 8px 10px; min-height: 2.6em; background: var(--code); border-radius: 8px; font-size: 15px; }
+.readout .where { color: var(--muted); font-size: 13.5px; }
+.bad { color: var(--bad); font-weight: 600; margin: 4px 0; }
+
+.decoder { margin: 28px 0; padding: 16px; border: 2px solid var(--accent); border-radius: 16px; background: var(--panel); }
+.decoder h3 { margin: 0 0 4px; padding: 0; border: 0; }
+.decoder .row { display: flex; gap: 8px; }
+.decoder input { flex: 1; min-width: 0; min-height: 44px; padding: 8px 12px; font-size: 16px; color: var(--text); background: var(--bg); border: 1px solid var(--line); border-radius: 10px; }
+.decoder #hex-go { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 700; }
+:root[data-theme="dark"] .decoder #hex-go { color: #0b1420; }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; margin: 10px 0; }
+.chip { min-height: 34px; padding: 3px 12px; border-radius: 999px; border: 1px solid var(--line); background: var(--bg); font-size: 14px; }
+.decoder .frame-view { border: 0; padding: 0; }
+.foot { margin-top: 60px; color: var(--muted); font-size: 14px; }
+
+@media (min-width: 1700px) { body { font-size: 19px; } }
+@media (max-width: 900px) {
+  #menu { display: inline-block; }
+  .top .brand { font-size: 15px; }
+  #theme { font-size: 14px; padding: 6px 10px; }
+  .layout { display: block; }
+  #index { display: none; position: fixed; inset: 56px 0 0 0; height: auto; z-index: 4; background: var(--bg); border: 0; font-size: 17px; }
+  body.index-open #index { display: block; }
+  body.index-open { overflow: hidden; }
+  main { padding: 4px 16px 60px; }
+  h1 { font-size: 1.7rem; } h2 { font-size: 1.4rem; } h3 { font-size: 1.18rem; }
+  table { font-size: 14px; } th, td { padding: 7px 9px; }
+  td { min-width: 3.2em; } td:last-child { min-width: 11em; }
+  .diagram { grid-template-columns: 1fr; }
+  .diagram .pipes { padding: 14px 10px; }
+  .diagram .pipe::after { display: none; }
+  .diagram .pipe.rx .arrow::before { content: "↓ "; font-weight: 700; }
+  .diagram .pipe.tx .arrow::before { content: "↑ "; font-weight: 700; }
+  .box { flex-basis: 74px; min-width: 74px; }
+  .hex { font-size: 15px; }
+}
+@media print { .top, #index { display: none; } .layout { display: block; } }
+</style>
+</head>
+<body>
+<header class="top">
+  <button id="menu" type="button" aria-controls="index" aria-expanded="false">Contents</button>
+  <span class="brand">Vexo Open · Bluetooth contract</span>
+  <button id="theme" type="button" aria-label="Switch between light and dark">Light / dark</button>
+</header>
+<div class="layout">
+<nav id="index" aria-label="Contents">
+<a class="l2" href="#the-band-in-one-minute">The band in one minute</a>
+<a class="l2" href="#connecting-with-your-own-bluetooth-code">Connecting with your own Bluetooth code</a>
+<a class="l2" href="#the-link">The link</a>
+<a class="l2" href="#how-a-frame-is-built">How a frame is built</a>
+<a class="l2" href="#how-to-get-each-kind-of-data">How to get each kind of data</a>
+<a class="l3" href="#switching-data-on-and-off">Switching data on and off</a>
+<a class="l3" href="#motion">Motion</a>
+<a class="l3" href="#fast-motion">Fast motion</a>
+<a class="l3" href="#taps-and-events">Taps and events</a>
+<a class="l3" href="#steps-and-activity">Steps and activity</a>
+<a class="l3" href="#battery">Battery</a>
+<a class="l3" href="#temperature">Temperature</a>
+<a class="l3" href="#link-quality">Link quality</a>
+<a class="l3" href="#microphone-level">Microphone level</a>
+<a class="l3" href="#microphone-sound">Microphone sound</a>
+<a class="l3" href="#clock-and-time">Clock and time</a>
+<a class="l2" href="#how-to-control-the-band">How to control the band</a>
+<a class="l3" href="#light">Light</a>
+<a class="l3" href="#storage">Storage</a>
+<a class="l3" href="#restart-and-sleep">Restart and sleep</a>
+<a class="l3" href="#intervals">Intervals</a>
+<a class="l3" href="#band-information">Band information</a>
+<a class="l2" href="#errors-and-refusals">Errors and refusals</a>
+<a class="l2" href="#cheat-sheet">Cheat sheet</a>
+</nav>
+<main>
+<h1>The Bluetooth contract, explained</h1>
+<p>How to use a Vexo Open band, what every packet looks like, and how to get every kind of data out of it. This page is for people: it explains, with real examples. The exact, complete rules are in <a href="../contract/contract.md">contract/contract.md</a>; every number here comes from there.</p>
+<blockquote><strong>42 is only our example. Wherever you see 42 in a command, an address or a name, type the number written on your band's bag.</strong> Band 7 is <code>Vexo-HACK-07</code>, and its dashboard address ends in <code>?band=7</code>.</blockquote>
+<p>There is a visual version of this page: <a href="bluetooth-contract.html">bluetooth-contract.html</a>. It draws every frame as coloured boxes and decodes any frame you paste into it. Open it from the kit's web server at <a href="http://localhost:8000/vexo-open-kit/docs/bluetooth-contract.html">http://localhost:8000/vexo-open-kit/docs/bluetooth-contract.html</a> or by double-click.</p>
+<p>You do not need this page to use the band. The kit's libraries (<a href="api.md">api.md</a>) do all of it for you. Read on if you want to understand what happens underneath, or write your own Bluetooth code in any language.</p>
+<section>
+<h2 id="the-band-in-one-minute">The band in one minute<a class="anchor" href="#the-band-in-one-minute" aria-label="Link to this part">#</a></h2>
+<div class="table"><table><thead><tr><th>On the band</th><th>What you get from it</th></tr></thead><tbody><tr><td>Motion sensor</td><td>Acceleration and turning speed, taps, steps</td></tr><tr><td>Microphone</td><td>Loudness, and the sound itself</td></tr><tr><td>Colour light (LED)</td><td>Any colour, six patterns</td></tr><tr><td>Battery, chip temperature, radio</td><td>Battery level, temperature, signal strength</td></tr><tr><td>A little storage</td><td>1000 small values that survive a restart</td></tr></tbody></table></div>
+<p>The rules that matter:</p>
+<ul><li><strong>Your band has a number.</strong> It is written on the bag the band came in. The band's Bluetooth name is <code>Vexo-HACK-</code> plus the number: 2 digits for 1 to 99 (<code>Vexo-HACK-07</code>, <code>Vexo-HACK-42</code>), 3 digits from 100 (<code>Vexo-HACK-123</code>).</li><li><strong>Double-tap to connect.</strong> A band that nobody is connected to is silent. Double-tap it: its light blinks blue once a second and it can be found for 60 seconds. Another double-tap starts the 60 seconds again.</li><li><strong>One Bluetooth connection at a time.</strong> While one program is connected, nobody else can find the band. Close the dashboard tab before you run your own program.</li><li><strong>No pairing, no password.</strong> Anyone nearby can connect to a band that was just double-tapped. So always connect to your own band, by name.</li><li><strong>Everything is off after you connect.</strong> You switch on the data you want. When you disconnect, all data stops, the light goes off and every setting goes back to its default. Only storage and the band number are kept.</li><li><strong>The microphone shows a solid blue light.</strong> While the band sends sound or loudness, its light is solid blue and locked: you cannot change it. People nearby can see that the microphone is on.</li><li><strong>The band number is set over the USB cable only.</strong> Over Bluetooth that command is refused.</li></ul>
+<p>The first connection with the kit, step by step, is in <a href="getting-started.md">Getting started</a>.</p>
+</section>
+<section>
+<h2 id="connecting-with-your-own-bluetooth-code">Connecting with your own Bluetooth code<a class="anchor" href="#connecting-with-your-own-bluetooth-code" aria-label="Link to this part">#</a></h2>
+<p><strong>Always filter for your own band's name. Never connect to the first Vexo band you see.</strong> With about 100 bands in the room, a scan without a filter is slow, and you will grab someone else's band.</p>
+<p>The kit's libraries already do this: <code>Band.connect(42)</code> looks only for <code>Vexo-HACK-42</code>. If you write the Bluetooth part yourself, in any language, these are the steps:</p>
+<ol><li><strong>Build the name from your number.</strong> <code>Vexo-HACK-</code> + the number with at least 2 digits: 7 gives <code>Vexo-HACK-07</code>, 42 gives <code>Vexo-HACK-42</code>, 123 gives <code>Vexo-HACK-123</code>.</li><li><strong>Double-tap the band.</strong> Its light blinks blue; you have 60 seconds.</li><li><strong>Scan with a filter</strong>: the service UUID <code>254f0001-df82-4a9c-a2b5-563a0f6b2021</code> and the exact name. Scan for at least 5 seconds before you say "not found": the name arrives in a second packet (the scan response), a moment after the first.</li><li><strong>Connect.</strong> No pairing: the band rejects a pairing request.</li><li><strong>Find the service and its two characteristics</strong> (the table in <a href="#the-link">The link</a>).</li><li><strong>Switch on notifications on TX</strong>, once, before your first command. Every answer and all data arrive there.</li><li><strong>Write your first command to RX</strong>: <code>01 00 01</code> is <code>GET_INFO</code>. Check that <code>band_no</code> in the answer is your number. Send one command, wait for its response (up to 2 seconds), then send the next.</li><li><strong>When the link drops</strong>: all streams have stopped and every setting is back at its default. After a dropped link the band can be found again for 120 seconds without a tap. Scan for the same name, connect, switch on notifications, and set everything up again. After that time, double-tap.</li></ol>
+<p><strong>In a web page (Web Bluetooth, Chrome or Edge).</strong> The page must come from <code>localhost</code> or <code>https</code>, and the connect must start from a click.</p>
+<figure class="code"><figcaption>JavaScript</figcaption><pre><code>const BAND = 42;                                        // your band number
+const NAME = 'Vexo-HACK-' + String(BAND).padStart(2, '0');   // 7 -&gt; Vexo-HACK-07, 123 -&gt; Vexo-HACK-123
+const SERVICE = '254f0001-df82-4a9c-a2b5-563a0f6b2021';
+const RX = '254f0002-df82-4a9c-a2b5-563a0f6b2021';      // you write commands here
+const TX = '254f0003-df82-4a9c-a2b5-563a0f6b2021';      // the band notifies here
+
+async function connect() {                              // call this from a click on a button
+  const device = await navigator.bluetooth.requestDevice({
+    filters: [{ name: NAME, services: [SERVICE] }],     // only your own band can appear in the list
+    optionalServices: [SERVICE],
+  });
+  device.addEventListener('gattserverdisconnected', () =&gt; console.log('the link dropped'));
+  const server = await device.gatt.connect();
+  const service = await server.getPrimaryService(SERVICE);
+  const rx = await service.getCharacteristic(RX);
+  const tx = await service.getCharacteristic(TX);
+  tx.addEventListener('characteristicvaluechanged', (event) =&gt; {
+    const v = event.target.value;
+    const frame = new Uint8Array(v.buffer, v.byteOffset, v.byteLength);
+    console.log('frame', Array.from(frame, (b) =&gt; b.toString(16).padStart(2, '0')).join(' '));
+  });
+  await tx.startNotifications();                        // listen first, then ask
+  await rx.writeValueWithResponse(Uint8Array.of(0x01, 0x00, 0x01));   // GET_INFO with seq 0
+  return { device, rx, tx };
+}</code></pre></figure>
+<p><strong>In Python (bleak).</strong> Install it with <code>python3 -m pip install bleak</code>.</p>
+<figure class="code"><figcaption>Python</figcaption><pre><code>import asyncio
+from bleak import BleakClient, BleakScanner
+
+BAND = 42                                      # your band number
+NAME = "Vexo-HACK-%02d" % BAND                 # 7 -&gt; Vexo-HACK-07, 123 -&gt; Vexo-HACK-123
+SERVICE = "254f0001-df82-4a9c-a2b5-563a0f6b2021"
+RX = "254f0002-df82-4a9c-a2b5-563a0f6b2021"    # you write commands here
+TX = "254f0003-df82-4a9c-a2b5-563a0f6b2021"    # the band notifies here
+
+
+async def main():
+    # only your own band: the Vexo Open service and exactly your band's name
+    device = await BleakScanner.find_device_by_filter(
+        lambda d, adv: adv.local_name == NAME, timeout=10, service_uuids=[SERVICE])
+    if device is None:
+        raise SystemExit("Could not see %s. Double-tap it and try again." % NAME)
+    async with BleakClient(device) as client:
+        await client.start_notify(TX, lambda _, data: print("frame", bytes(data).hex(" ")))   # listen first
+        await client.write_gatt_char(RX, bytes([0x01, 0x00, 0x01]), response=True)            # GET_INFO with seq 0
+        await asyncio.sleep(1)
+
+
+asyncio.run(main())</code></pre></figure>
+<p><strong>Other platforms.</strong> The idea is the same everywhere: scan for the service UUID, accept only your exact name.</p>
+<ul><li><strong>Android (Kotlin or Java):</strong> give the scanner a <code>ScanFilter</code> with the device name <code>Vexo-HACK-42</code> (and the service UUID), then <code>connectGatt</code>, discover services, enable notifications on TX, write to RX.</li><li><strong>iPhone, iPad, Mac (Swift, CoreBluetooth):</strong> scan with <code>scanForPeripherals(withServices:)</code> for the service UUID, and connect only to the peripheral whose advertised local name is exactly <code>Vexo-HACK-42</code>.</li><li><strong>Anything else</strong> (Unity, Flutter, Rust, an ESP32): filter on the name the same way. If the name has not arrived yet, the band number is also in the first packet as manufacturer data (company <code>0xFFFF</code>): the bytes <code>4F 01</code> and then the band number as a <code>u16</code>.</li></ul>
+<p>The two code examples above have been run against a pretend Bluetooth layer, not against a real band. The details of what the band sends while it can be found are in <a href="../contract/contract.md#1-finding-and-connecting">1. Finding and connecting</a>.</p>
+</section>
+<section>
+<h2 id="the-link">The link<a class="anchor" href="#the-link" aria-label="Link to this part">#</a></h2>
+<div class="diagram" role="img" aria-label="Your computer writes commands to the RX characteristic of the band. The band sends responses, notices and data as notifications on the TX characteristic.">
+  <div class="node"><span class="big">Your computer</span><span>laptop, phone, anything with Bluetooth</span></div>
+  <div class="pipes">
+    <div class="pipe rx"><span class="label"><b>RX</b> <code>254f0002-…</code></span><span class="arrow">you write: commands</span></div>
+    <div class="pipe tx"><span class="label"><b>TX</b> <code>254f0003-…</code></span><span class="arrow">the band notifies: responses, notices, data</span></div>
+    <div class="pipe usb"><span class="label"><b>USB cable</b></span><span class="arrow">the same frames, both ways</span></div>
+  </div>
+  <div class="node band"><span class="big">Band</span><span><code>Vexo-HACK-42</code></span><span>service <code>254f0001-…</code></span></div>
+</div>
+<p>The band offers one Bluetooth service with two characteristics. Think of them as two pipes: one into the band, one out of it.</p>
+<div class="table"><table><thead><tr><th>What</th><th>UUID</th><th>Direction</th><th>Use</th></tr></thead><tbody><tr><td>Vexo Open service</td><td><code>254f0001-df82-4a9c-a2b5-563a0f6b2021</code></td><td></td><td>The service to look for</td></tr><tr><td>RX</td><td><code>254f0002-df82-4a9c-a2b5-563a0f6b2021</code></td><td>you write</td><td>You to the band: one frame (a command) per write</td></tr><tr><td>TX</td><td><code>254f0003-df82-4a9c-a2b5-563a0f6b2021</code></td><td>the band notifies</td><td>The band to you: one frame per notification (responses, notices, data)</td></tr></tbody></table></div>
+<p>The three UUIDs differ only in the fourth digit: 1, 2, 3. The band also has the standard Device Information service (<code>0x180A</code>) with its firmware version, and nothing else.</p>
+<p><strong>The same frames over the USB cable.</strong> Plugged in, the band shows up as a serial port. It speaks exactly the same frames, with no double-tap needed. Because a serial port is one long line of bytes, each frame is wrapped so that the end can be found: it is COBS-encoded (a way to remove every <code>00</code> byte from it) and followed by one <code>00</code>. Example: the frame <code>01 00 01</code> travels as <code>02 01 02 01 00</code>. Everything you need to write your own USB client is in <a href="../contract/contract.md#22-usb-cable">2.2 USB cable</a>. A program on the cable and one on Bluetooth can use the band at the same time: <a href="../contract/contract.md#23-both-transports-at-once">2.3 Both transports at once</a>.</p>
+</section>
+<section>
+<h2 id="how-a-frame-is-built">How a frame is built<a class="anchor" href="#how-a-frame-is-built" aria-label="Link to this part">#</a></h2>
+<p>Everything that travels is a <strong>frame</strong>: one type byte, then a body. A frame is 1 to 244 bytes long.</p>
+<pre class="plain"><code>[type] [body ...]</code></pre>
+<div class="table"><table><thead><tr><th>Type</th><th>Frame</th><th>Body</th><th>Who sends it</th></tr></thead><tbody><tr><td><code>0x01</code></td><td>Command</td><td><code>seq</code>, <code>opcode</code>, then the arguments</td><td>you</td></tr><tr><td><code>0x02</code></td><td>Response</td><td><code>seq</code>, <code>opcode</code>, <code>status</code>, then the data</td><td>the band, exactly one for every command</td></tr><tr><td><code>0x03</code></td><td>Notice</td><td><code>code</code>, <code>arg</code></td><td>the band, by itself when something happens</td></tr><tr><td><code>0x10</code> to <code>0x18</code></td><td>Data (a stream frame)</td><td>depends on the stream</td><td>the band, while that stream is on</td></tr></tbody></table></div>
+<ul><li><strong><code>seq</code></strong> is any number from 0 to 255 that you choose. The response repeats it, so you know which command it answers. Use a counter.</li><li><strong><code>opcode</code></strong> says which command. The response repeats it too.</li><li><strong><code>status</code></strong> is 0 for OK. Anything else is an error, and then no data follows (<a href="#errors-and-refusals">Errors and refusals</a>).</li><li><strong>Byte order: little-endian.</strong> A number of more than one byte is sent lowest byte first. The bytes <code>e8 03</code> are the number <code>0x03e8</code> = 1000. The bytes <code>40 e2 01 00</code> are <code>0x0001e240</code> = 123456.</li><li><strong>Types.</strong> <code>u8</code>, <code>u16</code>, <code>u32</code>, <code>u64</code> are whole numbers of 1, 2, 4 and 8 bytes that cannot be negative. <code>i8</code>, <code>i16</code>, <code>i32</code> can be negative (two's complement): the bytes <code>18 fc</code> as an <code>i16</code> are -1000.</li><li><strong>No padding.</strong> The fields follow each other with nothing in between.</li><li><strong>Ignore what you do not know.</strong> A frame type or an event code you have never seen is not an error: skip it.</li></ul>
+<p><strong>A worked example: make the light green.</strong> You send this command (10 bytes):</p>
+<div class="table"><table><thead><tr><th>Offset</th><th>Bytes</th><th>Field</th><th>Value</th><th>Meaning</th></tr></thead><tbody><tr><td>0</td><td><code>01</code></td><td><code>type</code></td><td>1</td><td>a command</td></tr><tr><td>1</td><td><code>07</code></td><td><code>seq</code></td><td>7</td><td>our counter is at 7</td></tr><tr><td>2</td><td><code>50</code></td><td><code>opcode</code></td><td>"LED_SET"</td><td><code>0x50</code> is <code>LED_SET</code></td></tr><tr><td>3</td><td><code>00</code></td><td><code>r</code></td><td>0</td><td>no red</td></tr><tr><td>4</td><td><code>ff</code></td><td><code>g</code></td><td>255</td><td>full green</td></tr><tr><td>5</td><td><code>00</code></td><td><code>b</code></td><td>0</td><td>no blue</td></tr><tr><td>6</td><td><code>80</code></td><td><code>brightness</code></td><td>128</td><td>128 of 255: half</td></tr><tr><td>7</td><td><code>01</code></td><td><code>pattern</code></td><td>1</td><td>1 = solid</td></tr><tr><td>8</td><td><code>e8 03</code></td><td><code>period_ms</code></td><td>1000</td><td><code>e8 03</code> = <code>0x03e8</code> = 1000 ms (not used for solid)</td></tr></tbody></table></div>
+<div class="frame" data-hex="01075000ff008001e803"><p class="caption">The command</p><noscript><code>01075000ff008001e803</code></noscript></div>
+<p>The band answers with 4 bytes: a response (<code>02</code>), to our command number 7 (<code>07</code>), which was <code>LED_SET</code> (<code>50</code>), status OK (<code>00</code>). <code>LED_SET</code> has no data, so that is all.</p>
+<div class="frame" data-hex="02075000"><p class="caption">The response</p><noscript><code>02075000</code></noscript></div>
+<div class="decoder" id="decoder">
+  <h3 id="paste-hex-see-it-decoded">Paste hex, see it decoded</h3>
+  <p>Paste any frame: a command, a response, a notice or a data frame. Spaces, commas and <code>0x</code> are fine. Nothing leaves this page.</p>
+  <div class="row"><input id="hex-in" type="text" spellcheck="false" autocomplete="off" autocapitalize="off" aria-label="A frame as hex" value="1260ea000040e2010070015401"><button id="hex-go" type="button">Decode</button></div>
+  <div class="chips" id="hex-chips"></div>
+  <div id="hex-out" aria-live="polite"></div>
+</div>
+</section>
+<section>
+<h2 id="how-to-get-each-kind-of-data">How to get each kind of data<a class="anchor" href="#how-to-get-each-kind-of-data" aria-label="Link to this part">#</a></h2>
+<p>One block per kind of data. Each has the same parts: what it is, how to switch it on, the layout of the frame, a real example, and the short way with the kit's library (42 = your band number; the library lines assume <code>band = Band.connect(42)</code> as in <a href="api.md">api.md</a>).</p>
+<h3 id="switching-data-on-and-off">Switching data on and off<a class="anchor" href="#switching-data-on-and-off" aria-label="Link to this part">#</a></h3>
+<p>Every kind of data is a <strong>stream</strong>. All streams are off after you connect. <code>STREAM_START</code> switches streams on, <code>STREAM_STOP</code> switches them off, <code>STREAM_GET</code> tells you which ones are on. Each stream has a bit number; the <code>mask</code> is the sum of the bits you want: bit 0 motion (1), bit 1 event (2), bit 2 activity (4), bit 3 audio (8), bit 4 battery (16), bit 5 temp (32), bit 6 link (64), bit 7 mic_level (128), bit 8 motion2 (256). Stream bit n arrives as frame type <code>0x10</code> + n.</p>
+<p><strong>Switch it on.</strong> Send <code>STREAM_START</code> with the mask. The answer <code>active</code> shows everything that is on now.</p>
+<p><strong><code>STREAM_START</code> command (you send this)</strong></p>
+<div class="table"><table><thead><tr><th>Offset</th><th>Size</th><th>Type</th><th>Field</th><th>Unit or meaning</th></tr></thead><tbody><tr><td>0</td><td>1</td><td>u8</td><td><code>type</code></td><td>always 0x01: a command</td></tr><tr><td>1</td><td>1</td><td>u8</td><td><code>seq</code></td><td>any number you choose; use a counter</td></tr><tr><td>2</td><td>1</td><td>u8</td><td><code>opcode</code></td><td>0x10 = STREAM_START</td></tr><tr><td>3</td><td>2</td><td>u16</td><td><code>mask</code></td><td>one bit per stream</td></tr></tbody></table></div>
+<div class="frame" data-hex="0108109300"><p class="caption">Start motion + event + battery + mic_level: 1 + 2 + 16 + 128 = 147 = <code>0x0093</code></p><noscript><code>0108109300</code></noscript></div>
+<p><strong><code>STREAM_START</code> response (the band answers)</strong></p>
+<div class="table"><table><thead><tr><th>Offset</th><th>Size</th><th>Type</th><th>Field</th><th>Unit or meaning</th></tr></thead><tbody><tr><td>0</td><td>1</td><td>u8</td><td><code>type</code></td><td>always 0x02: a response</td></tr><tr><td>1</td><td>1</td><td>u8</td><td><code>seq</code></td><td>the <code>seq</code> of the command it answers</td></tr><tr><td>2</td><td>1</td><td>u8</td><td><code>opcode</code></td><td>0x10 = STREAM_START</td></tr><tr><td>3</td><td>1</td><td>u8</td><td><code>status</code></td><td>0 = OK; anything else is an error and no data follows</td></tr><tr><td>4</td><td>2</td><td>u16</td><td><code>active</code></td><td>one bit per stream that is on</td></tr></tbody></table></div>
+<div class="frame" data-hex="020810009300"><p class="caption">The answer: those four are on</p><noscript><code>020810009300</code></noscript></div>
+<p><strong><code>STREAM_STOP</code> command (you send this)</strong></p>
+<div class="table"><table><thead><tr><th>Offset</th><th>Size</th><th>Type</th><th>Field</th><th>Unit or meaning</th></tr></thead><tbody><tr><td>0</td><td>1</td><td>u8</td><td><code>type</code></td><td>always 0x01: a command</td></tr><tr><td>1</td><td>1</td><td>u8</td><td><code>seq</code></td><td>any number you choose; use a counter</td></tr><tr><td>2</td><td>1</td><td>u8</td><td><code>opcode</code></td><td>0x11 = STREAM_STOP</td></tr><tr><td>3</td><td>2</td><td>u16</td><td><code>mask</code></td><td>one bit per stream</td></tr></tbody></table></div>
+<div class="frame" data-hex="010a110100"><p class="caption">Stop motion</p><noscript><code>010a110100</code></noscript></div>
+<p><strong><code>STREAM_STOP</code> response (the band answers)</strong></p>
+<div class="table"><table><thead><tr><th>Offset</th><th>Size</th><th>Type</th><th>Field</th><th>Unit or meaning</th></tr></thead><tbody><tr><td>0</td><td>1</td><td>u8</td><td><code>type</code></td><td>always 0x02: a response</td></tr><tr><td>1</td><td>1</td><td>u8</td><td><code>seq</code></td><td>the <code>seq</code> of the command it answers</td></tr><tr><td>2</td><td>1</td><td>u8</td><td><code>opcode</code></td><td>0x11 = STREAM_STOP</td></tr><tr><td>3</td><td>1</td><td>u8</td><td><code>status</code></td><td>0 = OK; anything else is an error and no data follows</td></tr><tr><td>4</td><td>2</td><td>u16</td><td><code>active</code></td><td>one bit per stream that is on</td></tr></tbody></table></div>
+<div class="frame" data-hex="020a11009200"><p class="caption">The answer: three are still on</p><noscript><code>020a11009200</code></noscript></div>
+<p><strong>With the kit's library.</strong> JavaScript, then Python:</p>
+<figure class="code"><figcaption>JavaScript</figcaption><pre><code>await band.configure({ motion: 50, events: true, battery: true });
+console.log(band.streams);</code></pre></figure>
+<figure class="code"><figcaption>Python</figcaption><pre><code>band.configure(motion=50, events=True, battery=True)
+print(band.streams)</code></pre></figure>
+<ul><li>The library call <code>configure</code> sends the right <code>STREAM_START</code> and <code>STREAM_STOP</code> for you.</li><li>A bit for a part that is not working, or the link bit over USB, gives NOT_AVAILABLE and nothing starts.</li></ul>
+<p>More detail: <a href="../contract/contract.md#4-streams">4. Streams</a> in the contract.</p>
+<h3 id="motion">Motion<a class="anchor" href="#motion" aria-label="Link to this part">#</a></h3>
+<p><em>MOTION, type 0x10, bit 0</em></p>
+<p>The accelerometer (which way is down, and how hard the band is pushed) and the gyroscope (how fast it turns). Rates: 10, 25 (default), 50 or 100 samples per second. A frame carries up to 10 samples. Acceleration is in milli-g (1000 = 1 g, the pull of the earth); turning speed is in tenths of a degree per second. Sample i was taken at <code>t_ms</code> + i x <code>period_ms</code>.</p>
+<p><strong>Switch it on.</strong> Optional: <code>IMU_SET</code> to choose the rate and the ranges. Then <code>STREAM_START</code> with bit 0 (mask 1).</p>
+<p><strong><code>MOTION</code> frame (the band sends this)</strong></p>
+<div class="table"><table><thead><tr><th>Offset</th><th>Size</th><th>Type</th><th>Field</th><th>Unit or meaning</th></tr></thead><tbody><tr><td>0</td><td>1</td><td>u8</td><td><code>type</code></td><td>always 0x10: MOTION</td></tr><tr><td>1</td><td>4</td><td>u32</td><td><code>t_ms</code></td><td>ms since the band started</td></tr><tr><td>5</td><td>1</td><td>u8</td><td><code>period_ms</code></td><td>ms between two samples</td></tr><tr><td>6</td><td>1</td><td>u8</td><td><code>count</code></td><td>samples in this frame</td></tr><tr><td>7 + 12 x i</td><td>12</td><td>6 x i16</td><td><code>ax, ay, az, gx, gy, gz</code></td><td>sample i: milli-g, then tenths of a degree per second</td></tr></tbody></table></div>
+<div class="frame" data-hex="1040e201002802f40118fcfa007d0030f8000080c1803e0100204ee0b1ffff"><p class="caption">Two samples, 40 ms apart (25 samples per second)</p><noscript><code>1040e201002802f40118fcfa007d0030f8000080c1803e0100204ee0b1ffff</code></noscript></div>
+<p><strong><code>IMU_SET</code> command (you send this)</strong></p>
+<div class="table"><table><thead><tr><th>Offset</th><th>Size</th><th>Type</th><th>Field</th><th>Unit or meaning</th></tr></thead><tbody><tr><td>0</td><td>1</td><td>u8</td><td><code>type</code></td><td>always 0x01: a command</td></tr><tr><td>1</td><td>1</td><td>u8</td><td><code>seq</code></td><td>any number you choose; use a counter</td></tr><tr><td>2</td><td>1</td><td>u8</td><td><code>opcode</code></td><td>0x20 = IMU_SET</td></tr><tr><td>3</td><td>1</td><td>u8</td><td><code>rate_hz</code></td><td>samples per second: 10, 25, 50 or 100</td></tr><tr><td>4</td><td>1</td><td>u8</td><td><code>accel_range_g</code></td><td>g: 2, 4, 8 or 16</td></tr><tr><td>5</td><td>2</td><td>u16</td><td><code>gyro_range_dps</code></td><td>degrees per second: 0 (off), 250, 500, 1000 or 2000</td></tr></tbody></table></div>
+<div class="frame" data-hex="010c206408f401"><p class="caption">Set 100 samples per second, 8 g range, 500 degrees per second range</p><noscript><code>010c206408f401</code></noscript></div>
+<p><strong><code>IMU_SET</code> response (the band answers)</strong></p>
+<div class="table"><table><thead><tr><th>Offset</th><th>Size</th><th>Type</th><th>Field</th><th>Unit or meaning</th></tr></thead><tbody><tr><td>0</td><td>1</td><td>u8</td><td><code>type</code></td><td>always 0x02: a response</td></tr><tr><td>1</td><td>1</td><td>u8</td><td><code>seq</code></td><td>the <code>seq</code> of the command it answers</td></tr><tr><td>2</td><td>1</td><td>u8</td><td><code>opcode</code></td><td>0x20 = IMU_SET</td></tr><tr><td>3</td><td>1</td><td>u8</td><td><code>status</code></td><td>0 = OK; anything else is an error and no data follows</td></tr><tr><td>4</td><td>1</td><td>u8</td><td><code>rate_hz</code></td><td>samples per second: 10, 25, 50 or 100</td></tr><tr><td>5</td><td>1</td><td>u8</td><td><code>accel_range_g</code></td><td>g: 2, 4, 8 or 16</td></tr><tr><td>6</td><td>2</td><td>u16</td><td><code>gyro_range_dps</code></td><td>degrees per second: 0 (off), 250, 500, 1000 or 2000</td></tr></tbody></table></div>
+<div class="frame" data-hex="020c20006408f401"><p class="caption">The answer repeats what was applied</p><noscript><code>020c20006408f401</code></noscript></div>
+<p><strong>With the kit's library.</strong> JavaScript, then Python:</p>
+<figure class="code"><figcaption>JavaScript</figcaption><pre><code>band.on('motion', (m) =&gt; console.log(m.ax, m.ay, m.az, m.gx, m.gy, m.gz));
+await band.configure({ motion: 50 });</code></pre></figure>
+<figure class="code"><figcaption>Python</figcaption><pre><code>band.on("motion", lambda m: print(m.ax, m.ay, m.az, m.gx, m.gy, m.gz))
+band.configure(motion=50)</code></pre></figure>
+<ul><li>The library gives you one event per sample, already in g and in degrees per second.</li><li>After every connect the ranges are 2 g and 2000 degrees per second. A harder push reads exactly 2 g until you widen the range.</li><li>The library uses the faster stream below for <code>motion</code>; the events look the same.</li></ul>
+<p>More detail: <a href="../contract/contract.md#52-motion-sensor-imu_set-event_set">5.2 Motion sensor</a> in the contract.</p>
+<h3 id="fast-motion">Fast motion<a class="anchor" href="#fast-motion" aria-label="Link to this part">#</a></h3>
+<p><em>MOTION2, type 0x18, bit 8</em></p>
+<p>A second motion stream. You choose the sensors (accelerometer, gyroscope or both) and the rate: 10, 25 (default), 50, 100, 208, 416, 833 or 1666 samples per second. Over Bluetooth the limit is 416 with both sensors and 833 with one; 1666 works only over USB with the accelerometer alone. Every sample has a number: sample i is number <code>sample_no</code> + i and was taken at <code>t_ms</code> + i x <code>period_us</code> / 1000. A jump in <code>sample_no</code> is exactly the number of samples lost.</p>
+<p><strong>Switch it on.</strong> <code>MOTION2_SET</code> with the rate and the sensors, then <code>STREAM_START</code> with bit 8 (mask 256).</p>
+<p><strong><code>MOTION2</code> frame (the band sends this)</strong></p>
+<div class="table"><table><thead><tr><th>Offset</th><th>Size</th><th>Type</th><th>Field</th><th>Unit or meaning</th></tr></thead><tbody><tr><td>0</td><td>1</td><td>u8</td><td><code>type</code></td><td>always 0x18: MOTION2</td></tr><tr><td>1</td><td>4</td><td>u32</td><td><code>t_ms</code></td><td>ms since the band started</td></tr><tr><td>5</td><td>4</td><td>u32</td><td><code>sample_no</code></td><td>number of the first sample in this frame</td></tr><tr><td>9</td><td>4</td><td>u32</td><td><code>period_us</code></td><td>microseconds between two samples, measured</td></tr><tr><td>13</td><td>1</td><td>u8</td><td><code>sensors</code></td><td>1 accelerometer, 2 gyroscope, 3 both</td></tr><tr><td>14</td><td>1</td><td>u8</td><td><code>count</code></td><td>samples in this frame</td></tr><tr><td>15 + size x i</td><td>6 or 12</td><td>3 or 6 x i16</td><td><code>ax, ay, az and/or gx, gy, gz</code></td><td>sample i: 6 bytes with one sensor, 12 with both; units as MOTION</td></tr></tbody></table></div>
+<div class="frame" data-hex="188813000000000000409c00000301f40118fcfa007d0030f80000"><p class="caption">Both sensors at 25 samples per second: one sample of 12 bytes</p><noscript><code>188813000000000000409c00000301f40118fcfa007d0030f80000</code></noscript></div>
+<div class="frame" data-hex="1840e20100400300006409000001030a00ecffe8030b00ebffe90380c1803e0100"><p class="caption">Accelerometer only at 416 samples per second: three samples of 6 bytes</p><noscript><code>1840e20100400300006409000001030a00ecffe8030b00ebffe90380c1803e0100</code></noscript></div>
+<p><strong><code>MOTION2_SET</code> command (you send this)</strong></p>
+<div class="table"><table><thead><tr><th>Offset</th><th>Size</th><th>Type</th><th>Field</th><th>Unit or meaning</th></tr></thead><tbody><tr><td>0</td><td>1</td><td>u8</td><td><code>type</code></td><td>always 0x01: a command</td></tr><tr><td>1</td><td>1</td><td>u8</td><td><code>seq</code></td><td>any number you choose; use a counter</td></tr><tr><td>2</td><td>1</td><td>u8</td><td><code>opcode</code></td><td>0x24 = MOTION2_SET</td></tr><tr><td>3</td><td>2</td><td>u16</td><td><code>rate_hz</code></td><td>samples per second</td></tr><tr><td>5</td><td>1</td><td>u8</td><td><code>sensors</code></td><td>1 accelerometer, 2 gyroscope, 3 both</td></tr></tbody></table></div>
+<div class="frame" data-hex="013724a00101"><p class="caption">Set 416 samples per second, accelerometer only</p><noscript><code>013724a00101</code></noscript></div>
+<p><strong><code>MOTION2_SET</code> response (the band answers)</strong></p>
+<div class="table"><table><thead><tr><th>Offset</th><th>Size</th><th>Type</th><th>Field</th><th>Unit or meaning</th></tr></thead><tbody><tr><td>0</td><td>1</td><td>u8</td><td><code>type</code></td><td>always 0x02: a response</td></tr><tr><td>1</td><td>1</td><td>u8</td><td><code>seq</code></td><td>the <code>seq</code> of the command it answers</td></tr><tr><td>2</td><td>1</td><td>u8</td><td><code>opcode</code></td><td>0x24 = MOTION2_SET</td></tr><tr><td>3</td><td>1</td><td>u8</td><td><code>status</code></td><td>0 = OK; anything else is an error and no data follows</td></tr><tr><td>4</td><td>2</td><td>u16</td><td><code>rate_hz</code></td><td>samples per second</td></tr><tr><td>6</td><td>1</td><td>u8</td><td><code>sensors</code></td><td>1 accelerometer, 2 gyroscope, 3 both</td></tr><tr><td>7</td><td>2</td><td>u16</td><td><code>max_accel_hz</code></td><td>fastest rate, accelerometer alone</td></tr><tr><td>9</td><td>2</td><td>u16</td><td><code>max_gyro_hz</code></td><td>fastest rate, gyroscope alone</td></tr><tr><td>11</td><td>2</td><td>u16</td><td><code>max_both_hz</code></td><td>fastest rate, both</td></tr></tbody></table></div>
+<div class="frame" data-hex="02372400a0010141034103a001"><p class="caption">The answer also gives the fastest rates of this link (here Bluetooth)</p><noscript><code>02372400a0010141034103a001</code></noscript></div>
+<p><strong>With the kit's library.</strong> JavaScript, then Python:</p>
+<figure class="code"><figcaption>JavaScript</figcaption><pre><code>band.on('motion', (m) =&gt; console.log(m.n, m.t, m.ax, m.ay, m.az));
+await band.configure({ motion: 416, sensors: 'accel' });</code></pre></figure>
+<figure class="code"><figcaption>Python</figcaption><pre><code>band.on("motion", lambda m: print(m.n, m.t, m.ax, m.ay, m.az))
+band.configure(motion=416, sensors="accel")</code></pre></figure>
+<ul><li>Place samples in time with <code>t_ms</code> and <code>period_us</code>, never with the nominal rate: <code>period_us</code> is measured by the band.</li><li>A rate that is too fast for the link is answered with DENIED and nothing changes.</li></ul>
+<p>More detail: <a href="../contract/contract.md#52-motion-sensor-imu_set-event_set">5.2 Motion sensor (the MOTION2 tables)</a> in the contract.</p>
+<h3 id="taps-and-events">Taps and events<a class="anchor" href="#taps-and-events" aria-label="Link to this part">#</a></h3>
+<p><em>EVENT, type 0x11, bit 1</em></p>
+<p>The band recognises seven things by itself and sends one small frame when one happens: 1 single tap, 2 double tap, 3 free-fall, 4 tilt, 5 orientation changed, 6 motion started, 7 motion stopped. For orientation, <code>arg</code> is the face pointing up: 0 +X, 1 -X, 2 +Y, 3 -Y, 4 +Z, 5 -Z. For the others <code>arg</code> is 0.</p>
+<p><strong>Switch it on.</strong> <code>STREAM_START</code> with bit 1 (mask 2). Optional: <code>EVENT_SET</code> to choose which events you get and how hard a tap must be (<code>tap_threshold_mg</code>, 200..8000, default 800).</p>
+<p><strong><code>EVENT</code> frame (the band sends this)</strong></p>
+<div class="table"><table><thead><tr><th>Offset</th><th>Size</th><th>Type</th><th>Field</th><th>Unit or meaning</th></tr></thead><tbody><tr><td>0</td><td>1</td><td>u8</td><td><code>type</code></td><td>always 0x11: EVENT</td></tr><tr><td>1</td><td>4</td><td>u32</td><td><code>t_ms</code></td><td>ms since the band started</td></tr><tr><td>5</td><td>1</td><td>u8</td><td><code>event</code></td><td>1 tap, 2 double tap, 3 free-fall, 4 tilt, 5 orientation, 6 motion started, 7 motion stopped</td></tr><tr><td>6</td><td>1</td><td>u8</td><td><code>arg</code></td><td>for orientation: the face pointing up; otherwise 0</td></tr></tbody></table></div>
+<div class="frame" data-hex="118a1300000200"><p class="caption">A double tap, 5.002 s after the band started</p><noscript><code>118a1300000200</code></noscript></div>
+<div class="frame" data-hex="118d1300000504"><p class="caption">Orientation changed: face 4 (+Z) points up</p><noscript><code>118d1300000504</code></noscript></div>
+<p><strong><code>EVENT_SET</code> command (you send this)</strong></p>
+<div class="table"><table><thead><tr><th>Offset</th><th>Size</th><th>Type</th><th>Field</th><th>Unit or meaning</th></tr></thead><tbody><tr><td>0</td><td>1</td><td>u8</td><td><code>type</code></td><td>always 0x01: a command</td></tr><tr><td>1</td><td>1</td><td>u8</td><td><code>seq</code></td><td>any number you choose; use a counter</td></tr><tr><td>2</td><td>1</td><td>u8</td><td><code>opcode</code></td><td>0x22 = EVENT_SET</td></tr><tr><td>3</td><td>1</td><td>u8</td><td><code>event_mask</code></td><td>bit 0 single tap, 1 double tap, 2 free-fall, 3 tilt, 4 orientation, 5 motion start/stop</td></tr><tr><td>4</td><td>2</td><td>u16</td><td><code>tap_threshold_mg</code></td><td>milli-g, 200..8000</td></tr></tbody></table></div>
+<div class="frame" data-hex="010f2203b004"><p class="caption">Only single and double taps (mask 3), threshold 1200 milli-g</p><noscript><code>010f2203b004</code></noscript></div>
+<p><strong><code>EVENT_SET</code> response (the band answers)</strong></p>
+<div class="table"><table><thead><tr><th>Offset</th><th>Size</th><th>Type</th><th>Field</th><th>Unit or meaning</th></tr></thead><tbody><tr><td>0</td><td>1</td><td>u8</td><td><code>type</code></td><td>always 0x02: a response</td></tr><tr><td>1</td><td>1</td><td>u8</td><td><code>seq</code></td><td>the <code>seq</code> of the command it answers</td></tr><tr><td>2</td><td>1</td><td>u8</td><td><code>opcode</code></td><td>0x22 = EVENT_SET</td></tr><tr><td>3</td><td>1</td><td>u8</td><td><code>status</code></td><td>0 = OK; anything else is an error and no data follows</td></tr><tr><td>4</td><td>1</td><td>u8</td><td><code>event_mask</code></td><td>bit 0 single tap, 1 double tap, 2 free-fall, 3 tilt, 4 orientation, 5 motion start/stop</td></tr><tr><td>5</td><td>2</td><td>u16</td><td><code>tap_threshold_mg</code></td><td>milli-g, 200..8000</td></tr></tbody></table></div>
+<div class="frame" data-hex="020f220003b004"><p class="caption">The answer repeats what was applied</p><noscript><code>020f220003b004</code></noscript></div>
+<p><strong>With the kit's library.</strong> JavaScript, then Python:</p>
+<figure class="code"><figcaption>JavaScript</figcaption><pre><code>band.on('double-tap', (e) =&gt; console.log('double tap at', e.t));
+await band.configure({ events: true });</code></pre></figure>
+<figure class="code"><figcaption>Python</figcaption><pre><code>band.on("double-tap", lambda e: print("double tap at", e.t))
+band.configure(events=True)</code></pre></figure>
+<ul><li>Library event names: <code>tap</code>, <code>double-tap</code>, <code>free-fall</code>, <code>tilt</code>, <code>orientation</code>, <code>motion-start</code>, <code>motion-stop</code>, or <code>event</code> for all of them.</li><li>The double tap that opens the connect window always uses 800 milli-g, whatever you set.</li></ul>
+<p>More detail: <a href="../contract/contract.md#4-streams">4. Streams (the EVENT row under "Details")</a> in the contract.</p>
+<h3 id="steps-and-activity">Steps and activity<a class="anchor" href="#steps-and-activity" aria-label="Link to this part">#</a></h3>
+<p><em>ACTIVITY, type 0x12, bit 2</em></p>
+<p>A step counter, the walking pace, and whether the wearer is still, walking or running. One frame a second by default. <code>steps_total</code> is a lifetime count that survives restarts: subtract the first value you see to get the steps since you connected.</p>
+<p><strong>Switch it on.</strong> <code>STREAM_START</code> with bit 2 (mask 4).</p>
+<p><strong><code>ACTIVITY</code> frame (the band sends this)</strong></p>
+<div class="table"><table><thead><tr><th>Offset</th><th>Size</th><th>Type</th><th>Field</th><th>Unit or meaning</th></tr></thead><tbody><tr><td>0</td><td>1</td><td>u8</td><td><code>type</code></td><td>always 0x12: ACTIVITY</td></tr><tr><td>1</td><td>4</td><td>u32</td><td><code>t_ms</code></td><td>ms since the band started</td></tr><tr><td>5</td><td>4</td><td>u32</td><td><code>steps_total</code></td><td>steps, lifetime count</td></tr><tr><td>9</td><td>1</td><td>u8</td><td><code>cadence_spm</code></td><td>steps per minute</td></tr><tr><td>10</td><td>1</td><td>u8</td><td><code>state</code></td><td>0 still, 1 walk, 2 run</td></tr><tr><td>11</td><td>2</td><td>u16</td><td><code>motion_mg</code></td><td>milli-g</td></tr></tbody></table></div>
+<div class="frame" data-hex="1260ea000040e2010070015401"><p class="caption">123456 steps in total, 112 steps a minute, walking</p><noscript><code>1260ea000040e2010070015401</code></noscript></div>
+<p><strong>With the kit's library.</strong> JavaScript, then Python:</p>
+<figure class="code"><figcaption>JavaScript</figcaption><pre><code>band.on('activity', (a) =&gt; console.log(a.steps, a.cadence, a.state));
+await band.configure({ activity: true });</code></pre></figure>
+<figure class="code"><figcaption>Python</figcaption><pre><code>band.on("activity", lambda a: print(a.steps, a.cadence, a.state))
+band.configure(activity=True)</code></pre></figure>
+<p>More detail: <a href="../contract/contract.md#4-streams">4. Streams</a> in the contract.</p>
+<h3 id="battery">Battery<a class="anchor" href="#battery" aria-label="Link to this part">#</a></h3>
+<p><em>BATTERY, type 0x14, bit 4</em></p>
+<p>How full the battery is, in percent and in millivolts, and whether the band is charging. As a stream you get one frame at the start and then one when something changes. To read it once, send <code>BATTERY_GET</code>: its answer carries the same three fields. This frame has no time stamp.</p>
+<p><strong>Switch it on.</strong> <code>STREAM_START</code> with bit 4 (mask 16), or <code>BATTERY_GET</code> for one reading.</p>
+<p><strong><code>BATTERY</code> frame (the band sends this)</strong></p>
+<div class="table"><table><thead><tr><th>Offset</th><th>Size</th><th>Type</th><th>Field</th><th>Unit or meaning</th></tr></thead><tbody><tr><td>0</td><td>1</td><td>u8</td><td><code>type</code></td><td>always 0x14: BATTERY</td></tr><tr><td>1</td><td>1</td><td>u8</td><td><code>percent</code></td><td>%</td></tr><tr><td>2</td><td>1</td><td>u8</td><td><code>state</code></td><td>0 on battery, 1 charging, 2 charged</td></tr><tr><td>3</td><td>2</td><td>u16</td><td><code>millivolts</code></td><td>mV</td></tr></tbody></table></div>
+<div class="frame" data-hex="145700930f"><p class="caption">87 percent, on battery, 3.987 V</p><noscript><code>145700930f</code></noscript></div>
+<p><strong><code>BATTERY_GET</code> command (you send this)</strong></p>
+<div class="table"><table><thead><tr><th>Offset</th><th>Size</th><th>Type</th><th>Field</th><th>Unit or meaning</th></tr></thead><tbody><tr><td>0</td><td>1</td><td>u8</td><td><code>type</code></td><td>always 0x01: a command</td></tr><tr><td>1</td><td>1</td><td>u8</td><td><code>seq</code></td><td>any number you choose; use a counter</td></tr><tr><td>2</td><td>1</td><td>u8</td><td><code>opcode</code></td><td>0x61 = BATTERY_GET</td></tr></tbody></table></div>
+<div class="frame" data-hex="011b61"><p class="caption">Read the battery once</p><noscript><code>011b61</code></noscript></div>
+<p><strong><code>BATTERY_GET</code> response (the band answers)</strong></p>
+<div class="table"><table><thead><tr><th>Offset</th><th>Size</th><th>Type</th><th>Field</th><th>Unit or meaning</th></tr></thead><tbody><tr><td>0</td><td>1</td><td>u8</td><td><code>type</code></td><td>always 0x02: a response</td></tr><tr><td>1</td><td>1</td><td>u8</td><td><code>seq</code></td><td>the <code>seq</code> of the command it answers</td></tr><tr><td>2</td><td>1</td><td>u8</td><td><code>opcode</code></td><td>0x61 = BATTERY_GET</td></tr><tr><td>3</td><td>1</td><td>u8</td><td><code>status</code></td><td>0 = OK; anything else is an error and no data follows</td></tr><tr><td>4</td><td>1</td><td>u8</td><td><code>percent</code></td><td>%</td></tr><tr><td>5</td><td>1</td><td>u8</td><td><code>state</code></td><td>0 on battery, 1 charging, 2 charged</td></tr><tr><td>6</td><td>2</td><td>u16</td><td><code>millivolts</code></td><td>mV</td></tr></tbody></table></div>
+<div class="frame" data-hex="021b61005701ac0f"><p class="caption">The answer: 87 percent, charging, 4.012 V</p><noscript><code>021b61005701ac0f</code></noscript></div>
+<p><strong>With the kit's library.</strong> JavaScript, then Python:</p>
+<figure class="code"><figcaption>JavaScript</figcaption><pre><code>band.on('battery', (b) =&gt; console.log(b.percent, b.millivolts, b.state));
+await band.configure({ battery: true });</code></pre></figure>
+<figure class="code"><figcaption>Python</figcaption><pre><code>band.on("battery", lambda b: print(b.percent, b.millivolts, b.state))
+band.configure(battery=True)</code></pre></figure>
+<ul><li>Once, without a stream: <code>await band.getBattery()</code> in JavaScript, <code>band.get_battery()</code> in Python.</li></ul>
+<p>More detail: <a href="../contract/contract.md#4-streams">4. Streams</a> in the contract.</p>
+<h3 id="temperature">Temperature<a class="anchor" href="#temperature" aria-label="Link to this part">#</a></h3>
+<p><em>TEMP, type 0x15, bit 5</em></p>
+<p>The temperature of the chip inside the band, in thousandths of a degree C. It reads a few degrees above room temperature because the chip warms itself. It is not skin temperature. One frame every 5 seconds by default.</p>
+<p><strong>Switch it on.</strong> <code>STREAM_START</code> with bit 5 (mask 32). Optional: <code>TEMP_SET_INTERVAL</code> with the seconds between two readings (1..255).</p>
+<p><strong><code>TEMP</code> frame (the band sends this)</strong></p>
+<div class="table"><table><thead><tr><th>Offset</th><th>Size</th><th>Type</th><th>Field</th><th>Unit or meaning</th></tr></thead><tbody><tr><td>0</td><td>1</td><td>u8</td><td><code>type</code></td><td>always 0x15: TEMP</td></tr><tr><td>1</td><td>4</td><td>u32</td><td><code>t_ms</code></td><td>ms since the band started</td></tr><tr><td>5</td><td>4</td><td>i32</td><td><code>temp_mc</code></td><td>thousandths of a degree C</td></tr></tbody></table></div>
+<div class="frame" data-hex="1588130000127a0000"><p class="caption">31.25 degrees C</p><noscript><code>1588130000127a0000</code></noscript></div>
+<div class="frame" data-hex="158813000072edffff"><p class="caption">A negative value: -4.75 degrees C</p><noscript><code>158813000072edffff</code></noscript></div>
+<p><strong><code>TEMP_SET_INTERVAL</code> command (you send this)</strong></p>
+<div class="table"><table><thead><tr><th>Offset</th><th>Size</th><th>Type</th><th>Field</th><th>Unit or meaning</th></tr></thead><tbody><tr><td>0</td><td>1</td><td>u8</td><td><code>type</code></td><td>always 0x01: a command</td></tr><tr><td>1</td><td>1</td><td>u8</td><td><code>seq</code></td><td>any number you choose; use a counter</td></tr><tr><td>2</td><td>1</td><td>u8</td><td><code>opcode</code></td><td>0x60 = TEMP_SET_INTERVAL</td></tr><tr><td>3</td><td>1</td><td>u8</td><td><code>seconds</code></td><td>s, 1..255</td></tr></tbody></table></div>
+<div class="frame" data-hex="011a6002"><p class="caption">One reading every 2 seconds</p><noscript><code>011a6002</code></noscript></div>
+<p><strong><code>TEMP_SET_INTERVAL</code> response (the band answers)</strong></p>
+<div class="table"><table><thead><tr><th>Offset</th><th>Size</th><th>Type</th><th>Field</th><th>Unit or meaning</th></tr></thead><tbody><tr><td>0</td><td>1</td><td>u8</td><td><code>type</code></td><td>always 0x02: a response</td></tr><tr><td>1</td><td>1</td><td>u8</td><td><code>seq</code></td><td>the <code>seq</code> of the command it answers</td></tr><tr><td>2</td><td>1</td><td>u8</td><td><code>opcode</code></td><td>0x60 = TEMP_SET_INTERVAL</td></tr><tr><td>3</td><td>1</td><td>u8</td><td><code>status</code></td><td>0 = OK; anything else is an error and no data follows</td></tr><tr><td>4</td><td>1</td><td>u8</td><td><code>seconds</code></td><td>s</td></tr></tbody></table></div>
+<div class="frame" data-hex="021a600002"><p class="caption">The answer</p><noscript><code>021a600002</code></noscript></div>
+<p><strong>With the kit's library.</strong> JavaScript, then Python:</p>
+<figure class="code"><figcaption>JavaScript</figcaption><pre><code>band.on('temperature', (t) =&gt; console.log(t.celsius));
+await band.configure({ temperature: true });</code></pre></figure>
+<figure class="code"><figcaption>Python</figcaption><pre><code>band.on("temperature", lambda t: print(t.celsius))
+band.configure(temperature=True)</code></pre></figure>
+<p>More detail: <a href="../contract/contract.md#4-streams">4. Streams</a> in the contract.</p>
+<h3 id="link-quality">Link quality<a class="anchor" href="#link-quality" aria-label="Link to this part">#</a></h3>
+<p><em>LINK, type 0x16, bit 6, Bluetooth only</em></p>
+<p>How strong the band hears your computer (<code>rssi_dbm</code>: closer to 0 is stronger, 127 means no reading), how strongly the band sends (<code>tx_dbm</code>) and the radio mode (<code>phy</code>: 1 = 1M, 2 = 2M). One frame a second. Bluetooth only: over USB this stream answers NOT_AVAILABLE. <code>RADIO_GET</code> reads the same once, with the connection interval and the largest packet size; <code>RADIO_SET_TX_POWER</code> changes how strongly the band sends.</p>
+<p><strong>Switch it on.</strong> <code>STREAM_START</code> with bit 6 (mask 64), or <code>RADIO_GET</code> for one reading.</p>
+<p><strong><code>LINK</code> frame (the band sends this)</strong></p>
+<div class="table"><table><thead><tr><th>Offset</th><th>Size</th><th>Type</th><th>Field</th><th>Unit or meaning</th></tr></thead><tbody><tr><td>0</td><td>1</td><td>u8</td><td><code>type</code></td><td>always 0x16: LINK</td></tr><tr><td>1</td><td>4</td><td>u32</td><td><code>t_ms</code></td><td>ms since the band started</td></tr><tr><td>5</td><td>1</td><td>i8</td><td><code>rssi_dbm</code></td><td>dBm; 127 = no reading</td></tr><tr><td>6</td><td>1</td><td>i8</td><td><code>tx_dbm</code></td><td>dBm</td></tr><tr><td>7</td><td>1</td><td>u8</td><td><code>phy</code></td><td>1 = 1M, 2 = 2M</td></tr></tbody></table></div>
+<div class="frame" data-hex="16e8030000c1f802"><p class="caption">Signal -63 dBm, sending at -8 dBm, 2M</p><noscript><code>16e8030000c1f802</code></noscript></div>
+<p><strong><code>RADIO_GET</code> command (you send this)</strong></p>
+<div class="table"><table><thead><tr><th>Offset</th><th>Size</th><th>Type</th><th>Field</th><th>Unit or meaning</th></tr></thead><tbody><tr><td>0</td><td>1</td><td>u8</td><td><code>type</code></td><td>always 0x01: a command</td></tr><tr><td>1</td><td>1</td><td>u8</td><td><code>seq</code></td><td>any number you choose; use a counter</td></tr><tr><td>2</td><td>1</td><td>u8</td><td><code>opcode</code></td><td>0x41 = RADIO_GET</td></tr></tbody></table></div>
+<div class="frame" data-hex="011541"><p class="caption">Read the radio once</p><noscript><code>011541</code></noscript></div>
+<p><strong><code>RADIO_GET</code> response (the band answers)</strong></p>
+<div class="table"><table><thead><tr><th>Offset</th><th>Size</th><th>Type</th><th>Field</th><th>Unit or meaning</th></tr></thead><tbody><tr><td>0</td><td>1</td><td>u8</td><td><code>type</code></td><td>always 0x02: a response</td></tr><tr><td>1</td><td>1</td><td>u8</td><td><code>seq</code></td><td>the <code>seq</code> of the command it answers</td></tr><tr><td>2</td><td>1</td><td>u8</td><td><code>opcode</code></td><td>0x41 = RADIO_GET</td></tr><tr><td>3</td><td>1</td><td>u8</td><td><code>status</code></td><td>0 = OK; anything else is an error and no data follows</td></tr><tr><td>4</td><td>1</td><td>i8</td><td><code>tx_dbm</code></td><td>dBm</td></tr><tr><td>5</td><td>1</td><td>i8</td><td><code>rssi_dbm</code></td><td>dBm; 127 = no reading</td></tr><tr><td>6</td><td>1</td><td>u8</td><td><code>phy</code></td><td>1 = 1M, 2 = 2M</td></tr><tr><td>7</td><td>2</td><td>u16</td><td><code>interval</code></td><td>units of 1.25 ms</td></tr><tr><td>9</td><td>2</td><td>u16</td><td><code>mtu</code></td><td>bytes</td></tr></tbody></table></div>
+<div class="frame" data-hex="02154100f8c7021800f700"><p class="caption">The answer</p><noscript><code>02154100f8c7021800f700</code></noscript></div>
+<p><strong><code>RADIO_SET_TX_POWER</code> command (you send this)</strong></p>
+<div class="table"><table><thead><tr><th>Offset</th><th>Size</th><th>Type</th><th>Field</th><th>Unit or meaning</th></tr></thead><tbody><tr><td>0</td><td>1</td><td>u8</td><td><code>type</code></td><td>always 0x01: a command</td></tr><tr><td>1</td><td>1</td><td>u8</td><td><code>seq</code></td><td>any number you choose; use a counter</td></tr><tr><td>2</td><td>1</td><td>u8</td><td><code>opcode</code></td><td>0x40 = RADIO_SET_TX_POWER</td></tr><tr><td>3</td><td>1</td><td>i8</td><td><code>dbm</code></td><td>dBm: -20, -16, -12, -8, -4, 0 or 4</td></tr></tbody></table></div>
+<div class="frame" data-hex="011340ec"><p class="caption">Send at -20 dBm (the weakest)</p><noscript><code>011340ec</code></noscript></div>
+<p><strong><code>RADIO_SET_TX_POWER</code> response (the band answers)</strong></p>
+<div class="table"><table><thead><tr><th>Offset</th><th>Size</th><th>Type</th><th>Field</th><th>Unit or meaning</th></tr></thead><tbody><tr><td>0</td><td>1</td><td>u8</td><td><code>type</code></td><td>always 0x02: a response</td></tr><tr><td>1</td><td>1</td><td>u8</td><td><code>seq</code></td><td>the <code>seq</code> of the command it answers</td></tr><tr><td>2</td><td>1</td><td>u8</td><td><code>opcode</code></td><td>0x40 = RADIO_SET_TX_POWER</td></tr><tr><td>3</td><td>1</td><td>u8</td><td><code>status</code></td><td>0 = OK; anything else is an error and no data follows</td></tr><tr><td>4</td><td>1</td><td>i8</td><td><code>dbm</code></td><td>dBm</td></tr></tbody></table></div>
+<div class="frame" data-hex="02134000ec"><p class="caption">The answer</p><noscript><code>02134000ec</code></noscript></div>
+<p><strong>With the kit's library.</strong> JavaScript, then Python:</p>
+<figure class="code"><figcaption>JavaScript</figcaption><pre><code>band.on('link', (l) =&gt; console.log(l.rssi, l.txPower, l.phy));
+await band.configure({ link: true });</code></pre></figure>
+<figure class="code"><figcaption>Python</figcaption><pre><code>band.on("link", lambda l: print(l.rssi, l.tx_power, l.phy))
+band.configure(link=True)</code></pre></figure>
+<ul><li><code>rssi</code> is <code>null</code> in JavaScript and <code>None</code> in Python when the band has no reading. Check before you do sums with it.</li><li>Radio power: -20, -16, -12, -8 (default), -4, 0 or +4 dBm. It goes back to -8 when you disconnect.</li></ul>
+<p>More detail: <a href="../contract/contract.md#54-radio-radio_set_tx_power">5.4 Radio</a> in the contract.</p>
+<h3 id="microphone-level">Microphone level<a class="anchor" href="#microphone-level" aria-label="Link to this part">#</a></h3>
+<p><em>MIC_LEVEL, type 0x17, bit 7</em></p>
+<p>How loud it is, without any sound leaving the band. Ten frames a second by default. Both numbers are whole decibels below the loudest sound the microphone can measure: 0 = as loud as it can measure, 96 = silence. A smaller number is louder. <code>peak_db</code> is the loudest instant and <code>rms_db</code> the average over the last 100 ms. <strong>This switches the microphone on: the light goes solid blue and cannot be changed until you stop.</strong></p>
+<p><strong>Switch it on.</strong> <code>STREAM_START</code> with bit 7 (mask 128).</p>
+<p><strong><code>MIC_LEVEL</code> frame (the band sends this)</strong></p>
+<div class="table"><table><thead><tr><th>Offset</th><th>Size</th><th>Type</th><th>Field</th><th>Unit or meaning</th></tr></thead><tbody><tr><td>0</td><td>1</td><td>u8</td><td><code>type</code></td><td>always 0x17: MIC_LEVEL</td></tr><tr><td>1</td><td>4</td><td>u32</td><td><code>t_ms</code></td><td>ms since the band started</td></tr><tr><td>5</td><td>1</td><td>u8</td><td><code>peak_db</code></td><td>dB below full scale: 0 loudest, 96 silence</td></tr><tr><td>6</td><td>1</td><td>u8</td><td><code>rms_db</code></td><td>dB below full scale: 0 loudest, 96 silence</td></tr></tbody></table></div>
+<div class="frame" data-hex="17bc0200000c1f"><p class="caption">Loud: peak 12, average 31</p><noscript><code>17bc0200000c1f</code></noscript></div>
+<div class="frame" data-hex="17200300006060"><p class="caption">Silence: both 96</p><noscript><code>17200300006060</code></noscript></div>
+<p><strong>With the kit's library.</strong> JavaScript, then Python:</p>
+<figure class="code"><figcaption>JavaScript</figcaption><pre><code>band.on('mic-level', (m) =&gt; console.log(m.rmsDb, m.peakDb));
+await band.configure({ micLevel: true });</code></pre></figure>
+<figure class="code"><figcaption>Python</figcaption><pre><code>band.on("mic-level", lambda m: print(m.rms_db, m.peak_db))
+band.configure(mic_level=True)</code></pre></figure>
+<ul><li>The level follows the microphone gain (<code>MIC_SET_GAIN</code>, below).</li></ul>
+<p>More detail: <a href="../contract/contract.md#4-streams">4. Streams (the MIC_LEVEL row under "Details")</a> in the contract.</p>
+<h3 id="microphone-sound">Microphone sound<a class="anchor" href="#microphone-sound" aria-label="Link to this part">#</a></h3>
+<p><em>AUDIO, type 0x13, bit 3</em></p>
+<p>The sound itself, squeezed with Opus: 16 kHz (16000 samples a second), mono, 20 ms of sound per packet, 50 packets a second, about 24 kbit/s. One frame carries one complete Opus packet. <code>seq</code> starts at 0 each time the stream starts and wraps after 65535; a gap in <code>seq</code> means lost packets. There is no time stamp: packet time = start time + <code>seq</code> x 20 ms. <strong>While it runs the light is solid blue and cannot be changed.</strong></p>
+<p><strong>Switch it on.</strong> <code>STREAM_START</code> with bit 3 (mask 8). Optional: <code>MIC_SET_GAIN</code> (0..80 in half dB steps; 40 = 0 dB, 80 = +20 dB, the default). <code>MIC_GET</code> reads the gain and the fixed Opus settings.</p>
+<p><strong><code>AUDIO</code> frame (the band sends this)</strong></p>
+<div class="table"><table><thead><tr><th>Offset</th><th>Size</th><th>Type</th><th>Field</th><th>Unit or meaning</th></tr></thead><tbody><tr><td>0</td><td>1</td><td>u8</td><td><code>type</code></td><td>always 0x13: AUDIO</td></tr><tr><td>1</td><td>2</td><td>u16</td><td><code>seq</code></td><td>packet counter, starts at 0</td></tr><tr><td>3</td><td>1</td><td>u8</td><td><code>len</code></td><td>bytes of Opus that follow</td></tr><tr><td>4</td><td>len</td><td>bytes</td><td><code>opus</code></td><td>one complete Opus packet: 20 ms of sound</td></tr></tbody></table></div>
+<div class="frame" data-hex="13ffff28b80102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f2021222324252627"><p class="caption">Packet number 65535 with 40 bytes of Opus (the bytes here are a made-up pattern, not real sound)</p><noscript><code>13ffff28b80102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f2021222324252627</code></noscript></div>
+<p><strong><code>MIC_SET_GAIN</code> command (you send this)</strong></p>
+<div class="table"><table><thead><tr><th>Offset</th><th>Size</th><th>Type</th><th>Field</th><th>Unit or meaning</th></tr></thead><tbody><tr><td>0</td><td>1</td><td>u8</td><td><code>type</code></td><td>always 0x01: a command</td></tr><tr><td>1</td><td>1</td><td>u8</td><td><code>seq</code></td><td>any number you choose; use a counter</td></tr><tr><td>2</td><td>1</td><td>u8</td><td><code>opcode</code></td><td>0x30 = MIC_SET_GAIN</td></tr><tr><td>3</td><td>1</td><td>u8</td><td><code>gain_half_db</code></td><td>half dB steps, 0..80; 40 = 0 dB, 80 = +20 dB</td></tr></tbody></table></div>
+<div class="frame" data-hex="0111303c"><p class="caption">Set the gain to 60 half dB = +10 dB</p><noscript><code>0111303c</code></noscript></div>
+<p><strong><code>MIC_SET_GAIN</code> response (the band answers)</strong></p>
+<div class="table"><table><thead><tr><th>Offset</th><th>Size</th><th>Type</th><th>Field</th><th>Unit or meaning</th></tr></thead><tbody><tr><td>0</td><td>1</td><td>u8</td><td><code>type</code></td><td>always 0x02: a response</td></tr><tr><td>1</td><td>1</td><td>u8</td><td><code>seq</code></td><td>the <code>seq</code> of the command it answers</td></tr><tr><td>2</td><td>1</td><td>u8</td><td><code>opcode</code></td><td>0x30 = MIC_SET_GAIN</td></tr><tr><td>3</td><td>1</td><td>u8</td><td><code>status</code></td><td>0 = OK; anything else is an error and no data follows</td></tr><tr><td>4</td><td>1</td><td>u8</td><td><code>gain_half_db</code></td><td>half dB steps</td></tr></tbody></table></div>
+<div class="frame" data-hex="021130003c"><p class="caption">The answer</p><noscript><code>021130003c</code></noscript></div>
+<p><strong><code>MIC_GET</code> command (you send this)</strong></p>
+<div class="table"><table><thead><tr><th>Offset</th><th>Size</th><th>Type</th><th>Field</th><th>Unit or meaning</th></tr></thead><tbody><tr><td>0</td><td>1</td><td>u8</td><td><code>type</code></td><td>always 0x01: a command</td></tr><tr><td>1</td><td>1</td><td>u8</td><td><code>seq</code></td><td>any number you choose; use a counter</td></tr><tr><td>2</td><td>1</td><td>u8</td><td><code>opcode</code></td><td>0x31 = MIC_GET</td></tr></tbody></table></div>
+<div class="frame" data-hex="011231"><p class="caption">Read the microphone settings</p><noscript><code>011231</code></noscript></div>
+<p><strong><code>MIC_GET</code> response (the band answers)</strong></p>
+<div class="table"><table><thead><tr><th>Offset</th><th>Size</th><th>Type</th><th>Field</th><th>Unit or meaning</th></tr></thead><tbody><tr><td>0</td><td>1</td><td>u8</td><td><code>type</code></td><td>always 0x02: a response</td></tr><tr><td>1</td><td>1</td><td>u8</td><td><code>seq</code></td><td>the <code>seq</code> of the command it answers</td></tr><tr><td>2</td><td>1</td><td>u8</td><td><code>opcode</code></td><td>0x31 = MIC_GET</td></tr><tr><td>3</td><td>1</td><td>u8</td><td><code>status</code></td><td>0 = OK; anything else is an error and no data follows</td></tr><tr><td>4</td><td>1</td><td>u8</td><td><code>gain_half_db</code></td><td>half dB steps</td></tr><tr><td>5</td><td>2</td><td>u16</td><td><code>sample_rate</code></td><td>samples per second, always 16000</td></tr><tr><td>7</td><td>1</td><td>u8</td><td><code>frame_ms</code></td><td>ms per packet, always 20</td></tr><tr><td>8</td><td>1</td><td>u8</td><td><code>channels</code></td><td>always 1</td></tr><tr><td>9</td><td>2</td><td>u16</td><td><code>bitrate</code></td><td>bits per second, always 24000</td></tr></tbody></table></div>
+<div class="frame" data-hex="0212310050803e1401c05d"><p class="caption">The answer: gain +20 dB, 16000 samples a second, 20 ms, 1 channel, 24000 bits a second</p><noscript><code>0212310050803e1401c05d</code></noscript></div>
+<p><strong>With the kit's library.</strong> JavaScript, then Python:</p>
+<figure class="code"><figcaption>JavaScript</figcaption><pre><code>const sound = new BandAudio((samples) =&gt; console.log(samples.length, 'samples'));   // 320 numbers from -1 to 1
+band.on('audio', (a) =&gt; sound.push(a));
+await band.configure({ audio: true });</code></pre></figure>
+<figure class="code"><figcaption>Python</figcaption><pre><code>decoder = PcmDecoder()                       # from vexo_open.audio import PcmDecoder
+band.on("audio", lambda a: print(len(decoder.feed(a)), "bytes of samples"))
+band.configure(audio=True)</code></pre></figure>
+<ul><li><strong>Turning it into plain sound.</strong> An Opus packet is not a list of samples: it has to go through an Opus decoder. Give the decoder the bytes of <code>opus</code> exactly as they arrive, one packet at a time, in the order of <code>seq</code>. Out come 320 samples per packet (20 ms at 16000 samples a second), one channel. For a lost packet, ask the decoder to fill the hole so the timing stays right.</li><li>The kit has this ready: <code>BandAudio</code> in a web page (Chrome or Edge, nothing to install) and <code>PcmDecoder</code> in Python (needs <code>python3 -m pip install av</code>). Both fill in lost packets. See <a href="api.md#sound-from-opus-packets-to-samples">Sound: from Opus packets to samples</a> and <a href="speech.md">speech.md</a> for sound to text.</li><li>The quickest proof: <code>python3 vexo-open-kit/examples/python/audio_to_text.py 42 --text no</code> saves what the microphone hears as a sound file.</li></ul>
+<p>More detail: <a href="../contract/contract.md#53-microphone-mic_set_gain">5.3 Microphone</a> in the contract.</p>
+<h3 id="clock-and-time">Clock and time<a class="anchor" href="#clock-and-time" aria-label="Link to this part">#</a></h3>
+<p><em>TIME_SET, TIME_GET</em></p>
+<p>The band has no clock with its own battery. It counts milliseconds since it started: that is <code>t_ms</code>, the stamp in most data frames (it wraps after 49.7 days). You can tell the band the real time once with <code>TIME_SET</code> (<code>unix_ms</code>: milliseconds since 1970-01-01 UTC). <code>TIME_GET</code> then gives <code>unix_ms</code> and <code>t_ms</code> for the same moment, and that pair turns any <code>t_ms</code> into real time: real time = <code>unix_ms</code> + (frame <code>t_ms</code> - <code>t_ms</code> of the answer).</p>
+<p><strong>Switch it on.</strong> <code>TIME_SET</code> once after you connect, or <code>TIME_GET</code> to read the pair.</p>
+<p><strong><code>TIME_SET</code> command (you send this)</strong></p>
+<div class="table"><table><thead><tr><th>Offset</th><th>Size</th><th>Type</th><th>Field</th><th>Unit or meaning</th></tr></thead><tbody><tr><td>0</td><td>1</td><td>u8</td><td><code>type</code></td><td>always 0x01: a command</td></tr><tr><td>1</td><td>1</td><td>u8</td><td><code>seq</code></td><td>any number you choose; use a counter</td></tr><tr><td>2</td><td>1</td><td>u8</td><td><code>opcode</code></td><td>0x07 = TIME_SET</td></tr><tr><td>3</td><td>8</td><td>u64</td><td><code>unix_ms</code></td><td>ms since 1970-01-01 UTC</td></tr></tbody></table></div>
+<div class="frame" data-hex="0132077b0aa1cfa1010000"><p class="caption">Set the clock</p><noscript><code>0132077b0aa1cfa1010000</code></noscript></div>
+<p><strong><code>TIME_SET</code> response (the band answers)</strong></p>
+<div class="table"><table><thead><tr><th>Offset</th><th>Size</th><th>Type</th><th>Field</th><th>Unit or meaning</th></tr></thead><tbody><tr><td>0</td><td>1</td><td>u8</td><td><code>type</code></td><td>always 0x02: a response</td></tr><tr><td>1</td><td>1</td><td>u8</td><td><code>seq</code></td><td>the <code>seq</code> of the command it answers</td></tr><tr><td>2</td><td>1</td><td>u8</td><td><code>opcode</code></td><td>0x07 = TIME_SET</td></tr><tr><td>3</td><td>1</td><td>u8</td><td><code>status</code></td><td>0 = OK; anything else is an error and no data follows</td></tr><tr><td>4</td><td>1</td><td>u8</td><td><code>set</code></td><td>0 not set, 1 set</td></tr><tr><td>5</td><td>8</td><td>u64</td><td><code>unix_ms</code></td><td>ms since 1970-01-01 UTC</td></tr><tr><td>13</td><td>4</td><td>u32</td><td><code>t_ms</code></td><td>ms since the band started</td></tr></tbody></table></div>
+<div class="frame" data-hex="02320700017b0aa1cfa101000040e20100"><p class="caption">The answer: the real time and the band counter for the same moment</p><noscript><code>02320700017b0aa1cfa101000040e20100</code></noscript></div>
+<p><strong><code>TIME_GET</code> command (you send this)</strong></p>
+<div class="table"><table><thead><tr><th>Offset</th><th>Size</th><th>Type</th><th>Field</th><th>Unit or meaning</th></tr></thead><tbody><tr><td>0</td><td>1</td><td>u8</td><td><code>type</code></td><td>always 0x01: a command</td></tr><tr><td>1</td><td>1</td><td>u8</td><td><code>seq</code></td><td>any number you choose; use a counter</td></tr><tr><td>2</td><td>1</td><td>u8</td><td><code>opcode</code></td><td>0x08 = TIME_GET</td></tr></tbody></table></div>
+<div class="frame" data-hex="013308"><p class="caption">Read the clock</p><noscript><code>013308</code></noscript></div>
+<p><strong><code>TIME_GET</code> response (the band answers)</strong></p>
+<div class="table"><table><thead><tr><th>Offset</th><th>Size</th><th>Type</th><th>Field</th><th>Unit or meaning</th></tr></thead><tbody><tr><td>0</td><td>1</td><td>u8</td><td><code>type</code></td><td>always 0x02: a response</td></tr><tr><td>1</td><td>1</td><td>u8</td><td><code>seq</code></td><td>the <code>seq</code> of the command it answers</td></tr><tr><td>2</td><td>1</td><td>u8</td><td><code>opcode</code></td><td>0x08 = TIME_GET</td></tr><tr><td>3</td><td>1</td><td>u8</td><td><code>status</code></td><td>0 = OK; anything else is an error and no data follows</td></tr><tr><td>4</td><td>1</td><td>u8</td><td><code>set</code></td><td>0 not set, 1 set</td></tr><tr><td>5</td><td>8</td><td>u64</td><td><code>unix_ms</code></td><td>ms since 1970-01-01 UTC</td></tr><tr><td>13</td><td>4</td><td>u32</td><td><code>t_ms</code></td><td>ms since the band started</td></tr></tbody></table></div>
+<div class="frame" data-hex="02330800000000000000000000faffffff"><p class="caption">A band whose clock was never set: <code>set</code> 0, <code>unix_ms</code> 0</p><noscript><code>02330800000000000000000000faffffff</code></noscript></div>
+<p><strong>With the kit's library.</strong> JavaScript, then Python:</p>
+<figure class="code"><figcaption>JavaScript</figcaption><pre><code>console.log(await band.time());              // { time, set, t, source }
+band.on('tap', (e) =&gt; console.log('tap at', new Date(e.time)));</code></pre></figure>
+<figure class="code"><figcaption>Python</figcaption><pre><code>print(band.time())
+band.on("tap", lambda e: print("tap at", e.time))</code></pre></figure>
+<ul><li>The library sets the clock when it connects and gives every event a real <code>time</code> next to the band counter <code>t</code>.</li><li>The clock is lost when the band restarts. A time outside 2020 to 2100 (for example seconds instead of milliseconds) gives BAD_ARG.</li><li>The exact rule, also right when <code>t_ms</code> wraps, is in the contract.</li></ul>
+<p>More detail: <a href="../contract/contract.md#58-clock-time_set-time_get">5.8 Clock</a> in the contract.</p>
+</section>
+<section>
+<h2 id="how-to-control-the-band">How to control the band<a class="anchor" href="#how-to-control-the-band" aria-label="Link to this part">#</a></h2>
+<h3 id="light">Light<a class="anchor" href="#light" aria-label="Link to this part">#</a></h3>
+<p><em>LED_SET, LED_GET, IDENTIFY</em></p>
+<p>One colour light. <code>LED_SET</code> takes a colour (<code>r</code>, <code>g</code>, <code>b</code>, each 0..255), a <code>brightness</code> (0..255) and a <code>pattern</code>: 0 off, 1 solid, 2 blink (half on, half off), 3 breathe, 4 flash (60 ms every period), 5 rainbow (ignores the colour). <code>period_ms</code> is the length of one cycle, 100..10000 (ignored for off and solid). <code>LED_GET</code> reads your setting back. <code>IDENTIFY</code> blinks white 4 times a second for 1..30 seconds so you can find your band, then your light comes back.</p>
+<p><strong>Switch it on.</strong> Send <code>LED_SET</code>. <strong>While the microphone is on (sound or level) the light is solid blue and <code>LED_SET</code> and <code>IDENTIFY</code> answer DENIED.</strong></p>
+<p><strong><code>LED_SET</code> command (you send this)</strong></p>
+<div class="table"><table><thead><tr><th>Offset</th><th>Size</th><th>Type</th><th>Field</th><th>Unit or meaning</th></tr></thead><tbody><tr><td>0</td><td>1</td><td>u8</td><td><code>type</code></td><td>always 0x01: a command</td></tr><tr><td>1</td><td>1</td><td>u8</td><td><code>seq</code></td><td>any number you choose; use a counter</td></tr><tr><td>2</td><td>1</td><td>u8</td><td><code>opcode</code></td><td>0x50 = LED_SET</td></tr><tr><td>3</td><td>1</td><td>u8</td><td><code>r</code></td><td>red, 0..255</td></tr><tr><td>4</td><td>1</td><td>u8</td><td><code>g</code></td><td>green, 0..255</td></tr><tr><td>5</td><td>1</td><td>u8</td><td><code>b</code></td><td>blue, 0..255</td></tr><tr><td>6</td><td>1</td><td>u8</td><td><code>brightness</code></td><td>0..255, scales all three</td></tr><tr><td>7</td><td>1</td><td>u8</td><td><code>pattern</code></td><td>0 off, 1 solid, 2 blink, 3 breathe, 4 flash, 5 rainbow</td></tr><tr><td>8</td><td>2</td><td>u16</td><td><code>period_ms</code></td><td>ms per cycle, 100..10000</td></tr></tbody></table></div>
+<div class="frame" data-hex="01075000ff008001e803"><p class="caption">Solid green at half brightness</p><noscript><code>01075000ff008001e803</code></noscript></div>
+<p><strong><code>LED_SET</code> response (the band answers)</strong></p>
+<div class="table"><table><thead><tr><th>Offset</th><th>Size</th><th>Type</th><th>Field</th><th>Unit or meaning</th></tr></thead><tbody><tr><td>0</td><td>1</td><td>u8</td><td><code>type</code></td><td>always 0x02: a response</td></tr><tr><td>1</td><td>1</td><td>u8</td><td><code>seq</code></td><td>the <code>seq</code> of the command it answers</td></tr><tr><td>2</td><td>1</td><td>u8</td><td><code>opcode</code></td><td>0x50 = LED_SET</td></tr><tr><td>3</td><td>1</td><td>u8</td><td><code>status</code></td><td>0 = OK; anything else is an error and no data follows</td></tr></tbody></table></div>
+<div class="frame" data-hex="02075000"><p class="caption">The answer: OK, no data</p><noscript><code>02075000</code></noscript></div>
+<div class="frame" data-hex="011850ff0040ff03c409"><p class="caption">Breathe in pink, one cycle every 2.5 s</p><noscript><code>011850ff0040ff03c409</code></noscript></div>
+<p><strong><code>LED_GET</code> response (the band answers)</strong></p>
+<div class="table"><table><thead><tr><th>Offset</th><th>Size</th><th>Type</th><th>Field</th><th>Unit or meaning</th></tr></thead><tbody><tr><td>0</td><td>1</td><td>u8</td><td><code>type</code></td><td>always 0x02: a response</td></tr><tr><td>1</td><td>1</td><td>u8</td><td><code>seq</code></td><td>the <code>seq</code> of the command it answers</td></tr><tr><td>2</td><td>1</td><td>u8</td><td><code>opcode</code></td><td>0x51 = LED_GET</td></tr><tr><td>3</td><td>1</td><td>u8</td><td><code>status</code></td><td>0 = OK; anything else is an error and no data follows</td></tr><tr><td>4</td><td>1</td><td>u8</td><td><code>r</code></td><td>red, 0..255</td></tr><tr><td>5</td><td>1</td><td>u8</td><td><code>g</code></td><td>green, 0..255</td></tr><tr><td>6</td><td>1</td><td>u8</td><td><code>b</code></td><td>blue, 0..255</td></tr><tr><td>7</td><td>1</td><td>u8</td><td><code>brightness</code></td><td>0..255, scales all three</td></tr><tr><td>8</td><td>1</td><td>u8</td><td><code>pattern</code></td><td>0 off, 1 solid, 2 blink, 3 breathe, 4 flash, 5 rainbow</td></tr><tr><td>9</td><td>2</td><td>u16</td><td><code>period_ms</code></td><td>ms per cycle, 100..10000</td></tr></tbody></table></div>
+<div class="frame" data-hex="0219510000ff008001e803"><p class="caption">Answer to <code>LED_GET</code>: the setting</p><noscript><code>0219510000ff008001e803</code></noscript></div>
+<p><strong><code>IDENTIFY</code> command (you send this)</strong></p>
+<div class="table"><table><thead><tr><th>Offset</th><th>Size</th><th>Type</th><th>Field</th><th>Unit or meaning</th></tr></thead><tbody><tr><td>0</td><td>1</td><td>u8</td><td><code>type</code></td><td>always 0x01: a command</td></tr><tr><td>1</td><td>1</td><td>u8</td><td><code>seq</code></td><td>any number you choose; use a counter</td></tr><tr><td>2</td><td>1</td><td>u8</td><td><code>opcode</code></td><td>0x04 = IDENTIFY</td></tr><tr><td>3</td><td>1</td><td>u8</td><td><code>seconds</code></td><td>s, 1..30</td></tr></tbody></table></div>
+<div class="frame" data-hex="01040405"><p class="caption">Identify for 5 seconds</p><noscript><code>01040405</code></noscript></div>
+<div class="frame" data-hex="02175006"><p class="caption">Refused: the microphone is on</p><noscript><code>02175006</code></noscript></div>
+<p><strong>With the kit's library.</strong> JavaScript, then Python:</p>
+<figure class="code"><figcaption>JavaScript</figcaption><pre><code>await band.setLed('#00ff00', { brightness: 0.5 });
+await band.identify(5);</code></pre></figure>
+<figure class="code"><figcaption>Python</figcaption><pre><code>band.set_led("#00ff00", brightness=0.5)
+band.identify(5)</code></pre></figure>
+<ul><li>In the library <code>brightness</code> is 0..1 and <code>pattern</code> is a name: <code>solid</code>, <code>blink</code>, <code>breathe</code>, <code>flash</code>, <code>rainbow</code>, <code>off</code>.</li><li>The light goes off when you disconnect.</li></ul>
+<p>More detail: <a href="../contract/contract.md#51-led-led_set">5.1 LED</a> in the contract.</p>
+<h3 id="storage">Storage<a class="anchor" href="#storage" aria-label="Link to this part">#</a></h3>
+<p><em>STORE_INFO, STORE_PUT, STORE_GET, STORE_DEL, STORE_WIPE</em></p>
+<p>A small notebook on the band that survives disconnects and restarts. A <code>key</code> is a number 0..999; a value is 1..232 bytes of anything. <code>STORE_PUT</code> writes (and replaces), <code>STORE_GET</code> reads, <code>STORE_DEL</code> deletes one key, <code>STORE_WIPE</code> erases everything, <code>STORE_INFO</code> says how much room is left. <strong>Anything stored can be read, changed or wiped by the next person who connects: do not store anything private.</strong></p>
+<p><strong>Switch it on.</strong> Nothing to switch on.</p>
+<p><strong><code>STORE_PUT</code> command (you send this)</strong></p>
+<div class="table"><table><thead><tr><th>Offset</th><th>Size</th><th>Type</th><th>Field</th><th>Unit or meaning</th></tr></thead><tbody><tr><td>0</td><td>1</td><td>u8</td><td><code>type</code></td><td>always 0x01: a command</td></tr><tr><td>1</td><td>1</td><td>u8</td><td><code>seq</code></td><td>any number you choose; use a counter</td></tr><tr><td>2</td><td>1</td><td>u8</td><td><code>opcode</code></td><td>0x71 = STORE_PUT</td></tr><tr><td>3</td><td>2</td><td>u16</td><td><code>key</code></td><td>0..999</td></tr><tr><td>5</td><td>the rest</td><td>bytes</td><td><code>value</code></td><td>1..232 bytes</td></tr></tbody></table></div>
+<div class="frame" data-hex="011d71070068692000ff21"><p class="caption">Store 6 bytes under key 7</p><noscript><code>011d71070068692000ff21</code></noscript></div>
+<p><strong><code>STORE_PUT</code> response (the band answers)</strong></p>
+<div class="table"><table><thead><tr><th>Offset</th><th>Size</th><th>Type</th><th>Field</th><th>Unit or meaning</th></tr></thead><tbody><tr><td>0</td><td>1</td><td>u8</td><td><code>type</code></td><td>always 0x02: a response</td></tr><tr><td>1</td><td>1</td><td>u8</td><td><code>seq</code></td><td>the <code>seq</code> of the command it answers</td></tr><tr><td>2</td><td>1</td><td>u8</td><td><code>opcode</code></td><td>0x71 = STORE_PUT</td></tr><tr><td>3</td><td>1</td><td>u8</td><td><code>status</code></td><td>0 = OK; anything else is an error and no data follows</td></tr></tbody></table></div>
+<div class="frame" data-hex="021d7100"><p class="caption">The answer: OK</p><noscript><code>021d7100</code></noscript></div>
+<p><strong><code>STORE_GET</code> command (you send this)</strong></p>
+<div class="table"><table><thead><tr><th>Offset</th><th>Size</th><th>Type</th><th>Field</th><th>Unit or meaning</th></tr></thead><tbody><tr><td>0</td><td>1</td><td>u8</td><td><code>type</code></td><td>always 0x01: a command</td></tr><tr><td>1</td><td>1</td><td>u8</td><td><code>seq</code></td><td>any number you choose; use a counter</td></tr><tr><td>2</td><td>1</td><td>u8</td><td><code>opcode</code></td><td>0x72 = STORE_GET</td></tr><tr><td>3</td><td>2</td><td>u16</td><td><code>key</code></td><td>0..999</td></tr></tbody></table></div>
+<div class="frame" data-hex="012072e703"><p class="caption">Read key 999</p><noscript><code>012072e703</code></noscript></div>
+<p><strong><code>STORE_GET</code> response (the band answers)</strong></p>
+<div class="table"><table><thead><tr><th>Offset</th><th>Size</th><th>Type</th><th>Field</th><th>Unit or meaning</th></tr></thead><tbody><tr><td>0</td><td>1</td><td>u8</td><td><code>type</code></td><td>always 0x02: a response</td></tr><tr><td>1</td><td>1</td><td>u8</td><td><code>seq</code></td><td>the <code>seq</code> of the command it answers</td></tr><tr><td>2</td><td>1</td><td>u8</td><td><code>opcode</code></td><td>0x72 = STORE_GET</td></tr><tr><td>3</td><td>1</td><td>u8</td><td><code>status</code></td><td>0 = OK; anything else is an error and no data follows</td></tr><tr><td>4</td><td>the rest</td><td>bytes</td><td><code>value</code></td><td>1..232 bytes</td></tr></tbody></table></div>
+<div class="frame" data-hex="0220720068692000ff21"><p class="caption">An answer with a value: the stored bytes</p><noscript><code>0220720068692000ff21</code></noscript></div>
+<div class="frame" data-hex="02217207"><p class="caption">An empty key: NOT_FOUND</p><noscript><code>02217207</code></noscript></div>
+<p><strong><code>STORE_DEL</code> command (you send this)</strong></p>
+<div class="table"><table><thead><tr><th>Offset</th><th>Size</th><th>Type</th><th>Field</th><th>Unit or meaning</th></tr></thead><tbody><tr><td>0</td><td>1</td><td>u8</td><td><code>type</code></td><td>always 0x01: a command</td></tr><tr><td>1</td><td>1</td><td>u8</td><td><code>seq</code></td><td>any number you choose; use a counter</td></tr><tr><td>2</td><td>1</td><td>u8</td><td><code>opcode</code></td><td>0x73 = STORE_DEL</td></tr><tr><td>3</td><td>2</td><td>u16</td><td><code>key</code></td><td>0..999</td></tr></tbody></table></div>
+<div class="frame" data-hex="0122730700"><p class="caption">Delete key 7</p><noscript><code>0122730700</code></noscript></div>
+<p><strong><code>STORE_INFO</code> command (you send this)</strong></p>
+<div class="table"><table><thead><tr><th>Offset</th><th>Size</th><th>Type</th><th>Field</th><th>Unit or meaning</th></tr></thead><tbody><tr><td>0</td><td>1</td><td>u8</td><td><code>type</code></td><td>always 0x01: a command</td></tr><tr><td>1</td><td>1</td><td>u8</td><td><code>seq</code></td><td>any number you choose; use a counter</td></tr><tr><td>2</td><td>1</td><td>u8</td><td><code>opcode</code></td><td>0x70 = STORE_INFO</td></tr></tbody></table></div>
+<div class="frame" data-hex="011c70"><p class="caption">Ask how full it is</p><noscript><code>011c70</code></noscript></div>
+<p><strong><code>STORE_INFO</code> response (the band answers)</strong></p>
+<div class="table"><table><thead><tr><th>Offset</th><th>Size</th><th>Type</th><th>Field</th><th>Unit or meaning</th></tr></thead><tbody><tr><td>0</td><td>1</td><td>u8</td><td><code>type</code></td><td>always 0x02: a response</td></tr><tr><td>1</td><td>1</td><td>u8</td><td><code>seq</code></td><td>the <code>seq</code> of the command it answers</td></tr><tr><td>2</td><td>1</td><td>u8</td><td><code>opcode</code></td><td>0x70 = STORE_INFO</td></tr><tr><td>3</td><td>1</td><td>u8</td><td><code>status</code></td><td>0 = OK; anything else is an error and no data follows</td></tr><tr><td>4</td><td>2</td><td>u16</td><td><code>keys_max</code></td><td>keys</td></tr><tr><td>6</td><td>2</td><td>u16</td><td><code>value_max</code></td><td>bytes per value</td></tr><tr><td>8</td><td>4</td><td>u32</td><td><code>free_bytes</code></td><td>bytes</td></tr><tr><td>12</td><td>2</td><td>u16</td><td><code>used_keys</code></td><td>keys</td></tr></tbody></table></div>
+<div class="frame" data-hex="021c7000e803e80008bd03000300"><p class="caption">The answer</p><noscript><code>021c7000e803e80008bd03000300</code></noscript></div>
+<p><strong><code>STORE_WIPE</code> command (you send this)</strong></p>
+<div class="table"><table><thead><tr><th>Offset</th><th>Size</th><th>Type</th><th>Field</th><th>Unit or meaning</th></tr></thead><tbody><tr><td>0</td><td>1</td><td>u8</td><td><code>type</code></td><td>always 0x01: a command</td></tr><tr><td>1</td><td>1</td><td>u8</td><td><code>seq</code></td><td>any number you choose; use a counter</td></tr><tr><td>2</td><td>1</td><td>u8</td><td><code>opcode</code></td><td>0x74 = STORE_WIPE</td></tr><tr><td>3</td><td>2</td><td>u16</td><td><code>magic</code></td><td>always 0x5856, so it cannot happen by accident</td></tr></tbody></table></div>
+<div class="frame" data-hex="01ff745658"><p class="caption">Erase everything (needs the safety number)</p><noscript><code>01ff745658</code></noscript></div>
+<p><strong>With the kit's library.</strong> JavaScript, then Python:</p>
+<figure class="code"><figcaption>JavaScript</figcaption><pre><code>await band.storage.put(7, 'hello');
+console.log(await band.storage.getText(7));</code></pre></figure>
+<figure class="code"><figcaption>Python</figcaption><pre><code>band.storage.put(7, "hello")
+print(band.storage.get_text(7))</code></pre></figure>
+<ul><li>The band accepts 10 writes a second; one more answers BUSY: wait a moment and send it again. The library does that for you.</li><li><code>STORE_WIPE</code> answers OK when the erase starts. Until it has finished, the other storage commands answer BUSY.</li></ul>
+<p>More detail: <a href="../contract/contract.md#55-storage-store_">5.5 Storage</a> in the contract.</p>
+<h3 id="restart-and-sleep">Restart and sleep<a class="anchor" href="#restart-and-sleep" aria-label="Link to this part">#</a></h3>
+<p><em>RESTART, SLEEP</em></p>
+<p><code>RESTART</code> restarts the band 200 ms after its answer; its light then blinks blue and the connect window is open for 60 seconds. The band does not close the Bluetooth link first, so your side notices a few seconds later that the link is gone. <code>SLEEP</code> turns streams and the light off and closes the Bluetooth link about 0.4 seconds after its answer; the band cannot be found until someone double-taps it. Neither command has arguments or data. To restart a band by hand, press the small RESET button on the board once (once only: two quick presses start the board's loader instead, and one more press brings the band back). A band with no battery also restarts when you unplug the USB cable and plug it in again. After a restart the light blinks blue once a second for 60 seconds, or until you connect.</p>
+<p><strong>Switch it on.</strong> Nothing to switch on.</p>
+<p><strong><code>RESTART</code> command (you send this)</strong></p>
+<div class="table"><table><thead><tr><th>Offset</th><th>Size</th><th>Type</th><th>Field</th><th>Unit or meaning</th></tr></thead><tbody><tr><td>0</td><td>1</td><td>u8</td><td><code>type</code></td><td>always 0x01: a command</td></tr><tr><td>1</td><td>1</td><td>u8</td><td><code>seq</code></td><td>any number you choose; use a counter</td></tr><tr><td>2</td><td>1</td><td>u8</td><td><code>opcode</code></td><td>0x05 = RESTART</td></tr></tbody></table></div>
+<div class="frame" data-hex="010505"><p class="caption">Restart</p><noscript><code>010505</code></noscript></div>
+<p><strong><code>RESTART</code> response (the band answers)</strong></p>
+<div class="table"><table><thead><tr><th>Offset</th><th>Size</th><th>Type</th><th>Field</th><th>Unit or meaning</th></tr></thead><tbody><tr><td>0</td><td>1</td><td>u8</td><td><code>type</code></td><td>always 0x02: a response</td></tr><tr><td>1</td><td>1</td><td>u8</td><td><code>seq</code></td><td>the <code>seq</code> of the command it answers</td></tr><tr><td>2</td><td>1</td><td>u8</td><td><code>opcode</code></td><td>0x05 = RESTART</td></tr><tr><td>3</td><td>1</td><td>u8</td><td><code>status</code></td><td>0 = OK; anything else is an error and no data follows</td></tr></tbody></table></div>
+<div class="frame" data-hex="02050500"><p class="caption">The answer; the band restarts 200 ms later</p><noscript><code>02050500</code></noscript></div>
+<p><strong><code>SLEEP</code> command (you send this)</strong></p>
+<div class="table"><table><thead><tr><th>Offset</th><th>Size</th><th>Type</th><th>Field</th><th>Unit or meaning</th></tr></thead><tbody><tr><td>0</td><td>1</td><td>u8</td><td><code>type</code></td><td>always 0x01: a command</td></tr><tr><td>1</td><td>1</td><td>u8</td><td><code>seq</code></td><td>any number you choose; use a counter</td></tr><tr><td>2</td><td>1</td><td>u8</td><td><code>opcode</code></td><td>0x06 = SLEEP</td></tr></tbody></table></div>
+<div class="frame" data-hex="010606"><p class="caption">Sleep</p><noscript><code>010606</code></noscript></div>
+<p><strong><code>SLEEP</code> response (the band answers)</strong></p>
+<div class="table"><table><thead><tr><th>Offset</th><th>Size</th><th>Type</th><th>Field</th><th>Unit or meaning</th></tr></thead><tbody><tr><td>0</td><td>1</td><td>u8</td><td><code>type</code></td><td>always 0x02: a response</td></tr><tr><td>1</td><td>1</td><td>u8</td><td><code>seq</code></td><td>the <code>seq</code> of the command it answers</td></tr><tr><td>2</td><td>1</td><td>u8</td><td><code>opcode</code></td><td>0x06 = SLEEP</td></tr><tr><td>3</td><td>1</td><td>u8</td><td><code>status</code></td><td>0 = OK; anything else is an error and no data follows</td></tr></tbody></table></div>
+<div class="frame" data-hex="02060600"><p class="caption">The answer</p><noscript><code>02060600</code></noscript></div>
+<p><strong>With the kit's library.</strong> JavaScript, then Python:</p>
+<figure class="code"><figcaption>JavaScript</figcaption><pre><code>await band.restart();
+// or: await band.sleep();</code></pre></figure>
+<figure class="code"><figcaption>Python</figcaption><pre><code>band.restart()
+# or: band.sleep()</code></pre></figure>
+<ul><li>Over USB the cable stays usable after <code>SLEEP</code>.</li></ul>
+<p>More detail: <a href="../contract/contract.md#56-device">5.6 Device</a> in the contract.</p>
+<h3 id="intervals">Intervals<a class="anchor" href="#intervals" aria-label="Link to this part">#</a></h3>
+<p><em>STREAM_SET_INTERVAL, STREAM_GET_INTERVAL</em></p>
+<p>How often a stream sends, for the five streams that are sent on a timer. <code>stream</code> is the bit number, <code>interval_ms</code> the time between two frames: activity (2) 100..3,600,000, default 1000; battery (4) 0 or 1000..3,600,000, default 0 = only when it changes; temp (5) 100..3,600,000, default 5000; link (6) 100..3,600,000, default 1000; mic_level (7) 20..10,000 in steps of 20, default 100. The answer also gives the limits (<code>min_ms</code>, <code>max_ms</code>). Any other stream answers BAD_ARG.</p>
+<p><strong>Switch it on.</strong> Send <code>STREAM_SET_INTERVAL</code> before or after the stream starts.</p>
+<p><strong><code>STREAM_SET_INTERVAL</code> command (you send this)</strong></p>
+<div class="table"><table><thead><tr><th>Offset</th><th>Size</th><th>Type</th><th>Field</th><th>Unit or meaning</th></tr></thead><tbody><tr><td>0</td><td>1</td><td>u8</td><td><code>type</code></td><td>always 0x01: a command</td></tr><tr><td>1</td><td>1</td><td>u8</td><td><code>seq</code></td><td>any number you choose; use a counter</td></tr><tr><td>2</td><td>1</td><td>u8</td><td><code>opcode</code></td><td>0x13 = STREAM_SET_INTERVAL</td></tr><tr><td>3</td><td>1</td><td>u8</td><td><code>stream</code></td><td>stream bit number</td></tr><tr><td>4</td><td>4</td><td>u32</td><td><code>interval_ms</code></td><td>ms between two frames</td></tr></tbody></table></div>
+<div class="frame" data-hex="0134130460ea0000"><p class="caption">Battery every minute</p><noscript><code>0134130460ea0000</code></noscript></div>
+<p><strong><code>STREAM_SET_INTERVAL</code> response (the band answers)</strong></p>
+<div class="table"><table><thead><tr><th>Offset</th><th>Size</th><th>Type</th><th>Field</th><th>Unit or meaning</th></tr></thead><tbody><tr><td>0</td><td>1</td><td>u8</td><td><code>type</code></td><td>always 0x02: a response</td></tr><tr><td>1</td><td>1</td><td>u8</td><td><code>seq</code></td><td>the <code>seq</code> of the command it answers</td></tr><tr><td>2</td><td>1</td><td>u8</td><td><code>opcode</code></td><td>0x13 = STREAM_SET_INTERVAL</td></tr><tr><td>3</td><td>1</td><td>u8</td><td><code>status</code></td><td>0 = OK; anything else is an error and no data follows</td></tr><tr><td>4</td><td>1</td><td>u8</td><td><code>stream</code></td><td>stream bit number</td></tr><tr><td>5</td><td>4</td><td>u32</td><td><code>interval_ms</code></td><td>ms between two frames</td></tr><tr><td>9</td><td>4</td><td>u32</td><td><code>min_ms</code></td><td>shortest allowed</td></tr><tr><td>13</td><td>4</td><td>u32</td><td><code>max_ms</code></td><td>longest allowed</td></tr></tbody></table></div>
+<div class="frame" data-hex="023413000460ea0000e803000080ee3600"><p class="caption">The answer with the limits: 1 s to 1 hour</p><noscript><code>023413000460ea0000e803000080ee3600</code></noscript></div>
+<p><strong><code>STREAM_GET_INTERVAL</code> command (you send this)</strong></p>
+<div class="table"><table><thead><tr><th>Offset</th><th>Size</th><th>Type</th><th>Field</th><th>Unit or meaning</th></tr></thead><tbody><tr><td>0</td><td>1</td><td>u8</td><td><code>type</code></td><td>always 0x01: a command</td></tr><tr><td>1</td><td>1</td><td>u8</td><td><code>seq</code></td><td>any number you choose; use a counter</td></tr><tr><td>2</td><td>1</td><td>u8</td><td><code>opcode</code></td><td>0x14 = STREAM_GET_INTERVAL</td></tr><tr><td>3</td><td>1</td><td>u8</td><td><code>stream</code></td><td>stream bit number</td></tr></tbody></table></div>
+<div class="frame" data-hex="01361402"><p class="caption">Ask for the interval of activity</p><noscript><code>01361402</code></noscript></div>
+<p><strong><code>STREAM_GET_INTERVAL</code> response (the band answers)</strong></p>
+<div class="table"><table><thead><tr><th>Offset</th><th>Size</th><th>Type</th><th>Field</th><th>Unit or meaning</th></tr></thead><tbody><tr><td>0</td><td>1</td><td>u8</td><td><code>type</code></td><td>always 0x02: a response</td></tr><tr><td>1</td><td>1</td><td>u8</td><td><code>seq</code></td><td>the <code>seq</code> of the command it answers</td></tr><tr><td>2</td><td>1</td><td>u8</td><td><code>opcode</code></td><td>0x14 = STREAM_GET_INTERVAL</td></tr><tr><td>3</td><td>1</td><td>u8</td><td><code>status</code></td><td>0 = OK; anything else is an error and no data follows</td></tr><tr><td>4</td><td>1</td><td>u8</td><td><code>stream</code></td><td>stream bit number</td></tr><tr><td>5</td><td>4</td><td>u32</td><td><code>interval_ms</code></td><td>ms between two frames</td></tr><tr><td>9</td><td>4</td><td>u32</td><td><code>min_ms</code></td><td>shortest allowed</td></tr><tr><td>13</td><td>4</td><td>u32</td><td><code>max_ms</code></td><td>longest allowed</td></tr></tbody></table></div>
+<div class="frame" data-hex="0236140002e80300006400000080ee3600"><p class="caption">The answer: every 1000 ms</p><noscript><code>0236140002e80300006400000080ee3600</code></noscript></div>
+<p><strong>With the kit's library.</strong> JavaScript, then Python:</p>
+<figure class="code"><figcaption>JavaScript</figcaption><pre><code>await band.setInterval('battery', 60);       // seconds
+console.log(await band.getInterval('battery'));</code></pre></figure>
+<figure class="code"><figcaption>Python</figcaption><pre><code>band.set_interval("battery", 60)             # seconds
+print(band.get_interval("battery"))</code></pre></figure>
+<ul><li>The motion rate is set with <code>IMU_SET</code> or <code>MOTION2_SET</code>, not here. Sound is always 50 packets a second.</li><li>Like every setting, intervals go back to their defaults when you disconnect.</li></ul>
+<p>More detail: <a href="../contract/contract.md#57-stream-intervals-stream_set_interval">5.7 Stream intervals</a> in the contract.</p>
+<h3 id="band-information">Band information<a class="anchor" href="#band-information" aria-label="Link to this part">#</a></h3>
+<p><em>GET_INFO, GET_NAME, SET_BAND_NUMBER</em></p>
+<p><code>GET_INFO</code> is the first thing to ask after connecting: the contract version (<code>proto_major</code> 1, <code>proto_minor</code> 1), the firmware version (1.1.0 on every event band), the band number, which parts work (<code>caps</code>, one bit each: 0 accelerometer, 1 gyroscope, 2 motion events, 3 step counter, 4 microphone, 5 RGB LED, 6 battery, 7 chip temperature, 8 storage, 9 radio power control, 10 USB transport) and the largest frame it can send. <code>GET_NAME</code> returns the name as text. <code>SET_BAND_NUMBER</code> changes the number, <strong>over USB only</strong>: over Bluetooth the answer is DENIED.</p>
+<p><strong>Switch it on.</strong> Nothing to switch on.</p>
+<p><strong><code>GET_INFO</code> command (you send this)</strong></p>
+<div class="table"><table><thead><tr><th>Offset</th><th>Size</th><th>Type</th><th>Field</th><th>Unit or meaning</th></tr></thead><tbody><tr><td>0</td><td>1</td><td>u8</td><td><code>type</code></td><td>always 0x01: a command</td></tr><tr><td>1</td><td>1</td><td>u8</td><td><code>seq</code></td><td>any number you choose; use a counter</td></tr><tr><td>2</td><td>1</td><td>u8</td><td><code>opcode</code></td><td>0x01 = GET_INFO</td></tr></tbody></table></div>
+<div class="frame" data-hex="010001"><p class="caption">Ask who the band is</p><noscript><code>010001</code></noscript></div>
+<p><strong><code>GET_INFO</code> response (the band answers)</strong></p>
+<div class="table"><table><thead><tr><th>Offset</th><th>Size</th><th>Type</th><th>Field</th><th>Unit or meaning</th></tr></thead><tbody><tr><td>0</td><td>1</td><td>u8</td><td><code>type</code></td><td>always 0x02: a response</td></tr><tr><td>1</td><td>1</td><td>u8</td><td><code>seq</code></td><td>the <code>seq</code> of the command it answers</td></tr><tr><td>2</td><td>1</td><td>u8</td><td><code>opcode</code></td><td>0x01 = GET_INFO</td></tr><tr><td>3</td><td>1</td><td>u8</td><td><code>status</code></td><td>0 = OK; anything else is an error and no data follows</td></tr><tr><td>4</td><td>1</td><td>u8</td><td><code>proto_major</code></td><td>always 1</td></tr><tr><td>5</td><td>1</td><td>u8</td><td><code>proto_minor</code></td><td>1 on an event band (contract v1.1)</td></tr><tr><td>6</td><td>1</td><td>u8</td><td><code>fw_major</code></td><td>firmware version</td></tr><tr><td>7</td><td>1</td><td>u8</td><td><code>fw_minor</code></td><td>firmware version</td></tr><tr><td>8</td><td>1</td><td>u8</td><td><code>fw_patch</code></td><td>firmware version</td></tr><tr><td>9</td><td>1</td><td>u8</td><td><code>hw</code></td><td>1 = XIAO nRF52840 Sense</td></tr><tr><td>10</td><td>2</td><td>u16</td><td><code>band_no</code></td><td>band number</td></tr><tr><td>12</td><td>2</td><td>u16</td><td><code>caps</code></td><td>one bit per working part</td></tr><tr><td>14</td><td>2</td><td>u16</td><td><code>max_frame</code></td><td>largest frame in bytes</td></tr><tr><td>16</td><td>4</td><td>u32</td><td><code>uptime_ms</code></td><td>ms since the band started</td></tr></tbody></table></div>
+<div class="frame" data-hex="023101000101010100012a00ff07f40040e20100"><p class="caption">A band with firmware 1.1.0, number 42</p><noscript><code>023101000101010100012a00ff07f40040e20100</code></noscript></div>
+<p><strong><code>GET_NAME</code> response (the band answers)</strong></p>
+<div class="table"><table><thead><tr><th>Offset</th><th>Size</th><th>Type</th><th>Field</th><th>Unit or meaning</th></tr></thead><tbody><tr><td>0</td><td>1</td><td>u8</td><td><code>type</code></td><td>always 0x02: a response</td></tr><tr><td>1</td><td>1</td><td>u8</td><td><code>seq</code></td><td>the <code>seq</code> of the command it answers</td></tr><tr><td>2</td><td>1</td><td>u8</td><td><code>opcode</code></td><td>0x02 = GET_NAME</td></tr><tr><td>3</td><td>1</td><td>u8</td><td><code>status</code></td><td>0 = OK; anything else is an error and no data follows</td></tr><tr><td>4</td><td>the rest</td><td>text</td><td><code>name</code></td><td>text, 12 or 13 characters</td></tr></tbody></table></div>
+<div class="frame" data-hex="020102005665786f2d4841434b2d3432"><p class="caption">Answer to <code>GET_NAME</code>: the text Vexo-HACK-42</p><noscript><code>020102005665786f2d4841434b2d3432</code></noscript></div>
+<p><strong><code>SET_BAND_NUMBER</code> command (you send this)</strong></p>
+<div class="table"><table><thead><tr><th>Offset</th><th>Size</th><th>Type</th><th>Field</th><th>Unit or meaning</th></tr></thead><tbody><tr><td>0</td><td>1</td><td>u8</td><td><code>type</code></td><td>always 0x01: a command</td></tr><tr><td>1</td><td>1</td><td>u8</td><td><code>seq</code></td><td>any number you choose; use a counter</td></tr><tr><td>2</td><td>1</td><td>u8</td><td><code>opcode</code></td><td>0x03 = SET_BAND_NUMBER</td></tr><tr><td>3</td><td>2</td><td>u16</td><td><code>number</code></td><td>1..999</td></tr><tr><td>5</td><td>2</td><td>u16</td><td><code>magic</code></td><td>always 0x5856, so it cannot happen by accident</td></tr></tbody></table></div>
+<div class="frame" data-hex="0102032a005658"><p class="caption">Set band number 42 (USB only)</p><noscript><code>0102032a005658</code></noscript></div>
+<p><strong><code>SET_BAND_NUMBER</code> response (the band answers)</strong></p>
+<div class="table"><table><thead><tr><th>Offset</th><th>Size</th><th>Type</th><th>Field</th><th>Unit or meaning</th></tr></thead><tbody><tr><td>0</td><td>1</td><td>u8</td><td><code>type</code></td><td>always 0x02: a response</td></tr><tr><td>1</td><td>1</td><td>u8</td><td><code>seq</code></td><td>the <code>seq</code> of the command it answers</td></tr><tr><td>2</td><td>1</td><td>u8</td><td><code>opcode</code></td><td>0x03 = SET_BAND_NUMBER</td></tr><tr><td>3</td><td>1</td><td>u8</td><td><code>status</code></td><td>0 = OK; anything else is an error and no data follows</td></tr><tr><td>4</td><td>2</td><td>u16</td><td><code>number</code></td><td>the number now stored</td></tr></tbody></table></div>
+<div class="frame" data-hex="02030306"><p class="caption">Over Bluetooth: DENIED</p><noscript><code>02030306</code></noscript></div>
+<p><strong>With the kit's library.</strong> JavaScript, then Python:</p>
+<figure class="code"><figcaption>JavaScript</figcaption><pre><code>console.log(band.info.firmware, band.info.capabilities);
+console.log(await band.getName());</code></pre></figure>
+<figure class="code"><figcaption>Python</figcaption><pre><code>print(band.info.firmware, band.info.capabilities)
+print(band.get_name())</code></pre></figure>
+<ul><li>Decide what a band can do from <code>proto_minor</code> (in the library: <code>band.info.features</code>), not from the firmware version.</li></ul>
+<p>More detail: <a href="../contract/contract.md#opcode-table">Opcode table</a> in the contract.</p>
+</section>
+<section>
+<h2 id="errors-and-refusals">Errors and refusals<a class="anchor" href="#errors-and-refusals" aria-label="Link to this part">#</a></h2>
+<p>Every response has a <code>status</code> byte. 0 is OK. With any other status the command changed nothing, and the response carries no data.</p>
+<div class="table"><table><thead><tr><th>Status</th><th>Name</th><th>Meaning</th></tr></thead><tbody><tr><td>0</td><td><code>OK</code></td><td>The command worked.</td></tr><tr><td>1</td><td><code>UNKNOWN_OPCODE</code></td><td>The band does not know this command.</td></tr><tr><td>2</td><td><code>BAD_LENGTH</code></td><td>The argument bytes do not have the size the command needs.</td></tr><tr><td>3</td><td><code>BAD_ARG</code></td><td>A value is outside the allowed set. Nothing changed.</td></tr><tr><td>4</td><td><code>BUSY</code></td><td>Storage is not ready (still starting, still erasing, or more than 10 writes in a second), or more than 4 commands were sent without waiting for responses.</td></tr><tr><td>5</td><td><code>NOT_AVAILABLE</code></td><td>That part failed its start-up check on this band, or it does not exist on this link (the LINK stream over USB).</td></tr><tr><td>6</td><td><code>DENIED</code></td><td>Blocked by a safety rule: the light while the microphone is on, the band number over Bluetooth, a motion rate too fast for this link.</td></tr><tr><td>7</td><td><code>NOT_FOUND</code></td><td>The storage key is empty.</td></tr><tr><td>8</td><td><code>NO_SPACE</code></td><td>Storage is full.</td></tr><tr><td>9</td><td><code>IO_ERROR</code></td><td>A sensor or storage error.</td></tr></tbody></table></div>
+<p>The refusals you are most likely to meet:</p>
+<div class="table"><table><thead><tr><th>You did this</th><th>The band answers</th><th>Example response</th><th>What to do</th></tr></thead><tbody><tr><td>Changed the light (<code>LED_SET</code>, <code>IDENTIFY</code>) while the microphone is on</td><td><code>DENIED</code></td><td><code>02175006</code></td><td>Stop the sound and the loudness stream first</td></tr><tr><td>Sent <code>SET_BAND_NUMBER</code> over Bluetooth</td><td><code>DENIED</code></td><td><code>02030306</code></td><td>It works over the USB cable only</td></tr><tr><td>Started motion faster than this link allows</td><td><code>DENIED</code></td><td><code>023a1006</code></td><td>Choose a lower rate or one sensor (<a href="#fast-motion">Fast motion</a>)</td></tr><tr><td>Gave a value that is not allowed, for example a rate that does not exist</td><td><code>BAD_ARG</code></td><td><code>020d2003</code></td><td>Check the allowed values in the block for that command</td></tr><tr><td>Started a stream whose part is not working, or the link stream over USB</td><td><code>NOT_AVAILABLE</code></td><td><code>02091005</code></td><td>Look at <code>caps</code> in <code>GET_INFO</code></td></tr><tr><td>Sent an opcode the band does not have</td><td><code>UNKNOWN_OPCODE</code></td><td><code>02290901</code></td><td>Check the opcode against the cheat sheet below</td></tr><tr><td>Wrote to storage more than 10 times in a second, or during an erase</td><td><code>BUSY</code></td><td><code>021f7104</code></td><td>Wait a moment and send it again</td></tr><tr><td>Read a storage key that is empty</td><td><code>NOT_FOUND</code></td><td><code>02217207</code></td><td>Nothing was stored there</td></tr><tr><td>Wrote to storage when it is full</td><td><code>NO_SPACE</code></td><td><code>021e7108</code></td><td>Delete keys you do not need</td></tr></tbody></table></div>
+<p><strong>Notices.</strong> The band can also tell you something without being asked: a frame of type <code>0x03</code> with a code and one argument.</p>
+<div class="table"><table><thead><tr><th>Offset</th><th>Size</th><th>Type</th><th>Field</th><th>Unit or meaning</th></tr></thead><tbody><tr><td>0</td><td>1</td><td>u8</td><td><code>type</code></td><td>always 0x03: a notice</td></tr><tr><td>1</td><td>1</td><td>u8</td><td><code>code</code></td><td>1 LOW_BATTERY, 2 CRITICAL_BATTERY, 3 STREAM_DROPPED, 4 USB_POWER</td></tr><tr><td>2</td><td>1</td><td>u8</td><td><code>arg</code></td><td>depends on the code</td></tr></tbody></table></div>
+<div class="table"><table><thead><tr><th>Code</th><th>Name</th><th>Meaning</th><th><code>arg</code></th></tr></thead><tbody><tr><td>1</td><td><code>LOW_BATTERY</code></td><td>The battery is low: the light is dimmed.</td><td>percent</td></tr><tr><td>2</td><td><code>CRITICAL_BATTERY</code></td><td>The battery is almost empty: streams stop and the light goes off. Charge the band.</td><td>percent</td></tr><tr><td>3</td><td><code>STREAM_DROPPED</code></td><td>Frames were lost because the link was too slow or a frame was larger than <code>max_frame</code>.</td><td>stream bit number, 0..8</td></tr><tr><td>4</td><td><code>USB_POWER</code></td><td>The USB cable was plugged in or pulled out.</td><td>0 unplugged, 1 plugged</td></tr></tbody></table></div>
+<div class="frame" data-hex="03010e"><p class="caption">Low battery at 14 percent</p><noscript><code>03010e</code></noscript></div>
+<div class="frame" data-hex="030303"><p class="caption">Frames of stream 3 (sound) were lost</p><noscript><code>030303</code></noscript></div>
+<p>In the library these arrive as the <code>notice</code> event. No response within 2 seconds is a problem too: the library reports it as <code>timeout</code>. The safety rules behind the refusals are in <a href="../contract/contract.md#6-safety-rules-you-cannot-change">6. Safety rules you cannot change</a>.</p>
+</section>
+<section>
+<h2 id="cheat-sheet">Cheat sheet<a class="anchor" href="#cheat-sheet" aria-label="Link to this part">#</a></h2>
+<p><strong>Frames:</strong> <code>01</code> command = <code>[01][seq][opcode][args]</code>, <code>02</code> response = <code>[02][seq][opcode][status][data]</code>, <code>03</code> notice = <code>[03][code][arg]</code>, <code>10</code> to <code>18</code> data. Numbers are little-endian. Write to RX <code>254f0002-...</code>, listen on TX <code>254f0003-...</code>, service <code>254f0001-df82-4a9c-a2b5-563a0f6b2021</code>.</p>
+<p><strong>Every command.</strong></p>
+<div class="table"><table><thead><tr><th>Opcode</th><th>Command</th><th>You send (after <code>01 seq opcode</code>)</th><th>You get back (after <code>02 seq opcode 00</code>)</th><th>Explained in</th></tr></thead><tbody><tr><td><code>0x01</code></td><td><code>GET_INFO</code></td><td>none</td><td><code>proto_major</code> u8, <code>proto_minor</code> u8, <code>fw_major</code> u8, <code>fw_minor</code> u8, <code>fw_patch</code> u8, <code>hw</code> u8, <code>band_no</code> u16, <code>caps</code> u16, <code>max_frame</code> u16, <code>uptime_ms</code> u32</td><td><a href="#band-information">Band information</a></td></tr><tr><td><code>0x02</code></td><td><code>GET_NAME</code></td><td>none</td><td><code>name</code> text</td><td><a href="#band-information">Band information</a></td></tr><tr><td><code>0x03</code></td><td><code>SET_BAND_NUMBER</code></td><td><code>number</code> u16, <code>magic</code> u16</td><td><code>number</code> u16</td><td><a href="#band-information">Band information</a></td></tr><tr><td><code>0x04</code></td><td><code>IDENTIFY</code></td><td><code>seconds</code> u8</td><td>none</td><td><a href="#light">Light</a></td></tr><tr><td><code>0x05</code></td><td><code>RESTART</code></td><td>none</td><td>none</td><td><a href="#restart-and-sleep">Restart and sleep</a></td></tr><tr><td><code>0x06</code></td><td><code>SLEEP</code></td><td>none</td><td>none</td><td><a href="#restart-and-sleep">Restart and sleep</a></td></tr><tr><td><code>0x07</code></td><td><code>TIME_SET</code></td><td><code>unix_ms</code> u64</td><td><code>set</code> u8, <code>unix_ms</code> u64, <code>t_ms</code> u32</td><td><a href="#clock-and-time">Clock and time</a></td></tr><tr><td><code>0x08</code></td><td><code>TIME_GET</code></td><td>none</td><td><code>set</code> u8, <code>unix_ms</code> u64, <code>t_ms</code> u32</td><td><a href="#clock-and-time">Clock and time</a></td></tr><tr><td><code>0x10</code></td><td><code>STREAM_START</code></td><td><code>mask</code> u16</td><td><code>active</code> u16</td><td><a href="#switching-data-on-and-off">Switching data on and off</a></td></tr><tr><td><code>0x11</code></td><td><code>STREAM_STOP</code></td><td><code>mask</code> u16</td><td><code>active</code> u16</td><td><a href="#switching-data-on-and-off">Switching data on and off</a></td></tr><tr><td><code>0x12</code></td><td><code>STREAM_GET</code></td><td>none</td><td><code>active</code> u16</td><td><a href="#switching-data-on-and-off">Switching data on and off</a></td></tr><tr><td><code>0x13</code></td><td><code>STREAM_SET_INTERVAL</code></td><td><code>stream</code> u8, <code>interval_ms</code> u32</td><td><code>stream</code> u8, <code>interval_ms</code> u32, <code>min_ms</code> u32, <code>max_ms</code> u32</td><td><a href="#intervals">Intervals</a></td></tr><tr><td><code>0x14</code></td><td><code>STREAM_GET_INTERVAL</code></td><td><code>stream</code> u8</td><td><code>stream</code> u8, <code>interval_ms</code> u32, <code>min_ms</code> u32, <code>max_ms</code> u32</td><td><a href="#intervals">Intervals</a></td></tr><tr><td><code>0x20</code></td><td><code>IMU_SET</code></td><td><code>rate_hz</code> u8, <code>accel_range_g</code> u8, <code>gyro_range_dps</code> u16</td><td><code>rate_hz</code> u8, <code>accel_range_g</code> u8, <code>gyro_range_dps</code> u16</td><td><a href="#motion">Motion</a></td></tr><tr><td><code>0x21</code></td><td><code>IMU_GET</code></td><td>none</td><td><code>rate_hz</code> u8, <code>accel_range_g</code> u8, <code>gyro_range_dps</code> u16</td><td><a href="#motion">Motion</a></td></tr><tr><td><code>0x22</code></td><td><code>EVENT_SET</code></td><td><code>event_mask</code> u8, <code>tap_threshold_mg</code> u16</td><td><code>event_mask</code> u8, <code>tap_threshold_mg</code> u16</td><td><a href="#taps-and-events">Taps and events</a></td></tr><tr><td><code>0x23</code></td><td><code>EVENT_GET</code></td><td>none</td><td><code>event_mask</code> u8, <code>tap_threshold_mg</code> u16</td><td><a href="#taps-and-events">Taps and events</a></td></tr><tr><td><code>0x24</code></td><td><code>MOTION2_SET</code></td><td><code>rate_hz</code> u16, <code>sensors</code> u8</td><td><code>rate_hz</code> u16, <code>sensors</code> u8, <code>max_accel_hz</code> u16, <code>max_gyro_hz</code> u16, <code>max_both_hz</code> u16</td><td><a href="#fast-motion">Fast motion</a></td></tr><tr><td><code>0x25</code></td><td><code>MOTION2_GET</code></td><td>none</td><td><code>rate_hz</code> u16, <code>sensors</code> u8, <code>max_accel_hz</code> u16, <code>max_gyro_hz</code> u16, <code>max_both_hz</code> u16</td><td><a href="#fast-motion">Fast motion</a></td></tr><tr><td><code>0x30</code></td><td><code>MIC_SET_GAIN</code></td><td><code>gain_half_db</code> u8</td><td><code>gain_half_db</code> u8</td><td><a href="#microphone-sound">Microphone sound</a></td></tr><tr><td><code>0x31</code></td><td><code>MIC_GET</code></td><td>none</td><td><code>gain_half_db</code> u8, <code>sample_rate</code> u16, <code>frame_ms</code> u8, <code>channels</code> u8, <code>bitrate</code> u16</td><td><a href="#microphone-sound">Microphone sound</a></td></tr><tr><td><code>0x40</code></td><td><code>RADIO_SET_TX_POWER</code></td><td><code>dbm</code> i8</td><td><code>dbm</code> i8</td><td><a href="#link-quality">Link quality</a></td></tr><tr><td><code>0x41</code></td><td><code>RADIO_GET</code></td><td>none</td><td><code>tx_dbm</code> i8, <code>rssi_dbm</code> i8, <code>phy</code> u8, <code>interval</code> u16, <code>mtu</code> u16</td><td><a href="#link-quality">Link quality</a></td></tr><tr><td><code>0x50</code></td><td><code>LED_SET</code></td><td><code>r</code> u8, <code>g</code> u8, <code>b</code> u8, <code>brightness</code> u8, <code>pattern</code> u8, <code>period_ms</code> u16</td><td>none</td><td><a href="#light">Light</a></td></tr><tr><td><code>0x51</code></td><td><code>LED_GET</code></td><td>none</td><td><code>r</code> u8, <code>g</code> u8, <code>b</code> u8, <code>brightness</code> u8, <code>pattern</code> u8, <code>period_ms</code> u16</td><td><a href="#light">Light</a></td></tr><tr><td><code>0x60</code></td><td><code>TEMP_SET_INTERVAL</code></td><td><code>seconds</code> u8</td><td><code>seconds</code> u8</td><td><a href="#temperature">Temperature</a></td></tr><tr><td><code>0x61</code></td><td><code>BATTERY_GET</code></td><td>none</td><td><code>percent</code> u8, <code>state</code> u8, <code>millivolts</code> u16</td><td><a href="#battery">Battery</a></td></tr><tr><td><code>0x70</code></td><td><code>STORE_INFO</code></td><td>none</td><td><code>keys_max</code> u16, <code>value_max</code> u16, <code>free_bytes</code> u32, <code>used_keys</code> u16</td><td><a href="#storage">Storage</a></td></tr><tr><td><code>0x71</code></td><td><code>STORE_PUT</code></td><td><code>key</code> u16, <code>value</code> bytes</td><td>none</td><td><a href="#storage">Storage</a></td></tr><tr><td><code>0x72</code></td><td><code>STORE_GET</code></td><td><code>key</code> u16</td><td><code>value</code> bytes</td><td><a href="#storage">Storage</a></td></tr><tr><td><code>0x73</code></td><td><code>STORE_DEL</code></td><td><code>key</code> u16</td><td>none</td><td><a href="#storage">Storage</a></td></tr><tr><td><code>0x74</code></td><td><code>STORE_WIPE</code></td><td><code>magic</code> u16</td><td>none</td><td><a href="#storage">Storage</a></td></tr></tbody></table></div>
+<p><strong>Every data frame.</strong> Start one with <code>STREAM_START</code> and its mask; add masks to start several.</p>
+<div class="table"><table><thead><tr><th>Type</th><th>Bit</th><th>Mask</th><th>Stream</th><th>Body (after the type byte)</th><th>Explained in</th></tr></thead><tbody><tr><td><code>0x10</code></td><td>0</td><td>1</td><td><code>MOTION</code></td><td><code>t_ms</code> u32, <code>period_ms</code> u8, <code>count</code> u8, then <code>ax, ay, az, gx, gy, gz</code></td><td><a href="#motion">Motion</a></td></tr><tr><td><code>0x11</code></td><td>1</td><td>2</td><td><code>EVENT</code></td><td><code>t_ms</code> u32, <code>event</code> u8, <code>arg</code> u8</td><td><a href="#taps-and-events">Taps and events</a></td></tr><tr><td><code>0x12</code></td><td>2</td><td>4</td><td><code>ACTIVITY</code></td><td><code>t_ms</code> u32, <code>steps_total</code> u32, <code>cadence_spm</code> u8, <code>state</code> u8, <code>motion_mg</code> u16</td><td><a href="#steps-and-activity">Steps and activity</a></td></tr><tr><td><code>0x13</code></td><td>3</td><td>8</td><td><code>AUDIO</code></td><td><code>seq</code> u16, <code>len</code> u8, then <code>opus</code></td><td><a href="#microphone-sound">Microphone sound</a></td></tr><tr><td><code>0x14</code></td><td>4</td><td>16</td><td><code>BATTERY</code></td><td><code>percent</code> u8, <code>state</code> u8, <code>millivolts</code> u16</td><td><a href="#battery">Battery</a></td></tr><tr><td><code>0x15</code></td><td>5</td><td>32</td><td><code>TEMP</code></td><td><code>t_ms</code> u32, <code>temp_mc</code> i32</td><td><a href="#temperature">Temperature</a></td></tr><tr><td><code>0x16</code></td><td>6</td><td>64</td><td><code>LINK</code></td><td><code>t_ms</code> u32, <code>rssi_dbm</code> i8, <code>tx_dbm</code> i8, <code>phy</code> u8</td><td><a href="#link-quality">Link quality</a></td></tr><tr><td><code>0x17</code></td><td>7</td><td>128</td><td><code>MIC_LEVEL</code></td><td><code>t_ms</code> u32, <code>peak_db</code> u8, <code>rms_db</code> u8</td><td><a href="#microphone-level">Microphone level</a></td></tr><tr><td><code>0x18</code></td><td>8</td><td>256</td><td><code>MOTION2</code></td><td><code>t_ms</code> u32, <code>sample_no</code> u32, <code>period_us</code> u32, <code>sensors</code> u8, <code>count</code> u8, then <code>ax, ay, az and/or gx, gy, gz</code></td><td><a href="#fast-motion">Fast motion</a></td></tr></tbody></table></div>
+<p><strong>Notices:</strong> 1 <code>LOW_BATTERY</code>, 2 <code>CRITICAL_BATTERY</code>, 3 <code>STREAM_DROPPED</code>, 4 <code>USB_POWER</code>. <strong>Statuses:</strong> 0 <code>OK</code>, 1 <code>UNKNOWN_OPCODE</code>, 2 <code>BAD_LENGTH</code>, 3 <code>BAD_ARG</code>, 4 <code>BUSY</code>, 5 <code>NOT_AVAILABLE</code>, 6 <code>DENIED</code>, 7 <code>NOT_FOUND</code>, 8 <code>NO_SPACE</code>, 9 <code>IO_ERROR</code>. Both are explained in <a href="#errors-and-refusals">Errors and refusals</a>.</p>
+<p>The full contract, with every limit and every special case: <a href="../contract/contract.md">contract/contract.md</a>. Real example frames for testing your own code: <code>contract/test-vectors.json</code>.</p>
+</section>
+<p class="foot">Made from <a href="../contract/contract.md">contract/contract.md</a> and its test vectors. The text version of this page is <a href="bluetooth-contract.md">bluetooth-contract.md</a>.</p>
+</main>
+</div>
+<script id="codec">
+// The frame layouts of the Vexo Open band, written from contract/contract.md, and a small
+// decoder for them. No page code in here: the test runs this script on its own.
+(function (root) {
+  'use strict';
+
+  const SIZE = { u8: 1, i8: 1, u16: 2, i16: 2, u32: 4, i32: 4, u64: 8 };
+  const MAX_FRAME = 244;
+
+  const STATUSES = [
+    ['OK', 'The command worked.'],
+    ['UNKNOWN_OPCODE', 'The band does not know this command.'],
+    ['BAD_LENGTH', 'The argument bytes do not have the size the command needs.'],
+    ['BAD_ARG', 'A value is outside the allowed set. Nothing changed.'],
+    ['BUSY', 'Storage is not ready (still starting, still erasing, or more than 10 writes in a second), or more than 4 commands were sent without waiting for responses.'],
+    ['NOT_AVAILABLE', 'That part failed its start-up check on this band, or it does not exist on this link (the LINK stream over USB).'],
+    ['DENIED', 'Blocked by a safety rule: the light while the microphone is on, the band number over Bluetooth, a motion rate too fast for this link.'],
+    ['NOT_FOUND', 'The storage key is empty.'],
+    ['NO_SPACE', 'Storage is full.'],
+    ['IO_ERROR', 'A sensor or storage error.'],
+  ];
+  const NOTICES = {
+    1: ['LOW_BATTERY', 'The battery is low: the light is dimmed.', 'percent'],
+    2: ['CRITICAL_BATTERY', 'The battery is almost empty: streams stop and the light goes off. Charge the band.', 'percent'],
+    3: ['STREAM_DROPPED', 'Frames were lost because the link was too slow or a frame was larger than `max_frame`.', 'stream bit number, 0..8'],
+    4: ['USB_POWER', 'The USB cable was plugged in or pulled out.', '0 unplugged, 1 plugged'],
+  };
+  const STREAM_BITS = ['motion', 'event', 'activity', 'audio', 'battery', 'temp', 'link', 'mic_level', 'motion2'];
+  const CAPS = ['accelerometer', 'gyroscope', 'motion events', 'step counter', 'microphone', 'RGB LED', 'battery', 'chip temperature', 'storage', 'radio power control', 'USB transport'];
+  const EVENTS = { 1: 'single tap', 2: 'double tap', 3: 'free-fall', 4: 'tilt', 5: 'orientation changed', 6: 'motion started', 7: 'motion stopped' };
+  const PATTERNS = { 0: 'off', 1: 'solid', 2: 'blink', 3: 'breathe', 4: 'flash', 5: 'rainbow' };
+  const BATTERY_STATE = { 0: 'on battery', 1: 'charging', 2: 'charged' };
+  const ACTIVITY_STATE = { 0: 'still', 1: 'walk', 2: 'run' };
+  const PHY = { 1: '1M', 2: '2M' };
+  const SENSORS = { 1: 'accelerometer', 2: 'gyroscope', 3: 'both' };
+
+  // A field is [name, type, unit, how to show it]. The fourth entry is a list of names or
+  // the name of one of the functions in SHOW.
+  const T_MS = ['t_ms', 'u32', 'ms since the band started', 'ms'];
+  const ACCEL = [['ax', 'i16', 'milli-g', 'mg'], ['ay', 'i16', 'milli-g', 'mg'], ['az', 'i16', 'milli-g', 'mg']];
+  const GYRO = [['gx', 'i16', 'tenths of a degree per second', 'ddps'], ['gy', 'i16', 'tenths of a degree per second', 'ddps'], ['gz', 'i16', 'tenths of a degree per second', 'ddps']];
+  const BATTERY = [['percent', 'u8', '%'], ['state', 'u8', '0 on battery, 1 charging, 2 charged', BATTERY_STATE], ['millivolts', 'u16', 'mV']];
+  const MASK = ['mask', 'u16', 'one bit per stream', 'mask'];
+  const ACTIVE = ['active', 'u16', 'one bit per stream that is on', 'mask'];
+  const IMU = [['rate_hz', 'u8', 'samples per second: 10, 25, 50 or 100'], ['accel_range_g', 'u8', 'g: 2, 4, 8 or 16'], ['gyro_range_dps', 'u16', 'degrees per second: 0 (off), 250, 500, 1000 or 2000']];
+  const EVENT_CFG = [['event_mask', 'u8', 'bit 0 single tap, 1 double tap, 2 free-fall, 3 tilt, 4 orientation, 5 motion start/stop'], ['tap_threshold_mg', 'u16', 'milli-g, 200..8000']];
+  const MOTION2_CFG = [['rate_hz', 'u16', 'samples per second'], ['sensors', 'u8', '1 accelerometer, 2 gyroscope, 3 both', SENSORS]];
+  const MOTION2_STATE = MOTION2_CFG.concat([['max_accel_hz', 'u16', 'fastest rate, accelerometer alone'], ['max_gyro_hz', 'u16', 'fastest rate, gyroscope alone'], ['max_both_hz', 'u16', 'fastest rate, both']]);
+  const LED = [['r', 'u8', 'red, 0..255'], ['g', 'u8', 'green, 0..255'], ['b', 'u8', 'blue, 0..255'], ['brightness', 'u8', '0..255, scales all three'], ['pattern', 'u8', '0 off, 1 solid, 2 blink, 3 breathe, 4 flash, 5 rainbow', PATTERNS], ['period_ms', 'u16', 'ms per cycle, 100..10000', 'ms']];
+  const INTERVAL = [['stream', 'u8', 'stream bit number', 'stream'], ['interval_ms', 'u32', 'ms between two frames', 'ms'], ['min_ms', 'u32', 'shortest allowed', 'ms'], ['max_ms', 'u32', 'longest allowed', 'ms']];
+  const TIME = [['set', 'u8', '0 not set, 1 set'], ['unix_ms', 'u64', 'ms since 1970-01-01 UTC', 'unix'], T_MS];
+  const MAGIC = ['magic', 'u16', 'always 0x5856, so it cannot happen by accident', 'hex16', true];
+
+  const COMMANDS = {
+    0x01: { name: 'GET_INFO', args: [], resp: [['proto_major', 'u8', 'always 1'], ['proto_minor', 'u8', '1 on an event band (contract v1.1)'], ['fw_major', 'u8', 'firmware version'], ['fw_minor', 'u8', 'firmware version'], ['fw_patch', 'u8', 'firmware version'], ['hw', 'u8', '1 = XIAO nRF52840 Sense'], ['band_no', 'u16', 'band number'], ['caps', 'u16', 'one bit per working part', 'caps'], ['max_frame', 'u16', 'largest frame in bytes'], ['uptime_ms', 'u32', 'ms since the band started', 'ms']] },
+    0x02: { name: 'GET_NAME', args: [], resp: [['name', 'ascii', 'text, 12 or 13 characters']] },
+    0x03: { name: 'SET_BAND_NUMBER', args: [['number', 'u16', '1..999'], MAGIC], resp: [['number', 'u16', 'the number now stored']] },
+    0x04: { name: 'IDENTIFY', args: [['seconds', 'u8', 's, 1..30']], resp: [] },
+    0x05: { name: 'RESTART', args: [], resp: [] },
+    0x06: { name: 'SLEEP', args: [], resp: [] },
+    0x07: { name: 'TIME_SET', args: [['unix_ms', 'u64', 'ms since 1970-01-01 UTC', 'unix']], resp: TIME },
+    0x08: { name: 'TIME_GET', args: [], resp: TIME },
+    0x10: { name: 'STREAM_START', args: [MASK], resp: [ACTIVE] },
+    0x11: { name: 'STREAM_STOP', args: [MASK], resp: [ACTIVE] },
+    0x12: { name: 'STREAM_GET', args: [], resp: [ACTIVE] },
+    0x13: { name: 'STREAM_SET_INTERVAL', args: INTERVAL.slice(0, 2), resp: INTERVAL },
+    0x14: { name: 'STREAM_GET_INTERVAL', args: INTERVAL.slice(0, 1), resp: INTERVAL },
+    0x20: { name: 'IMU_SET', args: IMU, resp: IMU },
+    0x21: { name: 'IMU_GET', args: [], resp: IMU },
+    0x22: { name: 'EVENT_SET', args: EVENT_CFG, resp: EVENT_CFG },
+    0x23: { name: 'EVENT_GET', args: [], resp: EVENT_CFG },
+    0x24: { name: 'MOTION2_SET', args: MOTION2_CFG, resp: MOTION2_STATE },
+    0x25: { name: 'MOTION2_GET', args: [], resp: MOTION2_STATE },
+    0x30: { name: 'MIC_SET_GAIN', args: [['gain_half_db', 'u8', 'half dB steps, 0..80; 40 = 0 dB, 80 = +20 dB', 'halfdb']], resp: [['gain_half_db', 'u8', 'half dB steps', 'halfdb']] },
+    0x31: { name: 'MIC_GET', args: [], resp: [['gain_half_db', 'u8', 'half dB steps', 'halfdb'], ['sample_rate', 'u16', 'samples per second, always 16000'], ['frame_ms', 'u8', 'ms per packet, always 20', 'ms'], ['channels', 'u8', 'always 1'], ['bitrate', 'u16', 'bits per second, always 24000']] },
+    0x40: { name: 'RADIO_SET_TX_POWER', args: [['dbm', 'i8', 'dBm: -20, -16, -12, -8, -4, 0 or 4', 'dbm']], resp: [['dbm', 'i8', 'dBm', 'dbm']] },
+    0x41: { name: 'RADIO_GET', args: [], resp: [['tx_dbm', 'i8', 'dBm', 'dbm'], ['rssi_dbm', 'i8', 'dBm; 127 = no reading', 'rssi'], ['phy', 'u8', '1 = 1M, 2 = 2M', PHY], ['interval', 'u16', 'units of 1.25 ms', 'ci'], ['mtu', 'u16', 'bytes']] },
+    0x50: { name: 'LED_SET', args: LED, resp: [] },
+    0x51: { name: 'LED_GET', args: [], resp: LED },
+    0x60: { name: 'TEMP_SET_INTERVAL', args: [['seconds', 'u8', 's, 1..255']], resp: [['seconds', 'u8', 's']] },
+    0x61: { name: 'BATTERY_GET', args: [], resp: BATTERY },
+    0x70: { name: 'STORE_INFO', args: [], resp: [['keys_max', 'u16', 'keys'], ['value_max', 'u16', 'bytes per value'], ['free_bytes', 'u32', 'bytes'], ['used_keys', 'u16', 'keys']] },
+    0x71: { name: 'STORE_PUT', args: [['key', 'u16', '0..999'], ['value', 'bytes', '1..232 bytes']], resp: [] },
+    0x72: { name: 'STORE_GET', args: [['key', 'u16', '0..999']], resp: [['value', 'bytes', '1..232 bytes']] },
+    0x73: { name: 'STORE_DEL', args: [['key', 'u16', '0..999']], resp: [] },
+    0x74: { name: 'STORE_WIPE', args: [MAGIC], resp: [] },
+  };
+
+  // Stream frames: the fields after the type byte. `rows` adds the repeated part for the tables.
+  const STREAMS = {
+    0x10: { name: 'MOTION', frame: 'motion', fields: [T_MS, ['period_ms', 'u8', 'ms between two samples', 'ms'], ['count', 'u8', 'samples in this frame']],
+      rows: [['7 + 12 x i', 12, '6 x i16', 'ax, ay, az, gx, gy, gz', 'sample i: milli-g, then tenths of a degree per second']] },
+    0x11: { name: 'EVENT', frame: 'event', fields: [T_MS, ['event', 'u8', '1 tap, 2 double tap, 3 free-fall, 4 tilt, 5 orientation, 6 motion started, 7 motion stopped', EVENTS], ['arg', 'u8', 'for orientation: the face pointing up; otherwise 0']] },
+    0x12: { name: 'ACTIVITY', frame: 'activity', fields: [T_MS, ['steps_total', 'u32', 'steps, lifetime count'], ['cadence_spm', 'u8', 'steps per minute'], ['state', 'u8', '0 still, 1 walk, 2 run', ACTIVITY_STATE], ['motion_mg', 'u16', 'milli-g', 'mg']] },
+    0x13: { name: 'AUDIO', frame: 'audio', fields: [['seq', 'u16', 'packet counter, starts at 0'], ['len', 'u8', 'bytes of Opus that follow']],
+      rows: [[4, 'len', 'bytes', 'opus', 'one complete Opus packet: 20 ms of sound']] },
+    0x14: { name: 'BATTERY', frame: 'battery', fields: BATTERY },
+    0x15: { name: 'TEMP', frame: 'temp', fields: [T_MS, ['temp_mc', 'i32', 'thousandths of a degree C', 'mc']] },
+    0x16: { name: 'LINK', frame: 'link', fields: [T_MS, ['rssi_dbm', 'i8', 'dBm; 127 = no reading', 'rssi'], ['tx_dbm', 'i8', 'dBm', 'dbm'], ['phy', 'u8', '1 = 1M, 2 = 2M', PHY]] },
+    0x17: { name: 'MIC_LEVEL', frame: 'mic_level', fields: [T_MS, ['peak_db', 'u8', 'dB below full scale: 0 loudest, 96 silence'], ['rms_db', 'u8', 'dB below full scale: 0 loudest, 96 silence']] },
+    0x18: { name: 'MOTION2', frame: 'motion2', fields: [T_MS, ['sample_no', 'u32', 'number of the first sample in this frame'], ['period_us', 'u32', 'microseconds between two samples, measured'], ['sensors', 'u8', '1 accelerometer, 2 gyroscope, 3 both', SENSORS], ['count', 'u8', 'samples in this frame']],
+      rows: [['15 + size x i', '6 or 12', '3 or 6 x i16', 'ax, ay, az and/or gx, gy, gz', 'sample i: 6 bytes with one sensor, 12 with both; units as MOTION']] },
+  };
+
+  const SHOW = {
+    ms: (v) => v + ' ms',
+    mg: (v) => v / 1000 + ' g',
+    ddps: (v) => v / 10 + ' degrees per second',
+    mc: (v) => v / 1000 + ' degrees C',
+    dbm: (v) => v + ' dBm',
+    rssi: (v) => (v === 127 ? 'no reading' : v + ' dBm'),
+    halfdb: (v) => (v - 40) / 2 + ' dB',
+    ci: (v) => v * 1.25 + ' ms',
+    hex16: (v) => '0x' + v.toString(16).toUpperCase().padStart(4, '0'),
+    unix: (v) => (v === 0 ? 'not set' : new Date(v).toISOString()),
+    stream: (v) => STREAM_BITS[v] || 'unknown stream',
+    mask: (v) => STREAM_BITS.filter((_, i) => v & (1 << i)).join(' + ') || 'nothing',
+    caps: (v) => CAPS.filter((_, i) => v & (1 << i)).length + ' of ' + CAPS.length + ' parts work',
+  };
+
+  const hex = (bytes) => Array.from(bytes, (b) => b.toString(16).padStart(2, '0')).join('');
+
+  /** Hex text ("01 07 50", "0x01,0x07", "010750") or bytes -> Uint8Array, or null. */
+  function toBytes(input) {
+    if (input instanceof Uint8Array) return input;
+    if (Array.isArray(input)) return Uint8Array.from(input);
+    const clean = String(input).replace(/0x/gi, '').replace(/[\s,:;-]/g, '');
+    if (clean.length % 2 || /[^0-9a-f]/i.test(clean)) return null;
+    const out = new Uint8Array(clean.length / 2);
+    for (let i = 0; i < out.length; i++) out[i] = parseInt(clean.substr(i * 2, 2), 16);
+    return out;
+  }
+
+  /** One little-endian number. */
+  function readNumber(bytes, at, type) {
+    const size = SIZE[type];
+    let value = 0;
+    for (let i = size - 1; i >= 0; i--) value = value * 256 + bytes[at + i];     // exact up to 2^53
+    if (type[0] === 'i' && value >= 2 ** (size * 8 - 1)) value -= 2 ** (size * 8);
+    return value;
+  }
+
+  function describe(field, value) {
+    const how = field[3];
+    if (how && typeof how === 'object') return how[value] === undefined ? '' : how[value];
+    if (how && SHOW[how]) return SHOW[how](value);
+    return '';
+  }
+
+  /** Reads `layout` from `bytes` at `at`. Adds what it read to `fields` and `into`. Returns the new position, or -1. */
+  function readFields(bytes, at, layout, fields, into, prefix) {
+    for (const field of layout) {
+      const [name, type] = field;
+      let value, size;
+      if (type === 'bytes' || type === 'ascii') {
+        size = bytes.length - at;
+        if (size < 1) return -1;
+        const part = bytes.subarray(at, at + size);
+        value = type === 'ascii' ? String.fromCharCode(...part) : hex(part);
+      } else {
+        size = SIZE[type];
+        if (at + size > bytes.length) return -1;
+        value = readNumber(bytes, at, type);
+      }
+      fields.push({ name: (prefix || '') + name, key: name, at, size, type, value, text: describe(field, value), unit: field[2] || '' });
+      if (!field[4]) into[name] = value;         // field[4]: a fixed safety number, not part of the value
+      at += size;
+    }
+    return at;
+  }
+
+  /**
+   * Decodes one frame. Returns null for bytes that are not a valid frame, otherwise
+   *   { value, fields, kind, known }
+   * `value` has the shape used in contract/test-vectors.json. `fields` lists every field
+   * with its place in the frame: { name, at, size, type, value, text, unit }.
+   */
+  function decodeFrame(input) {
+    const bytes = toBytes(input);
+    if (!bytes || bytes.length < 1 || bytes.length > MAX_FRAME) return null;
+    const type = bytes[0];
+    const fields = [];
+    const head = (name, at, value, text, unit) => fields.push({ name, key: name, at, size: 1, type: 'u8', value, text: text || '', unit: unit || '' });
+
+    if (type === 0x01 || type === 0x02) {
+      const isCommand = type === 0x01;
+      if (bytes.length < (isCommand ? 3 : 4)) return null;
+      const seq = bytes[1];
+      const command = COMMANDS[bytes[2]];
+      const opcode = command ? command.name : bytes[2];
+      head('type', 0, type, isCommand ? 'command' : 'response', 'always 0x0' + type);
+      head('seq', 1, seq, '', 'your counter, echoed in the response');
+      head('opcode', 2, opcode, '0x' + hex([bytes[2]]), 'which command');
+      const data = {};
+      if (isCommand) {
+        if (command) {
+          if (readFields(bytes, 3, command.args, fields, data) !== bytes.length) return null;
+        } else if (bytes.length > 3) fields.push({ name: 'args', key: 'args', at: 3, size: bytes.length - 3, type: 'bytes', value: hex(bytes.subarray(3)), text: '', unit: '' });
+        return { value: { frame: 'command', seq, opcode, args: data }, fields, kind: 'command ' + opcode, known: !!command };
+      }
+      const status = STATUSES[bytes[3]] ? STATUSES[bytes[3]][0] : bytes[3];
+      head('status', 3, status, STATUSES[bytes[3]] ? '' : 'unknown status', '0 = OK, anything else is an error');
+      if (command && status === 'OK') {
+        if (readFields(bytes, 4, command.resp, fields, data) !== bytes.length) return null;
+      } else if (bytes.length > 4) {
+        if (command) return null;                 // an error response never carries data
+        fields.push({ name: 'data', key: 'data', at: 4, size: bytes.length - 4, type: 'bytes', value: hex(bytes.subarray(4)), text: '', unit: '' });
+      }
+      return { value: { frame: 'response', seq, opcode, status, data }, fields, kind: 'response to ' + opcode, known: !!command };
+    }
+
+    if (type === 0x03) {
+      if (bytes.length < 3) return null;
+      const notice = NOTICES[bytes[1]];
+      head('type', 0, type, 'notice', 'always 0x03');
+      head('code', 1, notice ? notice[0] : bytes[1], notice ? notice[1].replace(/`/g, '') : 'unknown notice', 'what happened');
+      head('arg', 2, bytes[2], '', notice ? notice[2] : '');
+      return { value: { frame: 'notice', code: notice ? notice[0] : bytes[1], arg: bytes[2] }, fields, kind: 'notice', known: !!notice };
+    }
+
+    const stream = STREAMS[type];
+    if (!stream) return { value: { frame: 'unknown', type }, fields: [{ name: 'type', key: 'type', at: 0, size: 1, type: 'u8', value: type, text: 'unknown frame type', unit: '' }], kind: 'unknown', known: false };
+    head('type', 0, type, stream.name, 'always 0x' + hex([type]));
+    const value = { frame: stream.frame };
+    let at = readFields(bytes, 1, stream.fields, fields, value);
+    if (at < 0) return null;
+    if (type === 0x10 || type === 0x18) {
+      const layout = type === 0x10 ? ACCEL.concat(GYRO) : { 1: ACCEL, 2: GYRO, 3: ACCEL.concat(GYRO) }[value.sensors];
+      if (!layout || at + value.count * layout.length * 2 > bytes.length) return null;
+      value.samples = [];
+      for (let i = 0; i < value.count; i++) {
+        const sample = {};
+        at = readFields(bytes, at, layout, fields, sample, 'sample[' + i + '].');
+        value.samples.push(sample);
+      }
+      delete value.count;
+    } else if (type === 0x13) {
+      if (at + value.len > bytes.length) return null;
+      const opus = hex(bytes.subarray(at, at + value.len));
+      if (value.len) fields.push({ name: 'opus', key: 'opus', at, size: value.len, type: 'bytes', value: opus, text: 'one Opus packet', unit: '' });
+      value.opus = opus;
+      delete value.len;
+    }
+    return { value, fields, kind: stream.name + ' frame', known: true };
+  }
+
+  /** The rows of a layout table: [offset, size, type, field, unit]. `what` is 'command', 'response' or a stream type. */
+  function layoutRows(what, opcode) {
+    const rows = [];
+    let at = 0;
+    const put = (name, type, unit) => {
+      const size = SIZE[type];
+      rows.push([at === null ? 'after that' : at, size || 'the rest', type === 'ascii' ? 'text' : type, name, unit || '']);
+      at = size && at !== null ? at + size : null;
+    };
+    if (what === 'command' || what === 'response') {
+      const command = COMMANDS[opcode];
+      put('type', 'u8', what === 'command' ? 'always 0x01: a command' : 'always 0x02: a response');
+      put('seq', 'u8', what === 'command' ? 'any number you choose; use a counter' : 'the `seq` of the command it answers');
+      put('opcode', 'u8', '0x' + hex([opcode]) + ' = ' + command.name);
+      if (what === 'response') put('status', 'u8', '0 = OK; anything else is an error and no data follows');
+      for (const f of (what === 'command' ? command.args : command.resp)) put(f[0], f[1], f[2]);
+    } else if (what === 'notice') {
+      put('type', 'u8', 'always 0x03: a notice');
+      put('code', 'u8', '1 LOW_BATTERY, 2 CRITICAL_BATTERY, 3 STREAM_DROPPED, 4 USB_POWER');
+      put('arg', 'u8', 'depends on the code');
+    } else {
+      const stream = STREAMS[what];
+      put('type', 'u8', 'always 0x' + hex([what]) + ': ' + stream.name);
+      for (const f of stream.fields) put(f[0], f[1], f[2]);
+      for (const row of stream.rows || []) rows.push(row.slice());
+    }
+    return rows;
+  }
+
+  // ---- The guide: one block per kind of data and per control. Both pages are made from this. ----
+  // frames: [what, opcode or stream type, example frame from contract/test-vectors.json, caption]
+  const C = '../contract/contract.md#';
+  const BLOCKS = [
+    { id: 'switching-data-on-and-off', group: 'data', title: 'Switching data on and off',
+      what: 'Every kind of data is a **stream**. All streams are off after you connect. `STREAM_START` switches streams on, `STREAM_STOP` switches them off, `STREAM_GET` tells you which ones are on. Each stream has a bit number; the `mask` is the sum of the bits you want: bit 0 motion (1), bit 1 event (2), bit 2 activity (4), bit 3 audio (8), bit 4 battery (16), bit 5 temp (32), bit 6 link (64), bit 7 mic_level (128), bit 8 motion2 (256). Stream bit n arrives as frame type `0x10` + n.',
+      on: 'Send `STREAM_START` with the mask. The answer `active` shows everything that is on now.',
+      frames: [['command', 0x10, '0108109300', 'Start motion + event + battery + mic_level: 1 + 2 + 16 + 128 = 147 = `0x0093`'], ['response', 0x10, '020810009300', 'The answer: those four are on'], ['command', 0x11, '010a110100', 'Stop motion'], ['response', 0x11, '020a11009200', 'The answer: three are still on']],
+      js: "await band.configure({ motion: 50, events: true, battery: true });\nconsole.log(band.streams);", py: 'band.configure(motion=50, events=True, battery=True)\nprint(band.streams)',
+      notes: ['The library call `configure` sends the right `STREAM_START` and `STREAM_STOP` for you.', 'A bit for a part that is not working, or the link bit over USB, gives NOT_AVAILABLE and nothing starts.'],
+      ref: ['4-streams', '4. Streams'] },
+    { id: 'motion', group: 'data', title: 'Motion', tag: 'MOTION, type 0x10, bit 0',
+      what: 'The accelerometer (which way is down, and how hard the band is pushed) and the gyroscope (how fast it turns). Rates: 10, 25 (default), 50 or 100 samples per second. A frame carries up to 10 samples. Acceleration is in milli-g (1000 = 1 g, the pull of the earth); turning speed is in tenths of a degree per second. Sample i was taken at `t_ms` + i x `period_ms`.',
+      on: 'Optional: `IMU_SET` to choose the rate and the ranges. Then `STREAM_START` with bit 0 (mask 1).',
+      frames: [[0x10, null, '1040e201002802f40118fcfa007d0030f8000080c1803e0100204ee0b1ffff', 'Two samples, 40 ms apart (25 samples per second)'], ['command', 0x20, '010c206408f401', 'Set 100 samples per second, 8 g range, 500 degrees per second range'], ['response', 0x20, '020c20006408f401', 'The answer repeats what was applied']],
+      js: "band.on('motion', (m) => console.log(m.ax, m.ay, m.az, m.gx, m.gy, m.gz));\nawait band.configure({ motion: 50 });", py: 'band.on("motion", lambda m: print(m.ax, m.ay, m.az, m.gx, m.gy, m.gz))\nband.configure(motion=50)',
+      notes: ['The library gives you one event per sample, already in g and in degrees per second.', 'After every connect the ranges are 2 g and 2000 degrees per second. A harder push reads exactly 2 g until you widen the range.', 'The library uses the faster stream below for `motion`; the events look the same.'],
+      ref: ['52-motion-sensor-imu_set-event_set', '5.2 Motion sensor'] },
+    { id: 'fast-motion', group: 'data', title: 'Fast motion', tag: 'MOTION2, type 0x18, bit 8',
+      what: 'A second motion stream. You choose the sensors (accelerometer, gyroscope or both) and the rate: 10, 25 (default), 50, 100, 208, 416, 833 or 1666 samples per second. Over Bluetooth the limit is 416 with both sensors and 833 with one; 1666 works only over USB with the accelerometer alone. Every sample has a number: sample i is number `sample_no` + i and was taken at `t_ms` + i x `period_us` / 1000. A jump in `sample_no` is exactly the number of samples lost.',
+      on: '`MOTION2_SET` with the rate and the sensors, then `STREAM_START` with bit 8 (mask 256).',
+      frames: [[0x18, null, '188813000000000000409c00000301f40118fcfa007d0030f80000', 'Both sensors at 25 samples per second: one sample of 12 bytes'], [0x18, null, '1840e20100400300006409000001030a00ecffe8030b00ebffe90380c1803e0100', 'Accelerometer only at 416 samples per second: three samples of 6 bytes'], ['command', 0x24, '013724a00101', 'Set 416 samples per second, accelerometer only'], ['response', 0x24, '02372400a0010141034103a001', 'The answer also gives the fastest rates of this link (here Bluetooth)']],
+      js: "band.on('motion', (m) => console.log(m.n, m.t, m.ax, m.ay, m.az));\nawait band.configure({ motion: 416, sensors: 'accel' });", py: 'band.on("motion", lambda m: print(m.n, m.t, m.ax, m.ay, m.az))\nband.configure(motion=416, sensors="accel")',
+      notes: ['Place samples in time with `t_ms` and `period_us`, never with the nominal rate: `period_us` is measured by the band.', 'A rate that is too fast for the link is answered with DENIED and nothing changes.'],
+      ref: ['52-motion-sensor-imu_set-event_set', '5.2 Motion sensor (the MOTION2 tables)'] },
+    { id: 'taps-and-events', group: 'data', title: 'Taps and events', tag: 'EVENT, type 0x11, bit 1',
+      what: 'The band recognises seven things by itself and sends one small frame when one happens: 1 single tap, 2 double tap, 3 free-fall, 4 tilt, 5 orientation changed, 6 motion started, 7 motion stopped. For orientation, `arg` is the face pointing up: 0 +X, 1 -X, 2 +Y, 3 -Y, 4 +Z, 5 -Z. For the others `arg` is 0.',
+      on: '`STREAM_START` with bit 1 (mask 2). Optional: `EVENT_SET` to choose which events you get and how hard a tap must be (`tap_threshold_mg`, 200..8000, default 800).',
+      frames: [[0x11, null, '118a1300000200', 'A double tap, 5.002 s after the band started'], [0x11, null, '118d1300000504', 'Orientation changed: face 4 (+Z) points up'], ['command', 0x22, '010f2203b004', 'Only single and double taps (mask 3), threshold 1200 milli-g'], ['response', 0x22, '020f220003b004', 'The answer repeats what was applied']],
+      js: "band.on('double-tap', (e) => console.log('double tap at', e.t));\nawait band.configure({ events: true });", py: 'band.on("double-tap", lambda e: print("double tap at", e.t))\nband.configure(events=True)',
+      notes: ['Library event names: `tap`, `double-tap`, `free-fall`, `tilt`, `orientation`, `motion-start`, `motion-stop`, or `event` for all of them.', 'The double tap that opens the connect window always uses 800 milli-g, whatever you set.'],
+      ref: ['4-streams', '4. Streams (the EVENT row under "Details")'] },
+    { id: 'steps-and-activity', group: 'data', title: 'Steps and activity', tag: 'ACTIVITY, type 0x12, bit 2',
+      what: 'A step counter, the walking pace, and whether the wearer is still, walking or running. One frame a second by default. `steps_total` is a lifetime count that survives restarts: subtract the first value you see to get the steps since you connected.',
+      on: '`STREAM_START` with bit 2 (mask 4).',
+      frames: [[0x12, null, '1260ea000040e2010070015401', '123456 steps in total, 112 steps a minute, walking']],
+      js: "band.on('activity', (a) => console.log(a.steps, a.cadence, a.state));\nawait band.configure({ activity: true });", py: 'band.on("activity", lambda a: print(a.steps, a.cadence, a.state))\nband.configure(activity=True)',
+      notes: [], ref: ['4-streams', '4. Streams'] },
+    { id: 'battery', group: 'data', title: 'Battery', tag: 'BATTERY, type 0x14, bit 4',
+      what: 'How full the battery is, in percent and in millivolts, and whether the band is charging. As a stream you get one frame at the start and then one when something changes. To read it once, send `BATTERY_GET`: its answer carries the same three fields. This frame has no time stamp.',
+      on: '`STREAM_START` with bit 4 (mask 16), or `BATTERY_GET` for one reading.',
+      frames: [[0x14, null, '145700930f', '87 percent, on battery, 3.987 V'], ['command', 0x61, '011b61', 'Read the battery once'], ['response', 0x61, '021b61005701ac0f', 'The answer: 87 percent, charging, 4.012 V']],
+      js: "band.on('battery', (b) => console.log(b.percent, b.millivolts, b.state));\nawait band.configure({ battery: true });", py: 'band.on("battery", lambda b: print(b.percent, b.millivolts, b.state))\nband.configure(battery=True)',
+      notes: ['Once, without a stream: `await band.getBattery()` in JavaScript, `band.get_battery()` in Python.'],
+      ref: ['4-streams', '4. Streams'] },
+    { id: 'temperature', group: 'data', title: 'Temperature', tag: 'TEMP, type 0x15, bit 5',
+      what: 'The temperature of the chip inside the band, in thousandths of a degree C. It reads a few degrees above room temperature because the chip warms itself. It is not skin temperature. One frame every 5 seconds by default.',
+      on: '`STREAM_START` with bit 5 (mask 32). Optional: `TEMP_SET_INTERVAL` with the seconds between two readings (1..255).',
+      frames: [[0x15, null, '1588130000127a0000', '31.25 degrees C'], [0x15, null, '158813000072edffff', 'A negative value: -4.75 degrees C'], ['command', 0x60, '011a6002', 'One reading every 2 seconds'], ['response', 0x60, '021a600002', 'The answer']],
+      js: "band.on('temperature', (t) => console.log(t.celsius));\nawait band.configure({ temperature: true });", py: 'band.on("temperature", lambda t: print(t.celsius))\nband.configure(temperature=True)',
+      notes: [], ref: ['4-streams', '4. Streams'] },
+    { id: 'link-quality', group: 'data', title: 'Link quality', tag: 'LINK, type 0x16, bit 6, Bluetooth only',
+      what: 'How strong the band hears your computer (`rssi_dbm`: closer to 0 is stronger, 127 means no reading), how strongly the band sends (`tx_dbm`) and the radio mode (`phy`: 1 = 1M, 2 = 2M). One frame a second. Bluetooth only: over USB this stream answers NOT_AVAILABLE. `RADIO_GET` reads the same once, with the connection interval and the largest packet size; `RADIO_SET_TX_POWER` changes how strongly the band sends.',
+      on: '`STREAM_START` with bit 6 (mask 64), or `RADIO_GET` for one reading.',
+      frames: [[0x16, null, '16e8030000c1f802', 'Signal -63 dBm, sending at -8 dBm, 2M'], ['command', 0x41, '011541', 'Read the radio once'], ['response', 0x41, '02154100f8c7021800f700', 'The answer'], ['command', 0x40, '011340ec', 'Send at -20 dBm (the weakest)'], ['response', 0x40, '02134000ec', 'The answer']],
+      js: "band.on('link', (l) => console.log(l.rssi, l.txPower, l.phy));\nawait band.configure({ link: true });", py: 'band.on("link", lambda l: print(l.rssi, l.tx_power, l.phy))\nband.configure(link=True)',
+      notes: ['`rssi` is `null` in JavaScript and `None` in Python when the band has no reading. Check before you do sums with it.', 'Radio power: -20, -16, -12, -8 (default), -4, 0 or +4 dBm. It goes back to -8 when you disconnect.'],
+      ref: ['54-radio-radio_set_tx_power', '5.4 Radio'] },
+    { id: 'microphone-level', group: 'data', title: 'Microphone level', tag: 'MIC_LEVEL, type 0x17, bit 7',
+      what: 'How loud it is, without any sound leaving the band. Ten frames a second by default. Both numbers are whole decibels below the loudest sound the microphone can measure: 0 = as loud as it can measure, 96 = silence. A smaller number is louder. `peak_db` is the loudest instant and `rms_db` the average over the last 100 ms. **This switches the microphone on: the light goes solid blue and cannot be changed until you stop.**',
+      on: '`STREAM_START` with bit 7 (mask 128).',
+      frames: [[0x17, null, '17bc0200000c1f', 'Loud: peak 12, average 31'], [0x17, null, '17200300006060', 'Silence: both 96']],
+      js: "band.on('mic-level', (m) => console.log(m.rmsDb, m.peakDb));\nawait band.configure({ micLevel: true });", py: 'band.on("mic-level", lambda m: print(m.rms_db, m.peak_db))\nband.configure(mic_level=True)',
+      notes: ['The level follows the microphone gain (`MIC_SET_GAIN`, below).'],
+      ref: ['4-streams', '4. Streams (the MIC_LEVEL row under "Details")'] },
+    { id: 'microphone-sound', group: 'data', title: 'Microphone sound', tag: 'AUDIO, type 0x13, bit 3',
+      what: 'The sound itself, squeezed with Opus: 16 kHz (16000 samples a second), mono, 20 ms of sound per packet, 50 packets a second, about 24 kbit/s. One frame carries one complete Opus packet. `seq` starts at 0 each time the stream starts and wraps after 65535; a gap in `seq` means lost packets. There is no time stamp: packet time = start time + `seq` x 20 ms. **While it runs the light is solid blue and cannot be changed.**',
+      on: '`STREAM_START` with bit 3 (mask 8). Optional: `MIC_SET_GAIN` (0..80 in half dB steps; 40 = 0 dB, 80 = +20 dB, the default). `MIC_GET` reads the gain and the fixed Opus settings.',
+      frames: [[0x13, null, '13ffff28b80102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f2021222324252627', 'Packet number 65535 with 40 bytes of Opus (the bytes here are a made-up pattern, not real sound)'], ['command', 0x30, '0111303c', 'Set the gain to 60 half dB = +10 dB'], ['response', 0x30, '021130003c', 'The answer'], ['command', 0x31, '011231', 'Read the microphone settings'], ['response', 0x31, '0212310050803e1401c05d', 'The answer: gain +20 dB, 16000 samples a second, 20 ms, 1 channel, 24000 bits a second']],
+      js: "const sound = new BandAudio((samples) => console.log(samples.length, 'samples'));   // 320 numbers from -1 to 1\nband.on('audio', (a) => sound.push(a));\nawait band.configure({ audio: true });", py: 'decoder = PcmDecoder()                       # from vexo_open.audio import PcmDecoder\nband.on("audio", lambda a: print(len(decoder.feed(a)), "bytes of samples"))\nband.configure(audio=True)',
+      notes: ['**Turning it into plain sound.** An Opus packet is not a list of samples: it has to go through an Opus decoder. Give the decoder the bytes of `opus` exactly as they arrive, one packet at a time, in the order of `seq`. Out come 320 samples per packet (20 ms at 16000 samples a second), one channel. For a lost packet, ask the decoder to fill the hole so the timing stays right.', 'The kit has this ready: `BandAudio` in a web page (Chrome or Edge, nothing to install) and `PcmDecoder` in Python (needs `python3 -m pip install av`). Both fill in lost packets. See [Sound: from Opus packets to samples](api.md#sound-from-opus-packets-to-samples) and [speech.md](speech.md) for sound to text.', 'The quickest proof: `python3 vexo-open-kit/examples/python/audio_to_text.py 42 --text no` saves what the microphone hears as a sound file.'],
+      ref: ['53-microphone-mic_set_gain', '5.3 Microphone'] },
+    { id: 'clock-and-time', group: 'data', title: 'Clock and time', tag: 'TIME_SET, TIME_GET',
+      what: 'The band has no clock with its own battery. It counts milliseconds since it started: that is `t_ms`, the stamp in most data frames (it wraps after 49.7 days). You can tell the band the real time once with `TIME_SET` (`unix_ms`: milliseconds since 1970-01-01 UTC). `TIME_GET` then gives `unix_ms` and `t_ms` for the same moment, and that pair turns any `t_ms` into real time: real time = `unix_ms` + (frame `t_ms` - `t_ms` of the answer).',
+      on: '`TIME_SET` once after you connect, or `TIME_GET` to read the pair.',
+      frames: [['command', 0x07, '0132077b0aa1cfa1010000', 'Set the clock'], ['response', 0x07, '02320700017b0aa1cfa101000040e20100', 'The answer: the real time and the band counter for the same moment'], ['command', 0x08, '013308', 'Read the clock'], ['response', 0x08, '02330800000000000000000000faffffff', 'A band whose clock was never set: `set` 0, `unix_ms` 0']],
+      js: "console.log(await band.time());              // { time, set, t, source }\nband.on('tap', (e) => console.log('tap at', new Date(e.time)));", py: 'print(band.time())\nband.on("tap", lambda e: print("tap at", e.time))',
+      notes: ['The library sets the clock when it connects and gives every event a real `time` next to the band counter `t`.', 'The clock is lost when the band restarts. A time outside 2020 to 2100 (for example seconds instead of milliseconds) gives BAD_ARG.', 'The exact rule, also right when `t_ms` wraps, is in the contract.'],
+      ref: ['58-clock-time_set-time_get', '5.8 Clock'] },
+
+    { id: 'light', group: 'control', title: 'Light', tag: 'LED_SET, LED_GET, IDENTIFY',
+      what: 'One colour light. `LED_SET` takes a colour (`r`, `g`, `b`, each 0..255), a `brightness` (0..255) and a `pattern`: 0 off, 1 solid, 2 blink (half on, half off), 3 breathe, 4 flash (60 ms every period), 5 rainbow (ignores the colour). `period_ms` is the length of one cycle, 100..10000 (ignored for off and solid). `LED_GET` reads your setting back. `IDENTIFY` blinks white 4 times a second for 1..30 seconds so you can find your band, then your light comes back.',
+      on: 'Send `LED_SET`. **While the microphone is on (sound or level) the light is solid blue and `LED_SET` and `IDENTIFY` answer DENIED.**',
+      frames: [['command', 0x50, '01075000ff008001e803', 'Solid green at half brightness'], ['response', 0x50, '02075000', 'The answer: OK, no data'], ['command', 0x50, '011850ff0040ff03c409', 'Breathe in pink, one cycle every 2.5 s'], ['response', 0x51, '0219510000ff008001e803', 'Answer to `LED_GET`: the setting'], ['command', 0x04, '01040405', 'Identify for 5 seconds'], ['response', 0x50, '02175006', 'Refused: the microphone is on']],
+      js: "await band.setLed('#00ff00', { brightness: 0.5 });\nawait band.identify(5);", py: 'band.set_led("#00ff00", brightness=0.5)\nband.identify(5)',
+      notes: ['In the library `brightness` is 0..1 and `pattern` is a name: `solid`, `blink`, `breathe`, `flash`, `rainbow`, `off`.', 'The light goes off when you disconnect.'],
+      ref: ['51-led-led_set', '5.1 LED'] },
+    { id: 'storage', group: 'control', title: 'Storage', tag: 'STORE_INFO, STORE_PUT, STORE_GET, STORE_DEL, STORE_WIPE',
+      what: 'A small notebook on the band that survives disconnects and restarts. A `key` is a number 0..999; a value is 1..232 bytes of anything. `STORE_PUT` writes (and replaces), `STORE_GET` reads, `STORE_DEL` deletes one key, `STORE_WIPE` erases everything, `STORE_INFO` says how much room is left. **Anything stored can be read, changed or wiped by the next person who connects: do not store anything private.**',
+      on: 'Nothing to switch on.',
+      frames: [['command', 0x71, '011d71070068692000ff21', 'Store 6 bytes under key 7'], ['response', 0x71, '021d7100', 'The answer: OK'], ['command', 0x72, '012072e703', 'Read key 999'], ['response', 0x72, '0220720068692000ff21', 'An answer with a value: the stored bytes'], ['response', 0x72, '02217207', 'An empty key: NOT_FOUND'], ['command', 0x73, '0122730700', 'Delete key 7'], ['command', 0x70, '011c70', 'Ask how full it is'], ['response', 0x70, '021c7000e803e80008bd03000300', 'The answer'], ['command', 0x74, '01ff745658', 'Erase everything (needs the safety number)']],
+      js: "await band.storage.put(7, 'hello');\nconsole.log(await band.storage.getText(7));", py: 'band.storage.put(7, "hello")\nprint(band.storage.get_text(7))',
+      notes: ['The band accepts 10 writes a second; one more answers BUSY: wait a moment and send it again. The library does that for you.', '`STORE_WIPE` answers OK when the erase starts. Until it has finished, the other storage commands answer BUSY.'],
+      ref: ['55-storage-store_', '5.5 Storage'] },
+    { id: 'restart-and-sleep', group: 'control', title: 'Restart and sleep', tag: 'RESTART, SLEEP',
+      what: '`RESTART` restarts the band 200 ms after its answer; its light then blinks blue and the connect window is open for 60 seconds. The band does not close the Bluetooth link first, so your side notices a few seconds later that the link is gone. `SLEEP` turns streams and the light off and closes the Bluetooth link about 0.4 seconds after its answer; the band cannot be found until someone double-taps it. Neither command has arguments or data. To restart a band by hand, press the small RESET button on the board once (once only: two quick presses start the board\'s loader instead, and one more press brings the band back). A band with no battery also restarts when you unplug the USB cable and plug it in again. After a restart the light blinks blue once a second for 60 seconds, or until you connect.',
+      on: 'Nothing to switch on.',
+      frames: [['command', 0x05, '010505', 'Restart'], ['response', 0x05, '02050500', 'The answer; the band restarts 200 ms later'], ['command', 0x06, '010606', 'Sleep'], ['response', 0x06, '02060600', 'The answer']],
+      js: 'await band.restart();\n// or: await band.sleep();', py: 'band.restart()\n# or: band.sleep()',
+      notes: ['Over USB the cable stays usable after `SLEEP`.'],
+      ref: ['56-device', '5.6 Device'] },
+    { id: 'intervals', group: 'control', title: 'Intervals', tag: 'STREAM_SET_INTERVAL, STREAM_GET_INTERVAL',
+      what: 'How often a stream sends, for the five streams that are sent on a timer. `stream` is the bit number, `interval_ms` the time between two frames: activity (2) 100..3,600,000, default 1000; battery (4) 0 or 1000..3,600,000, default 0 = only when it changes; temp (5) 100..3,600,000, default 5000; link (6) 100..3,600,000, default 1000; mic_level (7) 20..10,000 in steps of 20, default 100. The answer also gives the limits (`min_ms`, `max_ms`). Any other stream answers BAD_ARG.',
+      on: 'Send `STREAM_SET_INTERVAL` before or after the stream starts.',
+      frames: [['command', 0x13, '0134130460ea0000', 'Battery every minute'], ['response', 0x13, '023413000460ea0000e803000080ee3600', 'The answer with the limits: 1 s to 1 hour'], ['command', 0x14, '01361402', 'Ask for the interval of activity'], ['response', 0x14, '0236140002e80300006400000080ee3600', 'The answer: every 1000 ms']],
+      js: "await band.setInterval('battery', 60);       // seconds\nconsole.log(await band.getInterval('battery'));", py: 'band.set_interval("battery", 60)             # seconds\nprint(band.get_interval("battery"))',
+      notes: ['The motion rate is set with `IMU_SET` or `MOTION2_SET`, not here. Sound is always 50 packets a second.', 'Like every setting, intervals go back to their defaults when you disconnect.'],
+      ref: ['57-stream-intervals-stream_set_interval', '5.7 Stream intervals'] },
+    { id: 'band-information', group: 'control', title: 'Band information', tag: 'GET_INFO, GET_NAME, SET_BAND_NUMBER',
+      what: '`GET_INFO` is the first thing to ask after connecting: the contract version (`proto_major` 1, `proto_minor` 1), the firmware version (1.1.0 on every event band), the band number, which parts work (`caps`, one bit each: 0 accelerometer, 1 gyroscope, 2 motion events, 3 step counter, 4 microphone, 5 RGB LED, 6 battery, 7 chip temperature, 8 storage, 9 radio power control, 10 USB transport) and the largest frame it can send. `GET_NAME` returns the name as text. `SET_BAND_NUMBER` changes the number, **over USB only**: over Bluetooth the answer is DENIED.',
+      on: 'Nothing to switch on.',
+      frames: [['command', 0x01, '010001', 'Ask who the band is'], ['response', 0x01, '023101000101010100012a00ff07f40040e20100', 'A band with firmware 1.1.0, number 42'], ['response', 0x02, '020102005665786f2d4841434b2d3432', 'Answer to `GET_NAME`: the text Vexo-HACK-42'], ['command', 0x03, '0102032a005658', 'Set band number 42 (USB only)'], ['response', 0x03, '02030306', 'Over Bluetooth: DENIED']],
+      js: 'console.log(band.info.firmware, band.info.capabilities);\nconsole.log(await band.getName());', py: 'print(band.info.firmware, band.info.capabilities)\nprint(band.get_name())',
+      notes: ['Decide what a band can do from `proto_minor` (in the library: `band.info.features`), not from the firmware version.'],
+      ref: ['opcode-table', 'Opcode table'] },
+  ];
+
+  root.VexoContract = { MAX_FRAME, STATUSES, NOTICES, STREAM_BITS, CAPS, COMMANDS, STREAMS, BLOCKS, CONTRACT: C, toBytes, hex, decodeFrame, layoutRows };
+})(typeof globalThis !== 'undefined' ? globalThis : this);
+</script>
+<script id="page">
+// The page: draws every example frame as coloured boxes, and the "paste hex" box.
+(function () {
+  'use strict';
+  const V = window.VexoContract;
+  const el = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text !== undefined) e.textContent = text; return e; };
+  const HEAD = { type: 1, seq: 1, opcode: 1, status: 1, code: 1 };
+
+  /** Colour number for a field: header fields are grey, the others go round a palette by name. */
+  function colours(fields) {
+    const byKey = {}; let next = 0;
+    return fields.map((f) => {
+      if (HEAD[f.key] && f.at < 4) return 'h';
+      if (byKey[f.key] === undefined) byKey[f.key] = next++ % 8;
+      return byKey[f.key];
+    });
+  }
+  const show = (v) => (typeof v === 'string' ? '"' + v + '"' : String(v));
+
+  /** The picture of one frame: field boxes, the bytes in hex, and a line that explains the field under the pointer. */
+  function drawFrame(hexText) {
+    const bytes = V.toBytes(hexText);
+    const decoded = bytes && V.decodeFrame(bytes);
+    const box = el('div', 'frame-view');
+    if (!decoded) {
+      box.append(el('p', 'bad', bytes ? 'This is not a valid frame: it is cut short, or its length does not fit its kind.' : 'This is not hex. Use the digits 0-9 and the letters a-f, two for each byte.'));
+      return box;
+    }
+    if (!decoded.known && decoded.value.frame === 'unknown') {
+      box.append(el('p', 'bad', 'Frame type 0x' + V.hex([bytes[0]]) + ' is not one this page decodes. A program must skip frame types it does not know.'));
+      return box;
+    }
+    const fields = decoded.fields;
+    const colour = colours(fields);
+    const boxes = el('div', 'boxes');
+    const hexRow = el('div', 'hex');
+    const read = el('p', 'readout');
+    const parts = [];
+    const explain = (i) => {
+      const f = fields[i];
+      read.textContent = '';
+      const name = el('b', null, f.name);
+      read.append(name, ' = ' + show(f.value) + (f.text && f.text !== String(f.value) ? '  →  ' + f.text : ''));
+      read.append(el('span', 'where', '  ·  ' + f.type + ', ' + f.size + (f.size === 1 ? ' byte' : ' bytes') + ' at offset ' + f.at + (f.unit ? '  ·  ' + f.unit : '')));
+    };
+    const pick = (i) => {
+      parts.forEach((p, n) => p.forEach((node) => node.classList.toggle('on', n === i)));
+      box.classList.add('picked');
+      explain(i);
+    };
+    fields.forEach((f, i) => {
+      const b = el('button', 'box c' + colour[i]);
+      b.type = 'button';
+      b.style.flexGrow = Math.min(f.size, 6);
+      b.append(el('span', 'name', f.name.replace(/^sample\[(\d+)\]\.(\w+)$/, '$2[$1]')), el('span', 'meta', f.type + ' @' + f.at + (f.type === 'bytes' || f.type === 'ascii' ? ' ×' + f.size : '')));
+      const h = el('span', 'bytes c' + colour[i]);
+      const shown = Math.min(f.size, 64);
+      for (let n = 0; n < shown; n++) h.append(el('span', 'byte', V.hex([bytes[f.at + n]])));
+      if (shown < f.size) h.append(el('span', 'byte', '…'));
+      parts.push([b, h]);
+      for (const node of [b, h]) {
+        node.addEventListener('mouseenter', () => pick(i));
+        node.addEventListener('focus', () => pick(i));
+        node.addEventListener('click', () => pick(i));
+      }
+      h.tabIndex = -1;
+      boxes.append(b); hexRow.append(h);
+    });
+    const summary = el('p', 'summary');
+    summary.append(el('b', null, decoded.kind), ' · ' + bytes.length + (bytes.length === 1 ? ' byte' : ' bytes'));
+    box.append(summary, boxes, hexRow, read);
+    pick(Math.min(fields.length - 1, fields.findIndex((f, i) => colour[i] !== 'h') === -1 ? 0 : fields.findIndex((f, i) => colour[i] !== 'h')));
+    box._decoded = decoded;
+    return box;
+  }
+
+  for (const holder of document.querySelectorAll('.frame[data-hex]')) holder.append(drawFrame(holder.dataset.hex));
+
+  // ---- paste hex, see it decoded
+  const input = document.getElementById('hex-in');
+  const out = document.getElementById('hex-out');
+  function decodeNow() {
+    out.textContent = '';
+    const text = input.value.trim();
+    if (!text) return;
+    const view = drawFrame(text);
+    out.append(view);
+    if (view._decoded) {
+      const table = el('table');
+      const head = el('tr');
+      for (const t of ['Offset', 'Size', 'Type', 'Field', 'Value', 'Meaning']) head.append(el('th', null, t));
+      table.append(head);
+      for (const f of view._decoded.fields) {
+        const tr = el('tr');
+        for (const t of [f.at, f.size, f.type, f.name, show(f.value), f.text || f.unit]) tr.append(el('td', null, String(t)));
+        table.append(tr);
+      }
+      const wrap = el('div', 'table'); wrap.append(table);
+      const json = el('pre', 'plain'); json.append(el('code', null, JSON.stringify(view._decoded.value, null, 1).replace(/\n\s*/g, ' ')));
+      out.append(wrap, json);
+    }
+  }
+  if (input) {
+    document.getElementById('hex-go').addEventListener('click', decodeNow);
+    input.addEventListener('keydown', (e) => { if (e.key === 'Enter') decodeNow(); });
+    input.addEventListener('input', decodeNow);
+    const chips = document.getElementById('hex-chips');
+    for (const [label, hex] of [['steps', '1260ea000040e2010070015401'], ['motion', '1040e201002802f40118fcfa007d0030f8000080c1803e0100204ee0b1ffff'], ['double tap', '118a1300000200'], ['battery', '145700930f'], ['set the light', '01075000ff008001e803'], ['refused', '02175006'], ['band info', '023101000101010100012a00ff07f40040e20100'], ['low battery', '03010e']]) {
+      const chip = el('button', 'chip', label);
+      chip.type = 'button';
+      chip.addEventListener('click', () => { input.value = hex; decodeNow(); });
+      chips.append(chip);
+    }
+    decodeNow();
+  }
+
+  // ---- contents: open and close on a phone, mark where you are
+  const menu = document.getElementById('menu');
+  const index = document.getElementById('index');
+  menu.addEventListener('click', () => { const open = document.body.classList.toggle('index-open'); menu.setAttribute('aria-expanded', String(open)); });
+  index.addEventListener('click', (e) => { if (e.target.tagName === 'A') { document.body.classList.remove('index-open'); menu.setAttribute('aria-expanded', 'false'); } });
+  const links = Array.from(index.querySelectorAll('a'));
+  const targets = links.map((a) => document.getElementById(a.getAttribute('href').slice(1)));
+  let waiting = false;
+  function mark() {
+    waiting = false;
+    let current = 0;
+    targets.forEach((t, i) => { if (t && t.getBoundingClientRect().top < 120) current = i; });
+    links.forEach((a, i) => a.classList.toggle('here', i === current));
+  }
+  window.addEventListener('scroll', () => { if (!waiting) { waiting = true; requestAnimationFrame(mark); } }, { passive: true });
+  mark();
+
+  // ---- light and dark
+  const root = document.documentElement;
+  let stored = null;
+  try { stored = localStorage.getItem('vexo-contract-theme'); } catch (e) { /* a page opened from a file may have no storage */ }
+  if (stored === 'light' || stored === 'dark') root.dataset.theme = stored;
+  document.getElementById('theme').addEventListener('click', () => {
+    const dark = root.dataset.theme ? root.dataset.theme === 'dark' : window.matchMedia('(prefers-color-scheme: dark)').matches;
+    root.dataset.theme = dark ? 'light' : 'dark';
+    try { localStorage.setItem('vexo-contract-theme', root.dataset.theme); } catch (e) { /* fine without */ }
+  });
+})();
+</script>
+</body>
+</html>

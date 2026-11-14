@@ -1,0 +1,232 @@
+{
+  "_about": "BeltGuard tool profiles (owner S4 hav-brain). Representative vibration magnitudes for SCREENING ESTIMATES only. Every value records its source. HSE Table 1 'recommended initial value' = the value HSE suggests using when no better data exists for the specific tool. Trigger minutes are planning assumptions to be replaced by measured trigger time. Load with exposure.load_tool_profiles().",
+  "label": "SCREENING ESTIMATE - not a certified HAV measurement",
+  "primary_source": {
+    "title": "HSE, Vibration risk assessment, Table 1 (tool type, range, recommended initial value)",
+    "url": "https://www.hse.gov.uk/vibration/hav/assessrisks.htm",
+    "note": "HSE warns that manufacturers' data may underestimate workplace vibration substantially; use the tool's own declared value or on-tool measurement when available."
+  },
+  "tools": [
+    {
+      "id": "impact_wrench",
+      "name": "Impact wrench 1/2\" drive",
+      "category": "impulse",
+      "vibration_m_s2": 5.0,
+      "vibration_range_m_s2": [3.0, 6.0],
+      "source": "HSE Vibration risk assessment, Table 1: impact wrenches, drive size 3/8, 1/2 & 3/4\", range 3-6 m/s2, recommended initial value 5 m/s2",
+      "source_kind": "hse_recommended_initial_value",
+      "source_url": "https://www.hse.gov.uk/vibration/hav/assessrisks.htm",
+      "tasks": [
+        {"task": "Idler change-out (drop-out bracket bolts)", "trigger_min": 4, "basis": "planning assumption"},
+        {"task": "Skirt clamp or guard bolts", "trigger_min": 3, "basis": "planning assumption"}
+      ],
+      "typical_trigger_min": 4,
+      "lower_vibration_alternative": {
+        "tool_id": "torque_wrench_hydraulic",
+        "method": "Non-impact hydraulic or battery torque wrench on bracket bolts",
+        "note": "Removes the impulse mechanism; declared below 2.5 m/s2 class"
+      }
+    },
+    {
+      "id": "impact_wrench_1in",
+      "name": "Impact wrench 1\" drive",
+      "category": "impulse",
+      "vibration_m_s2": 10.0,
+      "vibration_range_m_s2": [7.0, 11.0],
+      "source": "HSE Vibration risk assessment, Table 1: impact wrenches, drive size 1\", range 7-11 m/s2, recommended initial value 10 m/s2",
+      "source_kind": "hse_recommended_initial_value",
+      "source_url": "https://www.hse.gov.uk/vibration/hav/assessrisks.htm",
+      "tasks": [
+        {"task": "Pulley plummer-block (bearing housing) bolts", "trigger_min": 10, "basis": "planning assumption"},
+        {"task": "Gearbox or drive base bolts", "trigger_min": 12, "basis": "planning assumption"}
+      ],
+      "typical_trigger_min": 10,
+      "lower_vibration_alternative": {
+        "tool_id": "torque_wrench_hydraulic",
+        "method": "Hydraulic torque wrench for large fasteners",
+        "note": "Slower, but no impulse vibration"
+      }
+    },
+    {
+      "id": "angle_grinder",
+      "name": "Angle grinder 100-180 mm",
+      "category": "rotary",
+      "vibration_m_s2": 7.0,
+      "vibration_range_m_s2": [3.0, 10.0],
+      "source": "HSE Vibration risk assessment, Table 1: angle grinders 100-180 mm (small), range 3-10 m/s2, recommended initial value 7 m/s2",
+      "source_kind": "hse_recommended_initial_value",
+      "source_url": "https://www.hse.gov.uk/vibration/hav/assessrisks.htm",
+      "tasks": [
+        {"task": "Cut seized idler bracket bolts", "trigger_min": 6, "basis": "planning assumption"},
+        {"task": "Cut out worn skirt or chute-liner fasteners", "trigger_min": 15, "basis": "planning assumption"}
+      ],
+      "typical_trigger_min": 6,
+      "lower_vibration_alternative": {
+        "tool_id": null,
+        "method": "Hydraulic nut splitter or bolt cutter for seized fasteners",
+        "note": "No rotating disc, negligible hand-arm vibration; HSE Table 1 also lists flapper discs at 4 m/s2 for finishing"
+      }
+    },
+    {
+      "id": "needle_scaler",
+      "name": "Needle scaler (non vibration-reduced)",
+      "category": "percussive",
+      "vibration_m_s2": 19.0,
+      "vibration_range_m_s2": [12.0, 26.0],
+      "source": "HSE Vibration risk assessment, Table 1: needle scalers, non-vibration reduced, range 12-26 m/s2, recommended initial value 19 m/s2",
+      "source_kind": "hse_recommended_initial_value",
+      "source_url": "https://www.hse.gov.uk/vibration/hav/assessrisks.htm",
+      "tasks": [
+        {"task": "De-scale corroded idler frames and stringers", "trigger_min": 30, "basis": "planning assumption"}
+      ],
+      "typical_trigger_min": 30,
+      "lower_vibration_alternative": {
+        "tool_id": "needle_scaler_vr",
+        "method": "Vibration-reduced needle scaler",
+        "note": "HSE Table 1: 3-8 m/s2, initial value 7 m/s2 instead of 19 m/s2"
+      }
+    },
+    {
+      "id": "needle_scaler_vr",
+      "name": "Needle scaler (vibration-reduced)",
+      "category": "percussive",
+      "vibration_m_s2": 7.0,
+      "vibration_range_m_s2": [3.0, 8.0],
+      "source": "HSE Vibration risk assessment, Table 1: needle scalers, vibration reduced, range 3-8 m/s2, recommended initial value 7 m/s2",
+      "source_kind": "hse_recommended_initial_value",
+      "source_url": "https://www.hse.gov.uk/vibration/hav/assessrisks.htm",
+      "tasks": [
+        {"task": "De-scale corroded idler frames and stringers", "trigger_min": 30, "basis": "planning assumption"}
+      ],
+      "typical_trigger_min": 30,
+      "lower_vibration_alternative": null
+    },
+    {
+      "id": "chipping_hammer",
+      "name": "Chipping hammer (stone, concrete, rust)",
+      "category": "percussive",
+      "vibration_m_s2": 20.0,
+      "vibration_range_m_s2": [11.0, 22.0],
+      "source": "HSE Vibration risk assessment, Table 1: chipping hammers, chipping stone, concrete, rust, range 11-22 m/s2, recommended initial value 20 m/s2",
+      "source_kind": "hse_recommended_initial_value",
+      "source_url": "https://www.hse.gov.uk/vibration/hav/assessrisks.htm",
+      "tasks": [
+        {"task": "Break hardened carryback and spillage from chute or tail-pulley area", "trigger_min": 20, "basis": "planning assumption"}
+      ],
+      "typical_trigger_min": 20,
+      "lower_vibration_alternative": {
+        "tool_id": null,
+        "method": "Water or air lance cleaning, or an engineering fix (belt cleaner, chute liner, air cannon) that removes the hand-held chipping task",
+        "note": "Elimination beats a lower-vibration tool in the HSE hierarchy"
+      }
+    },
+    {
+      "id": "drill",
+      "name": "Drill (rotary, standard bit)",
+      "category": "rotary",
+      "vibration_m_s2": 5.0,
+      "vibration_range_m_s2": [2.0, 5.0],
+      "source": "HSE Vibration risk assessment, Table 1: drills, standard drill bit, range 2-5 m/s2, recommended initial value 5 m/s2",
+      "source_kind": "hse_recommended_initial_value",
+      "source_url": "https://www.hse.gov.uk/vibration/hav/assessrisks.htm",
+      "tasks": [
+        {"task": "Drill bracket or guard fixing holes in steelwork", "trigger_min": 8, "basis": "planning assumption"}
+      ],
+      "typical_trigger_min": 8,
+      "lower_vibration_alternative": {
+        "tool_id": null,
+        "method": "Magnetic-base (rig-mounted) drill for steelwork",
+        "note": "The drill is clamped to the steel, so the hands do not hold it while it runs"
+      }
+    },
+    {
+      "id": "hammer_drill",
+      "name": "Hammer drill",
+      "category": "percussive",
+      "vibration_m_s2": 11.0,
+      "vibration_range_m_s2": [7.0, 13.0],
+      "source": "HSE Vibration risk assessment, Table 1: drills - impact, 5 and 8 mm masonry bit, range 7-13 m/s2, recommended initial value 11 m/s2",
+      "source_kind": "hse_recommended_initial_value",
+      "source_url": "https://www.hse.gov.uk/vibration/hav/assessrisks.htm",
+      "tasks": [
+        {"task": "Drill anchor holes in a concrete plinth for guard or bracket fixings", "trigger_min": 10, "basis": "planning assumption"}
+      ],
+      "typical_trigger_min": 10,
+      "lower_vibration_alternative": {
+        "tool_id": null,
+        "method": "Rig-mounted drilling, or clamp-on fixings that need no drilling",
+        "note": "Check the replacement tool's declared value"
+      }
+    },
+    {
+      "id": "breaker_hammer",
+      "name": "Breaker hammer",
+      "category": "percussive",
+      "vibration_m_s2": 14.0,
+      "vibration_range_m_s2": [7.0, 18.0],
+      "source": "HSE Vibration risk assessment, Table 1: breakers, range 7-18 m/s2, recommended initial value 14 m/s2 (demolition or rotary hammers: range 10-21 m/s2, initial value 18 m/s2)",
+      "source_kind": "hse_recommended_initial_value",
+      "source_url": "https://www.hse.gov.uk/vibration/hav/assessrisks.htm",
+      "tasks": [
+        {"task": "Break out a damaged concrete plinth or hardened spillage", "trigger_min": 30, "basis": "planning assumption"}
+      ],
+      "typical_trigger_min": 30,
+      "lower_vibration_alternative": {
+        "tool_id": null,
+        "method": "Remote-controlled demolition machine, or a vibration-reduced breaker on a support arm",
+        "note": "Takes the breaker out of the operator's hands"
+      }
+    },
+    {
+      "id": "power_jack",
+      "name": "Power jack / belt lifter (hydraulic)",
+      "category": "non_impulse",
+      "vibration_m_s2": 2.5,
+      "vibration_range_m_s2": [0.0, 2.5],
+      "source": "Conservative upper bound, not a measurement: hydraulic jacks and belt lifters are not in HSE Table 1 and have no rotating or percussive hand-held mechanism; 2.5 m/s2 is the level below which tools only declare 'less than 2.5 m/s2', and Safe Work Australia's HAV guide says to use 2.5 m/s2 for such declarations",
+      "source_kind": "conservative_bound",
+      "source_url": "https://www.safeworkaustralia.gov.au/system/files/documents/1703/guidetomeasuringassessinghandarmvibration.pdf",
+      "tasks": [
+        {"task": "Lift the belt off the idlers for an idler change-out", "trigger_min": 3, "basis": "planning assumption"}
+      ],
+      "typical_trigger_min": 3,
+      "lower_vibration_alternative": null
+    },
+    {
+      "id": "torque_wrench_hydraulic",
+      "name": "Hydraulic torque wrench (non-impact)",
+      "category": "non_impulse",
+      "vibration_m_s2": 2.5,
+      "vibration_range_m_s2": [0.0, 2.5],
+      "source": "Conservative upper bound: non-impact torque tools are declared in the 'less than 2.5 m/s2' class (HSE Vibration risk assessment, manufacturers' declarations); Safe Work Australia's HAV guide says to use 2.5 m/s2 when a declaration is below 2.5",
+      "source_kind": "conservative_bound",
+      "source_url": "https://www.safeworkaustralia.gov.au/system/files/documents/1703/guidetomeasuringassessinghandarmvibration.pdf",
+      "tasks": [
+        {"task": "Torque pulley, gearbox or bracket bolts without impact", "trigger_min": 15, "basis": "planning assumption"}
+      ],
+      "typical_trigger_min": 15,
+      "lower_vibration_alternative": null
+    },
+    {
+      "id": "demo_tool",
+      "name": "Phone on vibrate (DEMO stand-in for 1/2\" impact wrench)",
+      "category": "demo",
+      "demo_stand_in": true,
+      "stands_in_for": "impact_wrench",
+      "vibration_m_s2": 5.0,
+      "vibration_range_m_s2": [3.0, 6.0],
+      "source": "DEMO: uses the HSE recommended initial value of the tool it stands in for (impact wrench 1/2\", 5 m/s2). The stand-in's own vibration is neither measured nor used.",
+      "source_kind": "demo",
+      "source_url": "https://www.hse.gov.uk/vibration/hav/assessrisks.htm",
+      "tasks": [
+        {"task": "Demo: idler bracket bolts (stand-in)", "trigger_min": 1, "basis": "demo"}
+      ],
+      "typical_trigger_min": 1,
+      "lower_vibration_alternative": {
+        "tool_id": "torque_wrench_hydraulic",
+        "method": "Non-impact torque wrench",
+        "note": "Same alternative as the tool it stands in for"
+      }
+    }
+  ]
+}
