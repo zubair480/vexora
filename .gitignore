@@ -1,2 +1,9 @@
 .claude/settings.local.json
 .env
+
+beltguard.db*
+recordings/*
+!recordings/fixtures/
+models/*
+!models/.gitkeep
+__pycache__/
