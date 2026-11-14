@@ -14,7 +14,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from . import config, database, shift_view
 from .event_bus import bus
 from .models import Event
-from .routers import band, exposure, inspection, toolsense
+from .routers import acoustic, band, exposure, inspection, toolsense
 
 _clients: set[WebSocket] = set()
 _loop: asyncio.AbstractEventLoop | None = None
@@ -50,7 +50,7 @@ async def lifespan(app: FastAPI):
 app = FastAPI(title="BeltGuard", lifespan=lifespan)
 app.add_middleware(CORSMiddleware, allow_origins=["http://127.0.0.1:5173", "http://localhost:5173"],
                    allow_methods=["*"], allow_headers=["*"])
-for module in (band, toolsense, inspection, exposure):
+for module in (band, toolsense, inspection, exposure, acoustic):
     app.include_router(module.router)
 
 
@@ -63,6 +63,13 @@ def health() -> dict:
 @app.get("/api/events")
 def events(shift_id: str | None = None, limit: int = 1000) -> list[dict]:
     return database.list_events(shift_id or config.current_shift()["shift_id"], limit=limit)
+
+
+@app.get("/api/plan/optimise")
+def plan_optimise(shift_id: str | None = None, exposure_cap: float = 100.0, max_plans: int = 3) -> dict:
+    """CP-SAT alternative plans. Proposals only: nothing is assigned or approved."""
+    from . import planner_cpsat
+    return planner_cpsat.plan(shift_id or config.current_shift()["shift_id"], exposure_cap, max_plans)
 
 
 @app.get("/api/shift")

@@ -132,6 +132,9 @@ def status() -> dict:
     from .. import recorder, replay, vexo_bridge
     _ensure_subscribed()
     out = dict(vexo_bridge.get_bridge().status())
+    from .. import browser_link
+    if browser_link.active() and not out.get("connected"):
+        out.update(browser_link.status())        # the dashboard holds the Bluetooth link
     replay_state = replay.replay_status()
     if not out.get("connected"):
         out["connected"] = False
@@ -233,3 +236,49 @@ def imu_recent(seconds: float = Query(5.0), max_points: int = Query(300)) -> dic
     _ensure_subscribed()
     seconds = min(60.0, max(0.1, seconds)) if math.isfinite(seconds) else 5.0
     return recent.snapshot(seconds, min(2000, max(10, max_points)))
+
+
+# ---- band connected in the browser (the dashboard's Connect Bluetooth button) -----------------
+class BrowserHelloBody(BaseModel):
+    band_name: Optional[str] = None
+    band_number: Optional[int] = None
+    firmware: Optional[str] = None
+    motion_hz: Optional[float] = None
+    battery: Optional[dict] = None
+
+
+class BrowserSamplesBody(BaseModel):
+    samples: list[dict]
+    battery: Optional[dict] = None
+
+
+@router.post("/browser/hello")
+def browser_hello(body: BrowserHelloBody) -> dict:
+    """The dashboard connected with the kit's JavaScript library and will post readings."""
+    from .. import browser_link, vexo_bridge
+    _ensure_subscribed()
+    if _replay_running():
+        raise _fail(409, "replay-running", "Stop the replay first: live and replayed data must not mix.")
+    if vexo_bridge.get_bridge().status().get("connected"):
+        raise _fail(409, "band-connected", "The Python bridge already holds this band.")
+    try:
+        return browser_link.hello(body.band_name, body.band_number, body.firmware, body.motion_hz, body.battery)
+    except config.BandNumberMissing as exc:
+        raise _fail(409, "band-number-missing", str(exc))
+    except ValueError as exc:
+        raise _fail(403, "wrong-band", str(exc))
+
+
+@router.post("/browser/samples")
+def browser_samples(body: BrowserSamplesBody) -> dict:
+    from .. import browser_link
+    try:
+        return browser_link.ingest(body.samples, body.battery)
+    except RuntimeError as exc:
+        raise _fail(409, "not-connected", str(exc))
+
+
+@router.post("/browser/bye")
+def browser_bye(reason: str = "closed") -> dict:
+    from .. import browser_link
+    return browser_link.goodbye(reason)
