@@ -11,7 +11,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 
-from . import config, database
+from . import config, database, shift_view
 from .event_bus import bus
 from .models import Event
 from .routers import band, exposure, inspection, toolsense
@@ -63,6 +63,12 @@ def health() -> dict:
 @app.get("/api/events")
 def events(shift_id: str | None = None, limit: int = 1000) -> list[dict]:
     return database.list_events(shift_id or config.current_shift()["shift_id"], limit=limit)
+
+
+@app.get("/api/shift")
+def shift(shift_id: str | None = None) -> dict:
+    """The dashboard's ShiftData, built only from recorded events and live state."""
+    return shift_view.build(shift_id)
 
 
 @app.websocket("/ws")
