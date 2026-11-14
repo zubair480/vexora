@@ -45,6 +45,8 @@ class RecentImu:
 
     def on_batch(self, batch: ImuBatch) -> None:
         with self._lock:
+            if batch.source != self._source:
+                self._samples.clear()        # never show one source's samples under another's label
             self._samples.extend(batch.samples)
             self._source = batch.source
             self._configured_hz = batch.configured_hz
@@ -208,7 +210,8 @@ def recordings() -> dict:
 def replay_start(body: ReplayStartBody) -> dict:
     from .. import replay, vexo_bridge
     _ensure_subscribed()
-    if vexo_bridge.get_bridge().status().get("connected"):
+    live = vexo_bridge.get_bridge().status()
+    if live.get("connected") or live.get("reconnecting"):   # reconnecting: band data may resume any moment
         raise _fail(409, "band-connected", "Disconnect the band before starting a replay: live and replayed data must not mix.")
     try:
         return replay.start_replay(body.session_id, speed=body.speed)

@@ -257,3 +257,18 @@ def test_recent_empty_and_stale(env, monkeypatch):
     now = time.time()
     monkeypatch.setattr(band.time, "time", lambda: now + 5)
     assert client.get("/api/band/imu/recent").json()["stale"] is True
+
+
+def test_recent_never_mixes_sources_under_one_label(env):
+    client, _, bus = env
+    publish(bus, samples(100), source="replay")
+    publish(bus, samples(5), source="band")
+    body = client.get("/api/band/imu/recent?seconds=60").json()
+    assert body["source"] == "band" and len(body["samples"]) == 5    # the replayed ones are gone
+
+
+def test_replay_refused_while_band_is_reconnecting(env, monkeypatch):
+    client, bridge, _ = env
+    monkeypatch.setattr(bridge, "status", lambda: {**STATUS, "connected": False, "reconnecting": True})
+    response = client.post("/api/band/replay/start", json={"session_id": "anything"})
+    assert response.status_code == 409 and response.json()["detail"]["code"] == "band-connected"

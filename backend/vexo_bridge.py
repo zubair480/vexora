@@ -85,6 +85,8 @@ class QualityTracker:
         self.missing = 0
         self.saturated_samples = 0
         self.counter_resets = 0
+        self.missing_known = True            # False once a sample has no counter (firmware 1.0)
+        self._link_gap: Optional[dict] = None
         self.gaps: list[dict] = []           # {start, end (None while open), reason}
         self._last_n: Optional[int] = None
         self._last_time: Optional[float] = None      # sample time of the newest sample
@@ -104,10 +106,14 @@ class QualityTracker:
               and sample_time - self._last_time > self.stale_after):
             self.gaps.append({"start": self._last_time, "end": sample_time, "reason": "no-data"})
             self._new_segment()
-        if n is not None and self._last_n is not None:
+        if self._last_time is not None and sample_time < self._last_time:
+            self._window.clear()                     # the clock stepped back: measure afresh
+        if n is None:
+            self.missing_known = False               # no counter: loss cannot be counted
+        elif self._last_n is not None:
             if n > self._last_n:
                 self.missing += n - self._last_n - 1
-            else:                                    # counter restarted: not a loss
+            elif n < self._last_n:                   # counter restarted: not a loss
                 self.counter_resets += 1
                 self._window.clear()
         self._fresh = False
@@ -128,15 +134,17 @@ class QualityTracker:
             gap = {"start": self._last_time if self._last_time is not None else now,
                    "end": None, "reason": reason}
             self.gaps.append(gap)
+        self._link_gap = gap
         self._new_segment()
         return gap
 
     def gap_ended(self, now: float) -> Optional[dict]:
-        """The link is back. The counter restarts at 0 on a new link."""
-        gap = self._open_gap()
-        if gap is not None:
+        """The link is back. The counter restarts at 0 on a new link. Returns the gap, also when
+        the first samples of the new link arrived before this call and already closed it."""
+        gap, self._link_gap = self._link_gap, None
+        if gap is not None and gap["end"] is None:
             gap["end"] = now
-        self._new_segment()
+            self._new_segment()
         return gap
 
     def _open_gap(self) -> Optional[dict]:
@@ -160,7 +168,13 @@ class QualityTracker:
         span = self._window[-1][0] - self._window[0][0]
         return round((len(self._window) - 1) / span, 2) if span > 0 else 0.0
 
-    def completeness(self) -> float:
+    def completeness(self, now: Optional[float] = None) -> float:
+        """Received / expected from the counter. Without a counter (firmware 1.0) loss is not
+        countable: then it is the measured rate over the configured rate, flagged as not known."""
+        if not self.missing_known:
+            if not self.configured_hz:
+                return 0.0
+            return round(min(1.0, self.effective_hz(now) / self.configured_hz), 4)
         expected = self.received + self.missing
         return round(self.received / expected, 4) if expected else 0.0
 
@@ -170,7 +184,8 @@ class QualityTracker:
             "configured_hz": self.configured_hz,
             "effective_hz": self.effective_hz(now),
             "missing_samples": self.missing,
-            "completeness": self.completeness(),
+            "missing_samples_known": self.missing_known,
+            "completeness": self.completeness(now),
             "saturated": any(s for _, s in self._window),
             "stale": self.stale(now),
             "received_samples": self.received,
@@ -195,7 +210,9 @@ class VexoBridge:
         self._connect = connect or _default_connect   # tests pass a fake here
         self._lock = threading.RLock()
         self._drain_lock = threading.Lock()   # separate: stop() joins the flush thread under _lock
-        self._inbox: deque = deque()         # ImuSample, or (event name, message) from the SDK thread
+        # ImuSample, or (event name, message, when) from the SDK thread. Bounded: if the flush
+        # thread ever stalls the oldest entries go, and show up as lost samples (a jump in n).
+        self._inbox: deque = deque(maxlen=50000)
         self._band: Any = None
         self._thread: Optional[threading.Thread] = None
         self._stop_flag = threading.Event()
@@ -303,8 +320,9 @@ class VexoBridge:
         band.on("motion", self._on_motion)
         for name in ("battery", "notice", "disconnect", "reconnecting", "reconnected"):
             band.on(name, self._enqueue(name))
-        self._stop_flag.clear()
-        self._thread = threading.Thread(target=self._run, name="band-flush", daemon=True)
+        self._stop_flag = threading.Event()  # one per flush thread
+        self._thread = threading.Thread(target=self._run, args=(self._stop_flag,), name="band-flush",
+                                        daemon=True)
         self._thread.start()
         wanted: dict[str, Any] = {"motion": rate, "sensors": sensors}
         if "battery" in caps:
@@ -349,9 +367,9 @@ class VexoBridge:
         return handler
 
     # ------------------------------------------------------------------ flush thread
-    def _run(self) -> None:
+    def _run(self, stop: threading.Event) -> None:
         next_quality = time.time() + QUALITY_SECONDS
-        while not self._stop_flag.wait(FLUSH_SECONDS):
+        while not stop.wait(FLUSH_SECONDS):
             try:
                 self._drain()
                 if time.time() >= next_quality:
@@ -421,6 +439,11 @@ class VexoBridge:
             if get("reconnect"):
                 reason = "%s (reconnect %s)" % (reason, get("reconnect"))
             self._link_down(reason, final=True)
+            # the SDK has let go of the band for good: so do we, and connect can be called again
+            self._stop_flag.set()
+            self._thread = None
+            self._band = None
+            self._mic_depth, self._pending_led = 0, None
 
     def _link_down(self, reason: str, final: bool) -> None:
         was_reconnecting = self._reconnecting
@@ -441,8 +464,8 @@ class VexoBridge:
     def _publish_quality(self) -> None:
         snap = self.tracker.snapshot()
         shift = config.current_shift()
-        payload = {k: snap[k] for k in ("configured_hz", "effective_hz", "missing_samples",
-                                        "completeness", "saturated", "stale")}
+        payload = {k: snap[k] for k in ("configured_hz", "effective_hz", "missing_samples", "completeness",
+                                        "saturated", "stale", "missing_samples_known")}
         payload.update(connected=self._connected, reconnecting=self._reconnecting,
                        dropped_events=self._dropped_events())
         event_bus.bus.publish(Event("sensor_quality", payload, "band", shift["shift_id"], shift["worker_id"]))
@@ -467,6 +490,7 @@ class VexoBridge:
             "configured_hz": snap["configured_hz"],
             "effective_hz": snap["effective_hz"],
             "missing_samples": snap["missing_samples"],
+            "missing_samples_known": snap["missing_samples_known"],
             "completeness": snap["completeness"],
             "stale": snap["stale"] or not self._connected,
             "source": "band" if self._band is not None else None,
