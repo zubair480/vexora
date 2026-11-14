@@ -53,7 +53,7 @@ def _band() -> dict:
         except Exception:
             status = {}
     replay = _module("replay")
-    replay_on = bool(_call(replay, "is_running", default=False))
+    replay_on = bool((_call(replay, "replay_status", default={}) or {}).get("running"))
     number = None
     try:
         number = config.band_number()

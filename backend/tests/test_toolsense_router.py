@@ -58,7 +58,9 @@ def test_sessions_and_confirm(client):
 
     event_bus.bus.drain()                                # the app's bus persisted the republish
     events = client.get("/api/events").json()
-    assert [e["type"] for e in events] == ["tool_session_ended"]
+    # With be-hav merged, the confirmation also triggers exposure_updated / planning_recommendation.
+    events = [e for e in events if e["type"] == "tool_session_ended"]
+    assert len(events) == 1
     assert events[0]["source"] == "synthetic" and events[0]["payload"]["tool_id"] == "grinder-1"
 
     assert client.post("/api/toolsense/sessions/open-1/confirm",
