@@ -154,6 +154,8 @@ def build(shift_id: Optional[str] = None) -> dict[str, Any]:
             "minutesToday": round(seconds / 60, 1),
             "inUse": bool(activity and activity.get("in_session")),
             "confirmation": last.get("confirmation"),
+            "stationId": (open_defects[-1].get("station_id") if open_defects else None),
+            "workOrderId": (work_orders[-1].get("work_order_id") if work_orders else None),
         }
 
     defect = open_defects[-1] if open_defects else None
@@ -164,10 +166,21 @@ def build(shift_id: Optional[str] = None) -> dict[str, Any]:
         if not kind:
             continue
         p = e["payload"]
+        station_id, asset_id, linked_order, link = e.get("station_id"), e.get("asset_id"), None, None
+        if kind == "tool" and not station_id:
+            # A tool session has no station of its own: tie it to the work order open at the time
+            # (the latest defect reported before the session ended, else the latest one).
+            end_ts = p.get("end_ts") or e["ts"]
+            earlier = [d for d in open_defects if (d.get("created_ts") or 0) <= end_ts] or open_defects
+            if earlier:
+                d = earlier[-1]
+                station_id, asset_id, link = d.get("station_id"), d.get("asset_id"), "derived: open work order"
+                linked_order = next((o["work_order_id"] for o in work_orders if o.get("defect_id") == d["defect_id"]), None)
         events.append({
+            "linkedWorkOrderId": linked_order, "link": link,
             "id": e["id"], "kind": kind, "type": e["type"], "source": e["source"],
             "start": _hhmm(p.get("start_ts") or e["ts"]), "end": _hhmm(p.get("end_ts")),
-            "ts": e["ts"], "stationId": e.get("station_id"), "assetId": e.get("asset_id"),
+            "ts": e["ts"], "stationId": station_id, "assetId": asset_id,
             "title": e["type"].replace("_", " ").capitalize(),
             "detail": (p.get("condition") or p.get("task") or p.get("transcript")
                        or (f"{p['duration_s']:.0f} s, {p.get('confirmation')}" if p.get("duration_s") is not None else None)
