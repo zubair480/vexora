@@ -141,7 +141,8 @@ def test_run_few_sessions_is_insufficient_and_claims_nothing(dirs, capsys):
     assert "NOT A VALID ACCURACY ESTIMATE: too few sessions" in out and "must NOT be presented as real" in out
     assert set(report["test_sessions"]) & set(report["train_sessions"]) == set()
     assert len(report["test_sessions"]) == 2             # one held out per class that has two
-    model = tc.ForestClassifier.load(mod / "toolsense_rf.joblib")   # saved so the live path can be exercised
+    model = tc.ForestClassifier.load(mod / tc.SYNTHETIC_MODEL_NAME)  # saved so the pipeline can be exercised
+    assert not (mod / tc.MODEL_NAME).exists() and not (mod / train.REPORT_NAME).exists()
     assert model.info["accuracy_claim"] is False and model.info["contains_synthetic"] is True
     assert tc.load_active().name == "rules"
 
@@ -151,7 +152,7 @@ def test_run_single_class_fits_nothing(dirs):
     write_set(rec, {"tool_active": 4}, seconds=4.0)
     report = train.run(include_synthetic=True, verbose=False)
     assert report["status"] == "insufficient_data" and report["accuracy_claim"] is False
-    assert report["model_saved"] is False and not (mod / "toolsense_rf.joblib").exists()
+    assert report["model_saved"] is False and not list(mod.glob("*.joblib"))
 
 
 def test_run_ok_report(ok_run):
@@ -164,7 +165,7 @@ def test_run_ok_report(ok_run):
                 "window_s", "overlap", "generated_at", "skipped", "honesty", "labels", "train_sessions",
                 "test_sessions", "trigger_time", "baseline", "forest"):
         assert key in report, key
-    on_disk = json.loads((mod / train.REPORT_NAME).read_text(encoding="utf-8"))
+    on_disk = json.loads((mod / train.SYNTHETIC_REPORT_NAME).read_text(encoding="utf-8"))
     assert on_disk == json.loads(json.dumps(report))
     n = len(report["labels"])
     for key in ("baseline", "forest"):
@@ -179,12 +180,14 @@ def test_run_ok_report(ok_run):
 
 def test_ok_model_is_flagged_and_refused_by_default(ok_run, monkeypatch):
     report, rec, mod = ok_run
-    path = mod / "toolsense_rf.joblib"
-    assert path.exists()
+    path = mod / tc.SYNTHETIC_MODEL_NAME
+    assert path.exists() and not (mod / tc.MODEL_NAME).exists() and not (mod / train.REPORT_NAME).exists()
     monkeypatch.setattr(config, "MODELS", mod)
-    refused = tc.load_active()
+    assert tc.load_active().name == "rules"              # the default path never picks the synthetic file
+    refused = tc.load_active(path)                       # and pointing at it is still refused
     assert refused.name == "rules" and "synthetic" in refused.info["note"]
-    model = tc.load_active(allow_synthetic=True)
+    model = tc.load_active(path, allow_synthetic=True)
+    assert model.info["sample_hz_max"] == pytest.approx(50.0, rel=0.02) and model.info["accuracy_claim"] is False
     assert model.name == "random_forest" and model.info["contains_synthetic"] is True
     assert model.info["n_sessions"] == 15 and model.info["sample_hz_min"] == pytest.approx(50.0, rel=0.02)
     assert set(model.classes) == set(tc.TRAIN_CLASSES)
@@ -216,3 +219,126 @@ def test_trigger_time_comparison_matches_known_tool_seconds(dirs):
         assert out["relative_error"] == pytest.approx(out["abs_error_s"] / 20.0)
     still = train.Recording("s", "stationary", {"trigger_seconds": 0}, make("still", 8), None)
     assert train.trigger_time_comparison(still, tc.RuleClassifier())["predicted_s"] == 0.0
+
+
+# ---- review fixes -------------------------------------------------------------------------
+# Below, synthetic signals are written with source="band" ONLY to exercise the claim logic in
+# tmp folders; they are still synthetic test signals and prove nothing about real accuracy.
+
+@pytest.fixture(scope="module")
+def band_run(tmp_path_factory):
+    base = tmp_path_factory.mktemp("band")
+    rec, mod = base / "recordings", base / "models"
+    write_set(rec, 3, source="band")
+    return train.run(rec, mod, verbose=False, n_estimators=15), rec, mod
+
+
+def test_band_run_claims_and_uses_real_files(band_run):
+    report, rec, mod = band_run
+    assert report["status"] == "ok" and report["accuracy_claim"] is True and report["accuracy_claim_reasons"] == []
+    assert report["sources"] == ["band"] and report["contains_synthetic"] is False
+    assert (mod / tc.MODEL_NAME).exists() and (mod / train.REPORT_NAME).exists()
+    assert not (mod / tc.SYNTHETIC_MODEL_NAME).exists() and not (mod / train.SYNTHETIC_REPORT_NAME).exists()
+    model = tc.load_active(mod / tc.MODEL_NAME)
+    assert model.name == "random_forest" and model.info["accuracy_claim"] is True
+    assert model.info["sample_hz_min"] <= model.info["sample_hz_max"]
+    assert not list(mod.glob("*.tmp")) and not list(mod.glob(".*"))      # atomic writes leave nothing behind
+
+
+def test_run_without_tool_class_never_claims_or_saves(dirs, capsys):
+    rec, mod = dirs                                      # reviewer scenario: 3 stationary + 3 walking, real source
+    write_set(rec, {"stationary": 3, "walking": 3}, source="band")
+    report = train.run(n_estimators=10)
+    out = capsys.readouterr().out
+    assert report["status"] == "insufficient_data" and report["accuracy_claim"] is False
+    assert any("tool_active" in r for r in report["accuracy_claim_reasons"])
+    assert report["collection"]["tool_active"]["missing"] == 10 and "tool_active" in out and train.NOT_VALID in out
+    assert report["model_saved"] is False and not list(mod.glob("*.joblib"))
+    assert tc.load_active().name == "rules"
+
+
+@pytest.mark.parametrize("source", ["replay", None, "synthetic"])
+def test_only_band_source_supports_a_claim(dirs, source):
+    rec, mod = dirs
+    write_set(rec, {"stationary": 3, "tool_active": 3}, seconds=6.0, source=source)
+    report = train.run(include_synthetic=source == "synthetic", verbose=False, n_estimators=10)
+    assert report["status"] == "ok" and report["accuracy_claim"] is False
+    assert any("source" in r for r in report["accuracy_claim_reasons"])
+    name = tc.SYNTHETIC_MODEL_NAME if source == "synthetic" else tc.MODEL_NAME
+    assert tc.ForestClassifier.load(mod / name).info["accuracy_claim"] is False
+
+
+def test_sessions_counted_from_windows_not_folders(dirs):
+    rec, mod = dirs
+    write_set(rec, {"stationary": 3, "tool_active": 2}, seconds=6.0, source="band")
+    write_recording(rec, "tool_active-tiny", "tool_active", make("tool", 0.2), source="band")   # no window
+    report = train.run(verbose=False, n_estimators=10)
+    assert report["sessions_per_class"]["tool_active"] == 2 and report["collection"]["tool_active"]["have"] == 2
+    assert report["status"] == "insufficient_data" and report["accuracy_claim"] is False
+    assert any("tool_active-tiny" in s["path"] and "windows" in s["reason"] for s in report["skipped"])
+    assert tc.ForestClassifier.load(mod / tc.MODEL_NAME).info["n_sessions"] == 5
+
+
+def test_no_claim_when_a_class_is_missing_from_the_held_out_set(dirs, monkeypatch):
+    rec, mod = dirs
+    write_set(rec, {"stationary": 3, "tool_active": 3}, seconds=6.0, source="band")
+
+    def lopsided(y, groups, **kw):                       # holds out one stationary session only
+        test = groups == "stationary-0"
+        return np.flatnonzero(~test), np.flatnonzero(test)
+    monkeypatch.setattr(train, "split_by_session", lopsided)
+    report = train.run(verbose=False, n_estimators=10)
+    assert report["accuracy_claim"] is False and report["status"] == "insufficient_data"
+    assert any("held-out" in r and "tool_use" in r for r in report["accuracy_claim_reasons"])
+
+    monkeypatch.setattr(train, "split_by_session", lambda y, groups, **kw: (np.arange(len(y)), np.array([], int)))
+    report = train.run(verbose=False, n_estimators=10)   # nothing held out at all
+    assert report["accuracy_claim"] is False and report["status"] == "insufficient_data"
+    assert "baseline" not in report and any("held out" in r for r in report["accuracy_claim_reasons"])
+
+
+def test_synthetic_run_does_not_overwrite_real_model_or_report(band_run, monkeypatch):
+    report, rec, mod = band_run
+    before = {n: (mod / n).read_bytes() for n in (tc.MODEL_NAME, train.REPORT_NAME)}
+    synth = train.run(rec, mod, include_synthetic=True, verbose=False, n_estimators=5)
+    try:
+        assert synth["model_saved"] is True and (mod / tc.SYNTHETIC_MODEL_NAME).exists()
+        assert (mod / train.SYNTHETIC_REPORT_NAME).exists()
+        assert {n: (mod / n).read_bytes() for n in before} == before
+        monkeypatch.setattr(config, "MODELS", mod)
+        live = tc.load_active()
+        assert live.name == "random_forest" and live.info["trained_at"] == pytest.approx(
+            tc.ForestClassifier.load(mod / tc.MODEL_NAME).info["trained_at"])
+    finally:
+        (mod / tc.SYNTHETIC_MODEL_NAME).unlink(missing_ok=True)
+        (mod / train.SYNTHETIC_REPORT_NAME).unlink(missing_ok=True)
+
+
+def test_split_uses_group_shuffle_split_and_falls_back(monkeypatch):
+    classes = ["stationary", "walking", "tool_use"]
+    y = np.array([c for c in classes for _ in range(3 * 4)])
+    groups = np.array([f"{c}-{i}" for c in classes for i in range(3) for _ in range(4)])
+    calls = []
+    real = train.GroupShuffleSplit
+
+    class Spy(real):
+        def __init__(self, *a, **kw):
+            calls.append(kw.get("random_state"))
+            super().__init__(*a, **kw)
+    monkeypatch.setattr(train, "GroupShuffleSplit", Spy)
+    tr, te = train.split_by_session(y, groups, seed=7)
+    assert calls and calls[0] == 7 and len(calls) <= 50
+    assert set(groups[tr]) & set(groups[te]) == set() and set(y[tr]) == set(y[te]) == set(classes)
+
+    class Useless:                                       # never yields an acceptable split
+        def __init__(self, *a, **kw):
+            calls.append("useless")
+
+        def split(self, X, y, groups):
+            yield np.flatnonzero(groups != "tool_use-0"), np.flatnonzero(groups == "tool_use-0")
+    monkeypatch.setattr(train, "GroupShuffleSplit", Useless)
+    tr, te = train.split_by_session(y, groups, seed=7)
+    assert calls.count("useless") == 50
+    assert set(groups[tr]) & set(groups[te]) == set() and set(y[tr]) == set(y[te]) == set(classes)
+    one = train.split_by_session(np.array(["walking"] * 3), np.array(["w"] * 3))     # single session
+    assert len(one[0]) == 3 and len(one[1]) == 0

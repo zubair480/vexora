@@ -1,5 +1,6 @@
 """Rule baseline and forest wrapper. Synthetic signals only (pipeline logic, not real accuracy)."""
 from collections import Counter
+from pathlib import Path
 
 import numpy as np
 import pytest
@@ -157,3 +158,53 @@ def test_classify_window(forest):
         assert out["confidence"] == pytest.approx(max(out["probabilities"].values()))
         assert out["tool_probability"] == pytest.approx(out["probabilities"]["tool_use"])
         assert sum(out["probabilities"].values()) == pytest.approx(1.0)
+
+
+# ---- review fixes -------------------------------------------------------------------------
+
+def test_load_active_refuses_model_without_usable_tool_class(dataset, tmp_path, monkeypatch):
+    X, y = dataset
+    monkeypatch.setattr(config, "MODELS", tmp_path)
+    no_tool = np.isin(y, ["stationary", "walking"])
+    tc.ForestClassifier(n_estimators=5).fit(X[no_tool], y[no_tool]).save()
+    got = tc.load_active()
+    assert got.name == "rules" and "no usable tool class" in got.info["note"]
+    only_tool = y == "tool_use"
+    tc.ForestClassifier(n_estimators=5).fit(X[only_tool], y[only_tool]).save()
+    got = tc.load_active()
+    assert got.name == "rules" and "no usable tool class" in got.info["note"]
+    two = np.isin(y, ["stationary", "tool_use"])
+    tc.ForestClassifier(n_estimators=5).fit(X[two], y[two]).save()
+    assert tc.load_active().name == "random_forest"
+
+
+def test_classify_rate_guard_uses_rules_below_model_bandwidth(dataset):
+    wide = tuple(imu_features.features_for_model(208))
+    assert set(wide) - set(imu_features.features_for_model(50))          # the 208 Hz set needs higher bands
+    clf = tc.ForestClassifier(n_estimators=5).fit(*dataset, feature_names=wide)
+    slow = tc.classify(clf, imu_features.latest_window(make("tool", 4, 50.0, seed=5)))
+    assert slow["model"] == "rules" and slow["note"] == "model needs bands above this stream's bandwidth"
+    assert slow["activity"] == "tool_use" and slow["tool_probability"] > 0.5
+    fast = tc.classify(clf, imu_features.latest_window(make("tool", 4, 208.0, seed=5)))
+    assert fast["model"] == "random_forest" and "note" not in fast
+    narrow = tc.ForestClassifier(n_estimators=5).fit(*dataset)            # 50 Hz feature set works at any rate
+    assert tc.classify(narrow, imu_features.latest_window(make("tool", 4, 208.0, seed=5)))["model"] == "random_forest"
+    assert "note" not in tc.classify(tc.RuleClassifier(), imu_features.latest_window(make("still", 4)))
+
+
+def test_forest_info_has_rate_range(dataset):
+    assert {"sample_hz_min", "sample_hz_max"} <= set(tc.ForestClassifier(n_estimators=3).fit(*dataset).info)
+
+
+def test_save_is_atomic(forest, tmp_path, monkeypatch):
+    path = forest.save(tmp_path / "m.joblib")
+    before = path.read_bytes()
+    assert [f.name for f in tmp_path.iterdir()] == ["m.joblib"]          # no temp file left behind
+
+    def boom(data, target):
+        Path(target).write_bytes(b"half written")
+        raise OSError("disk full")
+    monkeypatch.setattr(tc.joblib, "dump", boom)
+    with pytest.raises(OSError):
+        forest.save(path)
+    assert path.read_bytes() == before and [f.name for f in tmp_path.iterdir()] == ["m.joblib"]

@@ -120,12 +120,42 @@ def _time_axis(arr: np.ndarray) -> np.ndarray | None:
     return None
 
 
+def _runs_rate(counter: np.ndarray, x: np.ndarray, breaks: np.ndarray) -> tuple[float, int]:
+    """Samples per second over the runs between `breaks` (True at i = break between i, i+1).
+
+    Each run contributes (counter span) / (time span), measured from its first sample to the
+    first sample of its last burst (the last step of at least half the run's mean step), so
+    samples sharing one stamp or nearly so (batched delivery) are not counted against ~zero
+    elapsed time. Runs with ~zero time span
+    are ignored. Returns (rate, samples covered); rate 0.0 if nothing is usable.
+    """
+    edges = np.flatnonzero(breaks) + 1
+    count = span = 0.0
+    covered = 0
+    for lo, hi in zip(np.r_[0, edges], np.r_[edges, len(x)]):
+        if hi - lo < 2 or x[hi - 1] <= x[lo]:
+            continue
+        typical = (x[hi - 1] - x[lo]) / (hi - lo - 1)
+        steps = np.flatnonzero(np.diff(x[lo:hi]) > 0.5 * typical)     # skips steps inside a burst
+        if not len(steps):
+            continue
+        last = lo + steps[-1] + 1
+        if x[last] - x[lo] > 1e-6 and counter[last] > counter[lo]:
+            count += counter[last] - counter[lo]
+            span += x[last] - x[lo]
+            covered += hi - lo
+    return (float(count / span), covered) if span > 0 else (0.0, 0)
+
+
 def measure_rate(arr) -> float:
     """Measured sampling rate in Hz (0.0 if it cannot be measured).
 
-    Preferred: samples sent / elapsed time, i.e. sum(n_last - n_first) / sum(time_last -
-    time_first) over runs where `n` increases: lost samples and delivery jitter do not bias
-    it. Without a usable `n`: 1 / median(diff(time)). `t` replaces `time` if `time` is unusable.
+    Preferred: samples sent / elapsed time, (n_last - n_first) / (time_last - time_first)
+    summed over the runs where `n` increases: lost samples, delivery jitter and burst-stamped
+    batches do not bias it. Without a usable `n`: (count - 1) / span over contiguous stretches
+    (split at steps much larger than the typical one), which under-reads when samples were
+    lost: pass the true `hz` to the window functions if it is known. `t` replaces `time` if
+    `time` is unusable.
     """
     a = _as_rows(arr)
     if len(a) < 2:
@@ -134,17 +164,21 @@ def measure_rate(arr) -> float:
     if x is None:
         return 0.0
     dt = np.diff(x)
-    n = a[:, 0]
-    dn = np.diff(n)
-    ok = np.isfinite(dn) & (dn > 0) & (dt > 0)     # False at NaN, n resets and time steps back
-    if ok.sum() >= max(3, 0.5 * len(dt)):
-        hz = float(dn[ok].sum() / dt[ok].sum())
-        if np.isfinite(hz) and hz > 0:
-            return hz
+    dn = np.diff(a[:, 0])
+    hz, covered = _runs_rate(a[:, 0], x, ~(np.isfinite(dn) & (dn > 0)) | (dt < 0))
+    if hz > 0 and np.isfinite(hz) and covered >= max(3, 0.5 * len(a)):
+        return hz
     pos = dt[dt > 0]
     if not len(pos):
         return 0.0
-    return float(1.0 / np.median(pos))
+    # Typical step between distinct stamps: ignore the ~zero steps inside a burst and, over a
+    # few passes, the long steps that are data gaps.
+    limit = np.inf
+    for _ in range(3):
+        kept = pos[pos <= limit]
+        limit = 5.0 * float(np.median(kept[kept >= 0.5 * kept.sum() / len(dt)]))
+    hz, _ = _runs_rate(np.arange(len(x), dtype=float), x, (dt > limit) | (dt < 0))
+    return hz if np.isfinite(hz) else 0.0
 
 
 def estimate_gravity(acc, hz, cutoff_hz=0.5) -> np.ndarray:

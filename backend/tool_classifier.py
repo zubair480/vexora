@@ -6,6 +6,7 @@ acceleration is used as activity evidence only, never as a tool vibration magnit
 """
 from __future__ import annotations
 
+import os
 import time
 from pathlib import Path
 
@@ -26,6 +27,8 @@ LABEL_TO_CLASS = {"stationary": "stationary", "walking": "walking", "gesture": "
 CLASS_TO_ACTIVITY = {"stationary": "stationary", "walking": "walking", "gesture": "gesture",
                      "handling": "gesture", "tool_use": "tool_use", "unknown": "unknown"}
 MODEL_NAME = "toolsense_rf.joblib"
+SYNTHETIC_MODEL_NAME = "toolsense_rf.synthetic.joblib"   # pipeline-test models never share the real file
+RATE_NOTE = "model needs bands above this stream's bandwidth"
 MODEL_PATH = config.MODELS / MODEL_NAME   # import-time default only; use model_path() (tests monkeypatch config.MODELS)
 
 # UNTUNED GUESSES pending real band recordings. They were only adjusted far enough to separate
@@ -47,6 +50,20 @@ RULE_THRESHOLDS = {
 def model_path(path=None) -> Path:
     """Model file location, resolving `config.MODELS` at call time."""
     return Path(path) if path is not None else Path(config.MODELS) / MODEL_NAME
+
+
+def atomic_replace(path: Path, write) -> Path:
+    """Run `write(tmp)` on a temp file in the same folder, then swap it in (no half-written files)."""
+    path = Path(path)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    tmp = path.with_name(f".{path.name}.{os.getpid()}.tmp")
+    try:
+        write(tmp)
+        os.replace(tmp, path)
+    finally:
+        if tmp.exists():
+            tmp.unlink()
+    return path
 
 
 def _col(name: str) -> int:
@@ -142,7 +159,8 @@ class ForestClassifier:
         self.info = {"model": "random_forest", "trained": True, "trained_at": time.time(),
                      "feature_names": list(self.feature_names), "classes": list(self.classes),
                      "n_sessions": None, "n_windows": int(len(y)), "sources": [],
-                     "contains_synthetic": False, "sample_hz_min": None, **(info or {})}
+                     "contains_synthetic": False, "sample_hz_min": None, "sample_hz_max": None,
+                     **(info or {})}
         return self
 
     def predict_proba_classes(self, X) -> tuple[np.ndarray, list[str]]:
@@ -161,12 +179,10 @@ class ForestClassifier:
     def save(self, path=None) -> Path:
         if self.pipeline is None:
             raise RuntimeError("ForestClassifier is not fitted")
-        path = model_path(path)
-        path.parent.mkdir(parents=True, exist_ok=True)
-        joblib.dump({"pipeline": self.pipeline, "feature_names": list(self.feature_names),
-                     "classes": list(self.classes), "info": self.info,
-                     "n_estimators": self.n_estimators, "random_state": self.random_state}, path)
-        return path
+        data = {"pipeline": self.pipeline, "feature_names": list(self.feature_names),
+                "classes": list(self.classes), "info": self.info,
+                "n_estimators": self.n_estimators, "random_state": self.random_state}
+        return atomic_replace(model_path(path), lambda tmp: joblib.dump(data, tmp))
 
     @classmethod
     def load(cls, path=None) -> "ForestClassifier":
@@ -183,7 +199,11 @@ class ForestClassifier:
 
 
 def load_active(path=None, allow_synthetic=False):
-    """The trained forest if a usable model file exists, else the rule baseline. Never raises."""
+    """The trained forest if a usable model file exists, else the rule baseline. Never raises.
+
+    Usable = loadable, not synthetic-flagged (unless allowed), and trained with `tool_use` plus
+    at least one other class: a model that cannot say "tool" must never drive the live detector.
+    """
     rules = RuleClassifier()
     try:
         path = model_path(path)
@@ -193,6 +213,9 @@ def load_active(path=None, allow_synthetic=False):
         if clf.info.get("contains_synthetic") and not allow_synthetic:
             rules.info["note"] += "; saved model ignored: trained on synthetic data"
             return rules
+        if "tool_use" not in clf.classes or len(set(clf.classes) - {"tool_use"}) < 1:
+            rules.info["note"] += f"; saved model ignored: no usable tool class (classes {clf.classes})"
+            return rules
         return clf
     except Exception as exc:   # broken / incompatible file: the live path must keep working
         rules.info["note"] += f"; saved model ignored: {type(exc).__name__}: {exc}"
@@ -200,7 +223,22 @@ def load_active(path=None, allow_synthetic=False):
 
 
 def classify(clf, window: WindowFeatures) -> dict:
-    """Classify one window: estimated activity with soft probabilities."""
+    """Classify one window: estimated activity with soft probabilities.
+
+    Rate guard: a model trained on bands this stream cannot resolve (its Nyquist is too low)
+    is not used for the window; the rule baseline answers instead and the result says so.
+    """
+    note = None
+    needed = getattr(clf, "feature_names", None)
+    if needed and not set(needed) <= set(features_for_model(window.sample_hz)):
+        clf, note = RuleClassifier(), RATE_NOTE
+    out = _classify(clf, window)
+    if note:
+        out["note"] = note
+    return out
+
+
+def _classify(clf, window: WindowFeatures) -> dict:
     p = np.asarray(clf.predict_proba(np.asarray(window.values, dtype=float)[None, :]))[0]
     best = int(np.argmax(p))
     return {"activity": ACTIVITIES[best], "confidence": float(p[best]),

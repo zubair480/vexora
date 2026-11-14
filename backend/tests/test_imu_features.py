@@ -271,3 +271,47 @@ def test_degenerate_inputs_never_give_nan():
     assert f.extract_windows(zero_time) == [] and f.latest_window(zero_time) is None
     w = f.extract_windows(const)[0].as_dict()
     assert w["dom_freq_1"] == 0.0 and w["spectral_entropy"] == 0.0 and w["high_freq_ratio"] == 0.0
+
+
+def test_measure_rate_with_burst_delivered_stamps():
+    """Batched delivery: every sample of a batch carries the same (or nearly the same) stamp."""
+    for hz, size in ((50, 10), (208, 16)):
+        arr = make("walking", 10, hz)
+        burst = arr.copy()
+        burst[:, 2] = np.repeat(arr[::size, 2], size)[:len(arr)]        # identical stamps
+        near = burst.copy()
+        near[:, 2] += (np.arange(len(arr)) % size) * 1e-4               # near-identical stamps
+        for stamped in (burst, near):
+            assert f.measure_rate(stamped) == pytest.approx(hz, rel=0.02)
+            assert f.measure_rate(stamped[:4 * hz]) == pytest.approx(hz, rel=0.03)   # live buffer
+            assert f.measure_rate(drop(stamped, 3, 6)) == pytest.approx(hz, rel=0.03)
+            no_n = stamped.copy()
+            no_n[:, 0] = np.nan
+            assert f.measure_rate(no_n) == pytest.approx(hz, rel=0.03)
+            assert f.measure_rate(drop(no_n, 3, 6)) == pytest.approx(hz, rel=0.05)
+            lossy = stamped[np.random.default_rng(3).random(len(arr)) > 0.3]
+            assert f.measure_rate(lossy) == pytest.approx(hz, rel=0.03)  # n still sees the loss
+    one_burst = make("walking", 0.2, 50)
+    one_burst[:, 2] = T0                                                # no elapsed time at all
+    assert f.measure_rate(one_burst) == pytest.approx(50, rel=0.1)      # falls back to t
+
+
+def test_given_hz_is_the_truth_for_expected_samples():
+    """Without `n`, heavy loss makes the measured rate (and so completeness) optimistic;
+    a caller that knows the rate passes hz and gets the honest completeness."""
+    arr = make("walking", 20)
+    arr = arr[np.random.default_rng(5).random(len(arr)) > 0.6]          # 60 % lost
+    arr[:, 0] = np.nan
+    assert f.measure_rate(arr) < 40                                     # cannot be known without n
+    windows = f.extract_windows(arr, hz=50)
+    assert windows and all(w.sample_hz == 50 for w in windows)
+    assert np.mean([w.completeness for w in windows]) == pytest.approx(0.4, abs=0.06)
+    assert max(w.completeness for w in windows) < 0.65
+    last = f.latest_window(arr, hz=50)
+    assert last is None or last.completeness < 0.65
+    dense = f.latest_window(make("walking", 4)[::2], hz=50)             # every second sample
+    assert dense is None                                                # 50 % < 60 % of a window
+    third = make("walking", 4)
+    third = third[np.arange(len(third)) % 4 != 0]                       # 75 % present
+    third[:, 0] = np.nan
+    assert f.latest_window(third, hz=50).completeness == pytest.approx(0.75, abs=0.03)
