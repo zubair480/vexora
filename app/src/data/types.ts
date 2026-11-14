@@ -57,6 +57,8 @@ export interface Tool {
   minutesToday: number;
   inUse: boolean;
   confirmation?: string | null;     // tool session confirmed / unconfirmed / rejected (server)
+  stationId?: string | null;        // station of the work open while the tool ran (server, derived)
+  workOrderId?: string | null;      // work order open while the tool ran (server, derived)
 }
 
 export interface Exposure {
@@ -162,6 +164,9 @@ export interface ShiftEvent {
   title: string;
   detail: string;
   source?: string;          // server provenance: band | replay | synthetic | manual | ai | derived
+  stationId?: string | null;
+  linkedWorkOrderId?: string | null;
+  link?: string | null;     // e.g. "derived: open work order"
 }
 
 export interface Kpis {

@@ -31,6 +31,8 @@ const tool = {
   aHv: 12.5,
   minutesToday: 12,   // 12 min × 12.5 m/s² = 62.5 pts of today's 85
   inUse: true,
+  stationId: 's3',
+  workOrderId: 'WO-4783',
 };
 
 // Points so far: earlier tasks plus the impact wrench. Projection: the planned idler swap

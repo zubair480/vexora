@@ -14,6 +14,8 @@ import { useVexoBand } from './band/useVexoBand';
 import { shift } from './data/shift';
 import { HeroHeader } from './layout/HeroHeader';
 import { SectionBoundary } from './layout/SectionBoundary';
+import { PlanOptions } from './layout/PlanOptions';
+import { withToolActivity } from './data/toolActivity';
 import { Sidebar } from './layout/Sidebar';
 import { TopBar } from './layout/TopBar';
 
@@ -39,13 +41,14 @@ export default function App() {
 
           <SectionBoundary name="KPIs"><KpiRow kpis={d.kpis} /></SectionBoundary>
 
-          <div className="grid grid-cols-12 gap-5">
+          <div className="grid grid-cols-12 items-start gap-5">
             <div className="col-span-12 xl:col-span-8">
-              <SectionBoundary name="Conveyor route map"><ConveyorRouteMap conveyor={d.conveyor} defect={d.defect} /></SectionBoundary>
+              <SectionBoundary name="Conveyor route map"><ConveyorRouteMap conveyor={withToolActivity(d.conveyor, d.tool)} defect={d.defect} /></SectionBoundary>
             </div>
             <div className="col-span-12 flex flex-col gap-5 xl:col-span-4">
               <SectionBoundary name="HAV exposure"><ExposureGauge exposure={d.exposure} /></SectionBoundary>
               <SectionBoundary name="Recommendation"><RecommendationCard recommendation={d.recommendation} exposure={d.exposure} /></SectionBoundary>
+              <SectionBoundary name="Alternative plans"><PlanOptions enabled={mode === 'server'} /></SectionBoundary>
             </div>
           </div>
 
