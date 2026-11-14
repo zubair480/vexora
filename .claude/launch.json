@@ -1,0 +1,19 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "vexo-dashboard",
+      "runtimeExecutable": "python",
+      "runtimeArgs": ["-m", "http.server", "8000", "--bind", "127.0.0.1"],
+      "port": 8000,
+      "autoPort": false
+    },
+    {
+      "name": "beltguard",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["--prefix", "app", "run", "dev", "--", "--host", "127.0.0.1", "--port", "5173", "--strictPort"],
+      "port": 5173,
+      "autoPort": false
+    }
+  ]
+}

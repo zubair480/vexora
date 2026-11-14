@@ -1,0 +1,23 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@500;600;700;800&display=swap');
+@import './styles/tokens.css';
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html, body, #root { height: 100%; }
+  body {
+    @apply bg-bg font-sans text-ink antialiased;
+  }
+}
+
+@layer components {
+  /* The one card style every section uses. */
+  .card {
+    @apply rounded-card border border-line/70 bg-surface shadow-card transition-shadow duration-200;
+  }
+  .card-hover:hover { @apply shadow-lift; }
+  .card-title { @apply font-display text-[15px] font-semibold text-ink; }
+  .label { @apply text-xs text-ink-2; }
+}

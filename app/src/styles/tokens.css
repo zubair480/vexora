@@ -1,0 +1,24 @@
+/* BeltGuard design tokens (see design/BRIEF.md). RGB triplets so Tailwind can add opacity. */
+:root {
+  --bg: 247 246 242;        /* #F7F6F2 */
+  --surface: 255 255 255;   /* #FFFFFF */
+  --panel: 242 244 239;     /* #F2F4EF */
+  --line: 234 236 230;      /* hairline borders */
+  --ink: 22 32 42;          /* #16202A */
+  --ink-2: 102 112 133;     /* #667085 */
+  --ink-3: 152 162 179;     /* #98A2B3 */
+  --ok: 95 180 107;         /* #5FB46B */
+  --ok-bg: 234 246 234;     /* #EAF6EA */
+  --warn: 242 169 59;       /* #F2A93B */
+  --warn-bg: 255 243 228;   /* #FFF3E4 */
+  --bad: 229 101 101;       /* #E56565 */
+  --bad-bg: 252 236 236;    /* #FCECEC */
+  --info: 77 141 255;       /* #4D8DFF */
+  --info-bg: 236 243 255;
+  --sensor: 34 184 181;     /* #22B8B5 */
+  --sensor-bg: 230 247 246;
+  --plum: 139 111 214;      /* #8B6FD6 */
+  --plum-bg: 241 236 251;
+  --brand: 217 144 26;      /* #D9901A */
+  --brand-bg: 251 241 222;
+}
