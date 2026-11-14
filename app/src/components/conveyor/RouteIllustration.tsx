@@ -228,6 +228,8 @@ export function RouteIllustration({
   onHover,
   calloutTopY,
   idPrefix,
+  h = VB.h,
+  dy = 0,
 }: {
   stations: Station[];
   defectStation: Station | null;
@@ -237,6 +239,10 @@ export function RouteIllustration({
   calloutTopY: number;
   /** Unique per instance (from useId) so SVG defs never collide across instances. */
   idPrefix: string;
+  /** viewBox height. Grows past VB.h when the card is taller than the base aspect allows. */
+  h?: number;
+  /** Vertical offset of the conveyor scene inside the taller viewBox (chips stay pinned to the top). */
+  dy?: number;
 }) {
   const reduce = !!useReducedMotion();
   const { id } = svgIds(idPrefix);
@@ -246,7 +252,7 @@ export function RouteIllustration({
   return (
     <SvgIdContext.Provider value={idPrefix}>
     <svg
-      viewBox={`0 0 ${VB.w} ${VB.h}`}
+      viewBox={`0 0 ${VB.w} ${h}`}
       preserveAspectRatio="xMidYMid meet"
       className="absolute inset-0 h-full w-full overflow-visible"
       role="img"
@@ -288,6 +294,10 @@ export function RouteIllustration({
           <stop offset="0" stopColor={c('--brand', 0.06)} />
           <stop offset="1" stopColor={c('--panel', 0)} />
         </linearGradient>
+        <linearGradient id={id('groundFade')} x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0" stopColor={c('--panel', 0.7)} />
+          <stop offset="1" stopColor={c('--panel', 0)} />
+        </linearGradient>
         <radialGradient id={id('defectGlow')}>
           <stop offset="0" stopColor={c('--bad', 0.6)} />
           <stop offset="0.45" stopColor={c('--bad', 0.32)} />
@@ -303,6 +313,8 @@ export function RouteIllustration({
         <clipPath id={id('clip-ret')}><rect x={X0} y={Y_RET} width={X1 - X0} height={BELT_T} /></clipPath>
       </defs>
 
+      <g transform={`translate(0 ${dy})`}>
+      <FarBackdrop dy={dy} h={h} />
       <Structure anchorX={anchorX} defectX={defectX} spin={!reduce} />
 
       <Flow y={Y_TOP + BELT_T / 2} dir={1} opacity={0.9} animate={!reduce} />
@@ -310,7 +322,7 @@ export function RouteIllustration({
 
       {/* defect roller sits above the structure so its glow reads */}
       {defectStation && (
-        <DefectHalo station={defectStation} reduce={reduce} active={activeId === defectStation.id} calloutTopY={calloutTopY} />
+        <DefectHalo station={defectStation} reduce={reduce} active={activeId === defectStation.id} calloutTopY={calloutTopY - dy} />
       )}
 
       {/* leader lines (behind the HTML chips, which cover their top ends) */}
@@ -321,7 +333,7 @@ export function RouteIllustration({
         return (
           <motion.line
             key={s.id}
-            x1={x} y1={CHIP_Y} x2={x} y2={markerY(s) - 9}
+            x1={x} y1={CHIP_Y - dy} x2={x} y2={markerY(s) - 9}
             stroke={bad ? c('--bad', 0.9) : active ? c('--ink-2') : c('--ink-3', 0.8)}
             strokeWidth={bad || active ? 2 : 1.5}
             strokeDasharray={bad ? '5 4' : undefined}
@@ -336,8 +348,35 @@ export function RouteIllustration({
       {stations.map((s) => (
         <Marker key={s.id} station={s} active={activeId === s.id} reduce={reduce} onHover={onHover} />
       ))}
+      </g>
     </svg>
     </SvgIdContext.Provider>
+  );
+}
+
+/** Distant ridges and an extended ground plane. They only show when the card is taller than the
+ * base aspect, so the extra height reads as scenery (as in the reference art), not empty space. */
+function FarBackdrop({ dy, h }: { dy: number; h: number }) {
+  const { url } = useSvgIds();
+  const below = h - dy - Y_GROUND; // viewBox units of ground visible under the base scene
+  return (
+    <g pointerEvents="none" aria-hidden>
+      {dy > 24 && (
+        <>
+          <path
+            d={`M 0 ${Y_TOP - 40} C 140 ${Y_TOP - 120} 260 ${Y_TOP - 150} 420 ${Y_TOP - 96} S 700 ${Y_TOP - 170} 860 ${Y_TOP - 120} S 1080 ${Y_TOP - 150} 1200 ${Y_TOP - 92} L 1200 ${Y_TOP + 20} L 0 ${Y_TOP + 20} Z`}
+            fill={c('--brand', 0.07)}
+          />
+          <path
+            d={`M 0 ${Y_TOP - 12} C 200 ${Y_TOP - 70} 380 ${Y_TOP - 52} 560 ${Y_TOP - 30} S 900 ${Y_TOP - 96} 1200 ${Y_TOP - 40} L 1200 ${Y_TOP + 20} L 0 ${Y_TOP + 20} Z`}
+            fill={c('--ink-3', 0.1)}
+          />
+        </>
+      )}
+      {below > 60 && (
+        <rect x={0} y={Y_GROUND - 6} width={VB.w} height={below + 6} fill={url('groundFade')} />
+      )}
+    </g>
   );
 }
 
