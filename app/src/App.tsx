@@ -13,6 +13,7 @@ import { useShift } from './api/useShift';
 import { useVexoBand } from './band/useVexoBand';
 import { shift } from './data/shift';
 import { HeroHeader } from './layout/HeroHeader';
+import { SectionBoundary } from './layout/SectionBoundary';
 import { Sidebar } from './layout/Sidebar';
 import { TopBar } from './layout/TopBar';
 
@@ -34,29 +35,29 @@ export default function App() {
               {vexo.state.error}
             </p>
           )}
-          <HeroHeader conveyor={d.conveyor} shift={d.shift} />
+          <SectionBoundary name="Header"><HeroHeader conveyor={d.conveyor} shift={d.shift} /></SectionBoundary>
 
-          <KpiRow kpis={d.kpis} />
+          <SectionBoundary name="KPIs"><KpiRow kpis={d.kpis} /></SectionBoundary>
 
           <div className="grid grid-cols-12 gap-5">
             <div className="col-span-12 xl:col-span-8">
-              <ConveyorRouteMap conveyor={d.conveyor} defect={d.defect} />
+              <SectionBoundary name="Conveyor route map"><ConveyorRouteMap conveyor={d.conveyor} defect={d.defect} /></SectionBoundary>
             </div>
             <div className="col-span-12 flex flex-col gap-5 xl:col-span-4">
-              <ExposureGauge exposure={d.exposure} />
-              <RecommendationCard recommendation={d.recommendation} exposure={d.exposure} />
+              <SectionBoundary name="HAV exposure"><ExposureGauge exposure={d.exposure} /></SectionBoundary>
+              <SectionBoundary name="Recommendation"><RecommendationCard recommendation={d.recommendation} exposure={d.exposure} /></SectionBoundary>
             </div>
           </div>
 
           <div className="grid grid-cols-12 gap-5">
-            <div className="col-span-12 md:col-span-6 xl:col-span-3"><WorkerStatusCard workers={d.workers} /></div>
-            <div className="col-span-12 md:col-span-6 xl:col-span-5"><LiveSensorCard band={band} controls={vexo} /></div>
-            <div className="col-span-12 md:col-span-6 xl:col-span-4"><ActiveToolCard tool={d.tool} /></div>
-            <div className="col-span-12 md:col-span-6 xl:col-span-6"><DefectCard defect={d.defect} /></div>
-            <div className="col-span-12 xl:col-span-6"><WorkOrderCard workOrder={d.workOrder} /></div>
+            <div className="col-span-12 md:col-span-6 xl:col-span-3"><SectionBoundary name="Workers"><WorkerStatusCard workers={d.workers} /></SectionBoundary></div>
+            <div className="col-span-12 md:col-span-6 xl:col-span-5"><SectionBoundary name="Vexo band"><LiveSensorCard band={band} controls={vexo} /></SectionBoundary></div>
+            <div className="col-span-12 md:col-span-6 xl:col-span-4"><SectionBoundary name="Active tool"><ActiveToolCard tool={d.tool} /></SectionBoundary></div>
+            <div className="col-span-12 md:col-span-6 xl:col-span-6"><SectionBoundary name="Defect"><DefectCard defect={d.defect} /></SectionBoundary></div>
+            <div className="col-span-12 xl:col-span-6"><SectionBoundary name="Work order"><WorkOrderCard workOrder={d.workOrder} /></SectionBoundary></div>
           </div>
 
-          <ShiftTimeline events={d.events} conveyorId={d.conveyor.id} />
+          <SectionBoundary name="Timeline"><ShiftTimeline events={d.events} conveyorId={d.conveyor.id} /></SectionBoundary>
         </div>
       </main>
     </div>
