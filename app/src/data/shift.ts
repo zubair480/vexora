@@ -29,7 +29,7 @@ const tool = {
   name: 'Impact Wrench 01',
   type: 'Impact wrench',
   aHv: 12.5,
-  minutesToday: 18,
+  minutesToday: 12,   // 12 min × 12.5 m/s² = 62.5 pts of today's 85
   inUse: true,
 };
 
@@ -113,8 +113,8 @@ export const shift: ShiftData = {
     { id: 'e5', kind: 'vibration', start: '09:26', title: 'Vibration increase', detail: 'Return Idler 14 · +42%' },
     { id: 'e6', kind: 'vibration', start: '09:58', title: 'Vibration elevated', detail: 'Now +78% vs baseline' },
     { id: 'e7', kind: 'defect', start: '10:24', end: '10:31', title: 'Defect flagged', detail: 'Return Idler 14 (bearing seized)' },
-    { id: 'e8', kind: 'tool', start: '10:38', end: '10:56', title: 'Tool use', detail: 'Impact Wrench 01 (18 min)' },
-    { id: 'e9', kind: 'exposure', start: '10:56', title: 'HAV exposure updated', detail: `Current exposure: ${current} pts` },
+    { id: 'e8', kind: 'tool', start: '10:38', end: '10:50', title: 'Tool use', detail: 'Impact Wrench 01 (12 min)' },
+    { id: 'e9', kind: 'exposure', start: '10:50', title: 'HAV exposure updated', detail: `Current exposure: ${current} pts` },
     { id: 'e10', kind: 'workorder', start: '10:58', end: '11:00', title: 'Work order', detail: 'WO-4783 (Draft)' },
   ],
   kpis: {

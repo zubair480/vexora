@@ -98,7 +98,7 @@ export function WorkerStatusCard({ workers }: { workers: Worker[] }) {
                   <div className="flex flex-wrap items-start justify-between gap-x-3 gap-y-1">
                     <div className="min-w-0">
                       <p className="truncate text-sm font-medium text-ink">{w.name}</p>
-                      <p className="truncate text-xs text-ink-2">{w.role}</p>
+                      <p className="truncate text-xs text-ink-2">{w.role ?? '—'}</p>
                     </div>
                     {w.onTask ? (
                       <Pill tone="ok" dot className="shrink-0">
@@ -112,12 +112,16 @@ export function WorkerStatusCard({ workers }: { workers: Worker[] }) {
                   </div>
                   <div className="mt-2 flex items-baseline justify-between gap-2">
                     <span className="text-[11px] text-ink-3">Exposure</span>
-                    <span className="font-display text-xs font-semibold tabular-nums text-ink">
-                      {w.exposurePoints} pts{' '}
-                      <span className="font-sans text-[11px] font-normal text-ink-3">of {ACTION_VALUE}</span>
-                    </span>
+                    {w.exposurePoints === null ? (
+                      <span className="text-[11px] text-ink-3">Not measured</span>
+                    ) : (
+                      <span className="font-display text-xs font-semibold tabular-nums text-ink">
+                        {w.exposurePoints} pts{' '}
+                        <span className="font-sans text-[11px] font-normal text-ink-3">of {ACTION_VALUE}</span>
+                      </span>
+                    )}
                   </div>
-                  <ExposureBar points={w.exposurePoints} delay={0.1 + i * 0.08} />
+                  {w.exposurePoints !== null && <ExposureBar points={w.exposurePoints} delay={0.1 + i * 0.08} />}
                 </div>
               </li>
             ))}

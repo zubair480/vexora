@@ -67,7 +67,7 @@ def list_events(shift_id: str, types: Optional[list[str]] = None, limit: int = 1
     if types:
         sql += " AND type IN (%s)" % ",".join("?" * len(types))
         args += list(types)
-    sql += " ORDER BY ts ASC LIMIT ?"
+    sql += " ORDER BY ts DESC LIMIT ?"            # the newest N, returned oldest first
     args.append(limit)
     con = connect()
     try:
@@ -75,7 +75,7 @@ def list_events(shift_id: str, types: Optional[list[str]] = None, limit: int = 1
     finally:
         con.close()
     out = []
-    for row in rows:
+    for row in reversed(rows):
         item = dict(row)
         item["payload"] = json.loads(item["payload"])
         out.append(item)

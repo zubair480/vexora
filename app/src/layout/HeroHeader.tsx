@@ -18,9 +18,16 @@ export function HeroHeader({ conveyor, shift }: { conveyor: Conveyor; shift: Shi
           <p className="mt-1 text-[15px] text-ink-2">Belt health, vibration risk, and worker exposure in one view.</p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          <Pill tone="neutral"><Truck size={14} /> {conveyor.id} · {conveyor.name}</Pill>
-          <Pill tone={conveyor.inService ? 'ok' : 'warn'} dot>{conveyor.inService ? 'In Service' : 'Out of Service'}</Pill>
-          <Pill tone="brand"><Sun size={14} /> Shift: {shift.label} ({shift.start} – {shift.end})</Pill>
+          <Pill tone="neutral"><Truck size={14} /> {conveyor.id}{conveyor.name ? ` · ${conveyor.name}` : ''}</Pill>
+          {conveyor.inService !== null && (
+            <Pill tone={conveyor.inService ? 'ok' : 'warn'} dot>{conveyor.inService ? 'In Service' : 'Out of Service'}</Pill>
+          )}
+          {shift.label && (
+            <Pill tone="brand">
+              <Sun size={14} /> Shift: {shift.label}
+              {shift.start && shift.end ? ` (${shift.start} – ${shift.end})` : ''}
+            </Pill>
+          )}
         </div>
       </div>
     </div>

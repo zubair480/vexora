@@ -60,9 +60,10 @@ def test_hysteresis_dip_between_thresholds_keeps_session():
     started, ended = kinds(out, "session_started"), kinds(out, "session_ended")
     assert len(started) == 1 and len(ended) == 1
     assert started[0]["end_ts"] is None and started[0]["session_id"] == ended[0]["session_id"]
-    assert ended[0]["start_ts"] == pytest.approx(T0 + 1.25, abs=0.05)   # hop 2.0 s - half window
-    assert ended[0]["end_ts"] == pytest.approx(T0 + 11.25, abs=0.05)    # first hop below stop
-    assert ended[0]["duration_s"] == pytest.approx(10.0, abs=0.1)
+    # edges come from the raw probability: first tool hop (2.0 s) - 0.35, last (11.5 s) - 1.15
+    assert ended[0]["start_ts"] == pytest.approx(T0 + 1.65, abs=0.03)
+    assert ended[0]["end_ts"] == pytest.approx(T0 + 10.35, abs=0.03)
+    assert ended[0]["duration_s"] == pytest.approx(8.7, abs=0.05) and ended[0]["missing_s"] == 0
     assert ended[0]["reason"] == "activity_stopped"
     assert 0.5 < ended[0]["confidence"] <= 0.9 and ended[0]["completeness"] > 0.9
     assert det.state()["in_session"] is False
@@ -70,12 +71,15 @@ def test_hysteresis_dip_between_thresholds_keeps_session():
 
 def test_session_started_only_after_min_duration_and_backdated():
     out, det = run_script([0] * 4 + [0.9] * 6, smoothing=0.0)
-    assert kinds(out, "session_started") == []           # 2.5 s so far
+    assert kinds(out, "session_started") == []           # under 3 s of tool so far
     assert det.state()["in_session"] is False
-    out, det = run_script([0] * 4 + [0.9] * 8, smoothing=0.0)
+    assert det.flush() == [{"kind": "activity", "activity": "unknown", "confidence": 0.0,
+                            "tool_probability": 0.0, "ts": pytest.approx(T0 + 4.98),
+                            "model": "scripted"}]        # the candidate is dropped silently
+    out, det = run_script([0] * 4 + [0.9] * 10, smoothing=0.0)
     started = kinds(out, "session_started")
-    assert len(started) == 1 and started[0]["start_ts"] == pytest.approx(T0 + 1.25, abs=0.05)
-    assert started[0]["duration_s"] >= 3.0
+    assert len(started) == 1 and started[0]["start_ts"] == pytest.approx(T0 + 1.65, abs=0.03)
+    assert 3.0 <= started[0]["duration_s"] < 3.6 and started[0]["model"] == "scripted"
     state = det.state()
     assert state["in_session"] and state["session_id"] == started[0]["session_id"]
     assert state["activity"] == "tool_use" and state["model"] == "scripted"
@@ -92,19 +96,22 @@ def test_rise_between_thresholds_never_starts():
 def test_short_burst_is_dropped_silently():
     out, det = run_script([0] * 4 + [0.9] * 3 + [0] * 8, smoothing=0.0)
     assert kinds(out, "session_started") == [] and kinds(out, "session_ended") == []
-    assert det.flush() == [] or kinds(det.flush(), "session_ended") == []
+    flushed = det.flush()                                # only the activity reset, no session
+    assert [t["kind"] for t in flushed] == ["activity"] and flushed[0]["activity"] == "unknown"
+    assert det.flush() == []
 
 
 def test_one_hop_below_stop_does_not_end_session():
     out, _ = run_script([0] * 4 + [0.9] * 8 + [0.1] + [0.9] * 6 + [0] * 6, smoothing=0.0)
     ended = kinds(out, "session_ended")
-    assert len(ended) == 1 and ended[0]["duration_s"] == pytest.approx(7.5, abs=0.1)
+    assert len(ended) == 1 and ended[0]["duration_s"] == pytest.approx(6.2, abs=0.05)
 
 
 def test_ema_smoothing_and_low_confidence_unknown():
     out, _ = run_script([0] * 4 + [0.95] * 12 + [0] * 6)          # default smoothing 0.5
     ended = kinds(out, "session_ended")
-    assert len(ended) == 1 and ended[0]["duration_s"] == pytest.approx(6.0, abs=1.1)
+    assert len(ended) == 1 and ended[0]["duration_s"] == pytest.approx(4.7, abs=0.05)
+    assert ended[0]["start_ts"] == pytest.approx(T0 + 1.65, abs=0.03)   # smoothing lag undone
     out, det = run_script([0] * 5 + [0.5] * 6, smoothing=0.0, min_confidence=0.6)
     assert det.state()["activity"] == "unknown"                   # 0.5 / 0.5: nothing convincing
     activities = [t["activity"] for t in kinds(out, "activity")]
@@ -134,22 +141,104 @@ def test_gesture_gives_no_session():
     assert detect_sessions(make("gesture", 30, seed=3), RuleClassifier()) == []
 
 
-@pytest.mark.parametrize("hz", [50, 104])
-def test_tool_between_still_is_one_session(hz):
-    arr = sequence([("still", 8), ("tool", 20), ("still", 8)], hz=hz)
+@pytest.mark.parametrize("hz,onset,seconds", [(50, 8.0, 20), (104, 8.27, 20), (208, 8.13, 10),
+                                              (208, 8.4, 60), (416, 8.0, 5), (50, 8.4, 4)])
+def test_tool_between_still_is_one_session(hz, onset, seconds):
+    arr = sequence([("still", onset), ("tool", seconds), ("still", 8)], hz=hz, seed=7)
     sessions = detect_sessions(arr, RuleClassifier())
     assert len(sessions) == 1
     s = sessions[0]
-    assert abs(s["start_ts"] - (T0 + 8)) < 2.0 and abs(s["end_ts"] - (T0 + 28)) < 2.0
-    assert abs(s["duration_s"] - 20) < 2.0
+    assert abs(s["start_ts"] - (T0 + onset)) <= 0.5
+    assert abs(s["end_ts"] - (T0 + onset + seconds)) <= 0.5
+    assert abs(s["duration_s"] - seconds) <= 0.6
+    assert s["missing_s"] == 0 and s["model"] == "rules"
     assert s["duration_s"] == pytest.approx(s["end_ts"] - s["start_ts"])
     assert 0.5 < s["confidence"] <= 1.0 and s["completeness"] > 0.9
     assert len(s["session_id"]) == 32
 
 
-def test_tool_burst_shorter_than_min_duration():
-    arr = sequence([("still", 6), ("tool", 1.5), ("still", 6)])
+@pytest.mark.parametrize("seconds,onset", [(1.5, 6.0), (2.0, 6.27), (2.5, 6.0), (2.5, 6.4)])
+def test_tool_burst_shorter_than_min_duration(seconds, onset):
+    arr = sequence([("still", onset), ("tool", seconds), ("still", 6)])
     assert detect_sessions(arr, RuleClassifier()) == []
+
+
+def _received(arr, start_s, end_s, hz=50.0):
+    rel = arr[:, 2] - T0
+    return float(((rel >= start_s) & (rel < end_s)).sum()) / hz
+
+
+def test_short_dropouts_are_not_tool_time():
+    arr = sequence([("still", 5), ("tool", 30), ("still", 5)])
+    for at in np.arange(8.0, 35.0, 3.0):                 # 0.6 s lost every 3 s, below gap_s
+        arr = drop(arr, at, at + 0.6)
+    received = _received(arr, 5, 35)
+    assert 24.0 < received < 25.0
+    sessions = detect_sessions(arr, RuleClassifier())
+    assert sessions
+    total = sum(s["duration_s"] for s in sessions)
+    assert received - 3.0 < total <= received + 0.6
+    assert sum(s["missing_s"] for s in sessions) > 4.0
+    for s in sessions:
+        assert s["duration_s"] == pytest.approx(s["end_ts"] - s["start_ts"] - s["missing_s"])
+
+
+def test_single_short_gap_is_subtracted():
+    arr = drop(sequence([("still", 5), ("tool", 20), ("still", 5)]), 14, 14.8)
+    sessions = detect_sessions(arr, RuleClassifier())
+    assert len(sessions) == 1
+    s = sessions[0]
+    assert s["missing_s"] == pytest.approx(0.8, abs=0.05)
+    assert 19.2 - 0.6 <= s["duration_s"] <= 19.2 + 0.6
+    assert s["end_ts"] - s["start_ts"] > s["duration_s"]
+
+
+def test_small_backward_time_steps_are_tolerated():
+    arr = sequence([("still", 5), ("tool", 10), ("still", 5)])
+    for i in range(0, len(arr), 20):                     # every other packet stamped 40 ms late,
+        arr[i:i + 10, 2] += 0.04                         # so it overlaps the next one
+    assert (np.diff(arr[:, 2]) < 0).any()
+    sessions = detect_sessions(arr, RuleClassifier())
+    assert len(sessions) == 1 and sessions[0]["reason"] == "activity_stopped"
+    assert abs(sessions[0]["duration_s"] - 10) <= 0.6
+    out, det = run_rules(make("still", 6))               # control: a big backward step IS a gap
+    assert det.state()["activity"] == "stationary"
+    out = det.feed(make("still", 1, t0=T0 + 3, n0=300))
+    assert [t["activity"] for t in kinds(out, "activity")] == ["unknown"]
+
+
+def test_counter_unknown_and_rows_without_time():
+    arr = sequence([("still", 5), ("tool", 10), ("still", 5)])
+    arr[:, 0] = np.nan                                   # n unknown: time alone drives everything
+    sessions = detect_sessions(arr, RuleClassifier())
+    assert len(sessions) == 1 and abs(sessions[0]["duration_s"] - 10) <= 0.6
+    gappy = drop(arr, 9, 9.8)                            # loss is still seen without n
+    assert detect_sessions(gappy, RuleClassifier())[0]["missing_s"] == pytest.approx(0.8, abs=0.05)
+
+    det = ToolDetector(RuleClassifier())
+    bad = make("still", 4)
+    bad[:, 2] = np.nan
+    for _ in range(50):
+        assert det.feed(bad) == []
+    assert det._buf is None and det.state()["last_sample_time"] is None     # nothing piles up
+    mixed = sequence([("still", 5), ("tool", 10), ("still", 5)])
+    mixed[::7, 2] = np.nan                               # a few unplaceable rows are dropped
+    assert len(detect_sessions(mixed, RuleClassifier())) == 1
+
+
+def test_model_is_the_one_that_answered(monkeypatch):
+    """A loaded model can be bypassed for a window (rate guard): report what really answered."""
+    from backend import tool_classifier
+    real = tool_classifier.classify
+
+    def guarded(clf, window):
+        return {**real(clf, window), "model": "rules", "note": "rate guard"}
+
+    monkeypatch.setattr(tool_classifier, "classify", guarded)
+    out, det = run_script([0] * 4 + [0.9] * 10, smoothing=0.0)
+    assert det.classifier.name == "scripted" and det.state()["model"] == "rules"
+    assert kinds(out, "session_started")[0]["model"] == "rules"
+    assert all(t["model"] == "rules" for t in kinds(out, "activity"))
 
 
 def test_gap_in_tool_use_splits_sessions():
@@ -164,7 +253,10 @@ def test_gap_in_tool_use_splits_sessions():
         assert not (s["start_ts"] < gap_start and s["end_ts"] > gap_start)
     total = sum(s["duration_s"] for s in sessions)
     assert total <= 24.0 + 0.5                           # 24 s of tool data actually received
-    assert total > 18.0
+    assert total > 20.0
+    assert abs(sessions[0]["start_ts"] - (T0 + 5)) <= 0.5
+    assert sessions[0]["end_ts"] == pytest.approx(T0 + 15, abs=0.05)    # last sample before the gap
+    assert abs(sessions[1]["end_ts"] - (T0 + 35)) <= 0.5
 
 
 def test_counter_reset_is_a_gap():
@@ -179,9 +271,11 @@ def test_counter_reset_is_a_gap():
 def test_low_completeness_is_unknown_and_no_tool_time():
     arr = sequence([("still", 2), ("tool", 20)])
     keep = np.random.default_rng(1).random(len(arr)) < 0.5        # half the samples lost
+    assert len(detect_sessions(arr, RuleClassifier())) == 1       # control: intact data is tool use
     out, det = run_rules(arr[keep])
     assert kinds(out, "session_started") == []
-    assert {t["activity"] for t in kinds(out, "activity")} <= {"unknown"}
+    assert kinds(out, "activity") == []                           # never left "unknown"
+    assert det.state()["last_sample_time"] == pytest.approx(arr[keep][-1, 2])
     state = det.state()
     assert state["activity"] == "unknown" and state["completeness"] < 0.75
     assert state["tool_probability"] == 0.0
@@ -228,10 +322,11 @@ def test_service_publishes_contract_events_and_persists(svc):
         assert event.source == "synthetic"
         assert event.shift_id == "shift-test" and event.worker_id == "worker-test"
         assert event.payload["tool_id"] is None and event.payload["confirmation"] == "tentative"
-        assert event.payload["model"] == "rules"
+        assert event.payload["model"] == "rules" and event.payload["missing_s"] == 0
     assert started[0].payload["end_ts"] is None
     assert ended[0].payload["session_id"] == started[0].payload["session_id"]
-    assert abs(ended[0].payload["duration_s"] - 12) < 2.0
+    assert abs(ended[0].payload["duration_s"] - 12) <= 0.6
+    assert abs(ended[0].payload["start_ts"] - (T0 + 4)) <= 0.5
     assert ended[0].payload["reason"] == "activity_stopped"
 
     activity = of_type(seen, "activity_changed")
@@ -338,6 +433,44 @@ def test_source_change_flushes_first(svc):
     ended = of_type(seen, "tool_session_ended")
     assert len(ended) == 1 and ended[0].payload["reason"] == "source_changed"
     assert ended[0].source == "synthetic"
+
+
+def test_start_closes_orphans_of_the_shift_silently(test_bus):
+    base = {"worker_id": "worker-test", "start_ts": 1000.0, "tool_id": None, "confidence": 0.9,
+            "completeness": 1.0, "confirmation": "tentative", "source": "synthetic",
+            "model": "rules", "reason": None, "updated_at": 1.0}
+    tool_sessions._save({**base, "session_id": "orphan", "shift_id": "shift-test",
+                         "end_ts": None, "duration_s": 3.5})
+    tool_sessions._save({**base, "session_id": "other-shift", "shift_id": "shift-other",
+                         "end_ts": None, "duration_s": 3.5})
+    tool_sessions._save({**base, "session_id": "closed", "shift_id": "shift-test",
+                         "start_ts": 900.0, "end_ts": 950.0, "duration_s": 50.0})
+    seen = []
+    test_bus.subscribe(seen.append)
+    service = ToolSessionService(bus=test_bus, classifier=RuleClassifier(), shift=SHIFT)
+    service.start()
+    service.stop()
+    test_bus.drain()
+    rows = {r["session_id"]: r for r in tool_sessions.list_sessions("shift-test")}
+    assert rows["orphan"]["end_ts"] == pytest.approx(1003.5) and rows["orphan"]["reason"] == "restart"
+    assert rows["orphan"]["duration_s"] == pytest.approx(3.5)
+    assert rows["closed"]["end_ts"] == 950.0 and rows["closed"]["reason"] is None
+    assert tool_sessions.list_sessions("shift-other")[0]["end_ts"] is None
+    assert seen == []                                    # nothing published
+    assert tool_sessions.confirm("orphan", "grinder-1", True)["confirmation"] == "confirmed"
+
+
+def test_service_reports_model_that_answered(svc, monkeypatch):
+    from backend import tool_classifier
+    real = tool_classifier.classify
+    monkeypatch.setattr(tool_classifier, "classify",
+                        lambda clf, window: {**real(clf, window), "model": "fallback-rules"})
+    service, seen, bus = svc
+    feed(bus, sequence([("still", 3), ("tool", 8)]))
+    assert service.state()["model"] == "fallback-rules"
+    assert service.state()["model_info"]["model"] == "rules"         # the loaded classifier
+    assert of_type(seen, "tool_session_started")[0].payload["model"] == "fallback-rules"
+    assert all(e.payload["model"] == "fallback-rules" for e in of_type(seen, "activity_changed"))
 
 
 def test_service_without_start_and_module_singleton(tmp_db):

@@ -50,7 +50,7 @@ class Event:
 @dataclass(slots=True)
 class ImuSample:
     n: Optional[int]   # band sample counter; a jump means lost samples
-    t: float           # band counter, seconds
+    t: float           # band counter, milliseconds (the SDK's `m.t`, unchanged)
     time: float        # real time of the reading, epoch seconds
     ax: float          # g
     ay: float

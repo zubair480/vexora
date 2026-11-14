@@ -52,6 +52,9 @@ def _band() -> dict:
             status = bridge_mod.get_bridge().status()
         except Exception:
             status = {}
+    link = _module("browser_link")
+    if link and _call(link, "active", default=False) and not status.get("connected"):
+        status = _call(link, "status", default={}) or {}
     replay = _module("replay")
     replay_on = bool((_call(replay, "replay_status", default={}) or {}).get("running"))
     number = None
@@ -129,9 +132,11 @@ def build(shift_id: Optional[str] = None) -> dict[str, Any]:
         })
 
     result = _call(exposure, "compute", shift_id, default=None)
-    total = result.get("total_points") if result else None
+    partial = result.get("total_points") if result else None
+    # A figure that leaves out unconfirmed sessions is not the shift's exposure: only "ok" is a number.
+    total = partial if result and result.get("status") == "ok" else None
     recs = _call(planner, "list_recommendations", shift_id, default=[]) or []
-    rec = recs[-1] if recs else None
+    rec = next((r for r in recs if r.get("status") == "pending"), None)   # list is newest first
     if rec and isinstance(rec.get("payload"), dict):
         rec = {**rec, **rec["payload"]}
 
@@ -154,7 +159,7 @@ def build(shift_id: Optional[str] = None) -> dict[str, Any]:
     defect = open_defects[-1] if open_defects else None
     order = work_orders[-1] if work_orders else None
     events = []
-    for e in database.list_events(shift_id):
+    for e in database.list_events(shift_id, types=list(EVENT_KIND), limit=300):
         kind = EVENT_KIND.get(e["type"])
         if not kind:
             continue
@@ -192,7 +197,7 @@ def build(shift_id: Optional[str] = None) -> dict[str, Any]:
         "tool": tool,
         "activity": activity,
         "exposure": {
-            "label": LABEL, "current": total,
+            "label": LABEL, "current": total, "partialPoints": partial,
             "projected": rec.get("projected_points") if rec else None,
             "action": config.ACTION_POINTS, "limit": config.LIMIT_POINTS,
             "a8": result.get("a8") if result else None,
@@ -216,8 +221,10 @@ def build(shift_id: Optional[str] = None) -> dict[str, Any]:
         } if order else None),
         "recommendation": ({
             "id": rec.get("recommendation_id"),
-            "headline": (f"Next planned task could raise estimated exposure to {rec.get('projected_points')} points — review required."
-                         if rec.get("crosses_action") or rec.get("crosses_limit")
+            "headline": ("Next planned task: no projection yet — tool use needs confirmation."
+                         if rec.get("projected_points") is None else
+                         f"Next planned task could raise estimated exposure to {rec.get('projected_points')} points — review required."
+                         if rec.get("projected_level") not in (None, "below_action")
                          else f"Next planned task: estimated exposure {rec.get('projected_points')} points."),
             "detail": " ".join(rec.get("reasons") or []),
             "projectedPoints": rec.get("projected_points"), "deltaPoints": rec.get("additional_points"),
@@ -232,8 +239,8 @@ def build(shift_id: Optional[str] = None) -> dict[str, Any]:
             "beltHealth": None,
             "activeDefects": len(open_defects),
             "workersOnTask": 1 if _band()["connected"] else None,
-            "vibrationRisk": ({"below": "Normal", "action": "Elevated", "limit": "High"}.get(
-                str(result.get("level"))) if result else None),
+            "vibrationRisk": ({"below_action": "Normal", "above_action": "Elevated", "above_limit": "High"}.get(
+                str(result.get("level"))) if result and result.get("status") == "ok" else None),
             "exposurePoints": total,
         },
     }
