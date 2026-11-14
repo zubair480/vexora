@@ -17,16 +17,21 @@ interface KpiItem {
 
 const EASE = [0.22, 1, 0.36, 1] as const;
 
+/** Shown for any KPI the server has no real source for. Never replaced by a made-up number. */
+const MISSING = { value: '—', caption: 'Not measured', tone: 'neutral' as Tone };
+
 function buildItems(k: Kpis): KpiItem[] {
-  const health = beltHealthTone(k.beltHealth);
   const defects = defectsTone(k.activeDefects);
-  const exposure = exposureKpi(k.exposurePoints);
+  const health = k.beltHealth == null ? MISSING : { value: `${Math.round(k.beltHealth)}%`, ...beltHealthTone(k.beltHealth) };
+  const workers = k.workersOnTask == null ? MISSING : { value: String(k.workersOnTask), caption: 'On task now', tone: 'info' as Tone };
+  const risk = k.vibrationRisk == null ? MISSING : { value: k.vibrationRisk, caption: 'vs baseline', tone: riskTone[k.vibrationRisk] };
+  const exposure = k.exposurePoints == null ? MISSING : { value: `${Math.round(k.exposurePoints)} pts`, ...exposureKpi(k.exposurePoints) };
   return [
-    { key: 'health', label: 'Belt Health', value: `${Math.round(k.beltHealth)}%`, caption: health.caption, tone: health.tone, icon: HeartPulse },
+    { key: 'health', label: 'Belt Health', ...health, icon: HeartPulse },
     { key: 'defects', label: 'Active Defects', value: String(k.activeDefects), caption: defects.caption, tone: defects.tone, icon: TriangleAlert },
-    { key: 'workers', label: 'Workers on Task', value: String(k.workersOnTask), caption: 'On task now', tone: 'info', icon: Users },
-    { key: 'risk', label: 'Vibration Risk', value: k.vibrationRisk, caption: 'vs baseline', tone: riskTone[k.vibrationRisk], icon: Activity },
-    { key: 'exposure', label: 'Current Exposure', value: `${Math.round(k.exposurePoints)} pts`, caption: exposure.caption, tone: exposure.tone, icon: Gauge },
+    { key: 'workers', label: 'Workers on Task', ...workers, icon: Users },
+    { key: 'risk', label: 'Vibration Risk', ...risk, icon: Activity },
+    { key: 'exposure', label: 'Current Exposure', ...exposure, icon: Gauge },
   ];
 }
 
@@ -59,7 +64,7 @@ export function KpiRow({ kpis }: { kpis: Kpis }) {
             </span>
             <div className="min-w-0 flex-1">
               <p className="label line-clamp-2 font-medium leading-snug">{label}</p>
-              <p className={clsx('whitespace-nowrap font-display text-xl font-bold leading-tight tabular-nums 2xl:text-2xl', toneTextStrong[tone])}>{value}</p>
+              <p className={clsx('whitespace-nowrap font-display text-xl font-bold leading-tight tabular-nums 2xl:text-2xl', caption === MISSING.caption ? 'text-ink-3' : toneTextStrong[tone])}>{value}</p>
               <p className="line-clamp-2 text-[11px] leading-snug text-ink-2">{caption}</p>
             </div>
           </Card>
