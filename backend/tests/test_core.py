@@ -35,4 +35,7 @@ def test_app_starts(tmp_db):
     from backend.main import app
     with TestClient(app) as client:
         assert client.get("/api/health").json()["ok"] is True
-        assert client.get("/api/events").json() == []
+        # The ToolSense detector is one per process, so a state change left by an earlier test
+        # can be published here; a fresh app must hold no inspection, exposure or device events.
+        events = [e for e in client.get("/api/events").json() if e["type"] != "activity_changed"]
+        assert events == []

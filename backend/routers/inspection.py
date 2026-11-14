@@ -80,7 +80,12 @@ def listen(body: ListenBody):
             "message": "No band is connected, so nothing was heard. Connect the band from the "
                        "band page, or send the report as typed text to /api/inspection/report."})
     try:
-        transcript = speech_engine.capture(band, body.seconds)
+        from .. import vexo_bridge
+        # The bridge's guard marks the microphone as on and applies queued LED commands after.
+        with vexo_bridge.get_bridge().microphone() as guarded:
+            transcript = speech_engine.capture(guarded, body.seconds)
+    except vexo_bridge.BridgeError as error:
+        raise HTTPException(status_code=409, detail={"error": "no-band", "message": str(error)})
     except speech_engine.SpeechCaptureError as error:
         status = 409 if error.code in ("no-band", "busy") else 503
         raise HTTPException(status_code=status, detail={"error": error.code, "message": error.message})
