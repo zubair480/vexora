@@ -87,7 +87,7 @@ export function useShift(demo: ShiftData): { data: ShiftData; mode: DataMode; er
 
   const samples = imu ? imu.samples.map(toMotion) : [];
   const rms = samples.length ? windowRms(samples) : { accelRms: null, gyroRms: null };
-  const replay = Boolean(server.replay || server.band?.replay || (imu && imu.source !== 'band'));
+  const replay = Boolean(server.replay || server.band?.replay || imu?.source === 'replay' || imu?.source === 'synthetic');
   const data: ShiftData = {
     ...server,
     replay,
