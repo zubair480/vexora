@@ -86,20 +86,46 @@ export interface Recommendation {
   secondaryCta: string;
 }
 
-export interface SensorSample {
-  t: number;                // seconds since start of window
-  accel: number;            // |a| deviation, m/s²
-  gyro: number;             // °/s
+// ---- Vexo band: these mirror the kit's JavaScript SDK (reference/vexo-open-kit/docs/api.md) ----
+
+/** One SDK `motion` event, unchanged: acceleration in g, turning speed in degrees/second. */
+export interface MotionSample {
+  t: number;                // band's own counter, ms since it started
+  time: number;             // real time, ms since 1970 (JavaScript SDK unit)
+  n: number | null;         // sample number (firmware 1.1); null on 1.0
+  ax: number; ay: number; az: number;                  // g (null-free: we always ask for accel)
+  gx: number | null; gy: number | null; gz: number | null; // °/s; null with sensors: 'accel'
 }
 
+/** SDK `battery` event fields. */
+export interface BandBattery {
+  percent: number;
+  state: 'battery' | 'charging' | 'charged';
+  charging: boolean;
+}
+
+/** SDK gesture kinds (`configure({ events: true })`). */
+export type GestureKind = 'tap' | 'double-tap' | 'free-fall' | 'tilt' | 'orientation' | 'motion-start' | 'motion-stop';
+
+/** Where the band data comes from. 'mock' = canned data, no SDK; the rest = SDK transports. */
+export type BandSource = 'mock' | 'sim' | 'ble' | 'serial';
+
 export interface BandState {
-  name: string;             // "Vexo band"
-  connected: boolean;
-  live: boolean;            // false = stale data
-  battery: number;          // %
-  accelRms: number;
-  gyroRms: number;
-  samples: SensorSample[];
+  source: BandSource;
+  number: number | null;    // the team's band number (SDK `band.number`); null = not set yet
+  name: string;             // SDK `band.name`, e.g. "Vexo-HACK-07"
+  connected: boolean;       // SDK `band.connected`
+  reconnecting: boolean;    // SDK `band.reconnecting`
+  live: boolean;            // false = no motion sample for a while (stale)
+  firmware: string | null;  // SDK `band.info.firmware`
+  motionRate: number;       // samples/second asked for in configure({ motion })
+  battery: BandBattery | null;
+  rssi: number | null;      // SDK `link` event, dBm; null over USB or with no reading
+  lastGesture: { kind: GestureKind; time: number } | null;
+  samples: MotionSample[];  // newest last, a few seconds' window
+  accelRms: number;         // m/s², vibration around 1 g, over the window (derived)
+  gyroRms: number;          // °/s, over the window (derived)
+  error: string | null;     // SDK VexoError message, shown to the user as is
 }
 
 export type EventKind = 'walking' | 'inspection' | 'tool' | 'workorder' | 'defect' | 'exposure' | 'vibration';
