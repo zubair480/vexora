@@ -17,6 +17,7 @@ from pathlib import Path
 
 import numpy as np
 from sklearn.metrics import classification_report, confusion_matrix
+from sklearn.model_selection import GroupShuffleSplit
 
 from backend import config, imu_features, models
 from backend import tool_classifier as tc
@@ -24,6 +25,8 @@ from backend import tool_classifier as tc
 TARGETS = {"stationary": 5, "walking": 5, "gesture": 5, "tool_idle": 5, "tool_active": 10}
 MIN_SESSIONS_PER_CLASS = 3      # below this for any class present -> no accuracy claim
 REPORT_NAME = "toolsense_report.json"
+SYNTHETIC_REPORT_NAME = "toolsense_report.synthetic.json"   # synthetic runs never overwrite the real report
+REAL_SOURCE = "band"            # only recordings from the band itself can support an accuracy claim
 MIN_WINDOW_COMPLETENESS = 0.75  # windows with more missing data than this are not used
 HONESTY = ("Estimated activity classifier from wrist motion, evaluated on held-out sessions; "
            "it is not a certified measurement of tool use or vibration exposure.")
@@ -103,22 +106,35 @@ def build_dataset(recordings, window_s=1.5, overlap=0.5):
     return X, np.asarray(y, dtype=str), np.asarray(groups, dtype=str), meta
 
 
-def split_by_session(y, groups, test_size=0.3, seed=0):
-    """Session-level stratified split: whole sessions are held out, never single windows.
+def _session_classes(y, groups) -> dict[str, list[str]]:
+    """class -> sessions carrying it (a session carries one label)."""
+    by_class: dict[str, list[str]] = {}
+    for g in dict.fromkeys(groups):
+        by_class.setdefault(Counter(y[groups == g]).most_common(1)[0][0], []).append(g)
+    return by_class
 
-    Per class, at least one session is held out when the class has >= 2 sessions and at least
-    one always stays in train, so every class appears in train.
+
+def split_by_session(y, groups, test_size=0.3, seed=0):
+    """Session-level split: whole sessions are held out, never single windows.
+
+    GroupShuffleSplit, retrying seeds until every class is in train and every class with >= 2
+    sessions is on both sides; if no seed manages that, a per-class session split is used.
     """
     y, groups = np.asarray(y, dtype=str), np.asarray(groups, dtype=str)
-    rng = np.random.default_rng(seed)
-    by_class: dict[str, list[str]] = {}
-    for g in dict.fromkeys(groups):                     # a session carries one label
-        by_class.setdefault(Counter(y[groups == g]).most_common(1)[0][0], []).append(g)
+    by_class = _session_classes(y, groups)
+    need_test = {c for c, sessions in by_class.items() if len(sessions) >= 2}
+    for attempt in range(50):
+        try:
+            split = GroupShuffleSplit(n_splits=1, test_size=test_size, random_state=seed + attempt)
+            train_idx, test_idx = next(split.split(np.zeros(len(y)), y, groups))
+        except ValueError:                              # e.g. a single session: nothing to hold out
+            break
+        if set(y[train_idx]) == set(by_class) and need_test <= set(y[test_idx]):
+            return np.sort(train_idx), np.sort(test_idx)
+    rng = np.random.default_rng(seed)                   # fallback: hold out per class
     test_groups: set[str] = set()
-    for cls in sorted(by_class):
+    for cls in sorted(need_test):
         sessions = sorted(by_class[cls])
-        if len(sessions) < 2:
-            continue
         k = min(len(sessions) - 1, max(1, int(round(test_size * len(sessions)))))
         test_groups.update(rng.permutation(sessions)[:k].tolist())
     is_test = np.isin(groups, sorted(test_groups))
@@ -168,24 +184,41 @@ def _jsonable(obj):
 
 def run(recordings_dir=None, models_dir=None, include_synthetic=False, window_s=1.5, overlap=0.5,
         verbose=True, n_estimators=120) -> dict:
-    """Load recordings, evaluate on held-out sessions, save model + report. Returns the report."""
+    """Load recordings, evaluate on held-out sessions, save model + report. Returns the report.
+
+    With include_synthetic the model and report go to their own `.synthetic.` files, so a
+    pipeline test can never replace the real model or report.
+    """
     say = print if verbose else (lambda *a, **k: None)
     models_dir = Path(models_dir) if models_dir is not None else Path(config.MODELS)
-    recs = load_recordings(recordings_dir, include_synthetic)
+    model_name = tc.SYNTHETIC_MODEL_NAME if include_synthetic else tc.MODEL_NAME
+    report_name = SYNTHETIC_REPORT_NAME if include_synthetic else REPORT_NAME
+    loaded = load_recordings(recordings_dir, include_synthetic)
+    skipped = list(loaded.skipped)
+    X, y, groups, _ = build_dataset(loaded, window_s, overlap)
+    # Sessions are counted from what actually produced windows, not from folders on disk.
+    usable = set(groups.tolist())
+    for r in loaded:
+        if r.session_id not in usable:
+            skipped.append({"path": str(r.path), "reason": "no usable windows (too short or too many lost samples)"})
+    recs = [r for r in loaded if r.session_id in usable]
     collection = collection_status(recs)
     per_label = Counter(r.label for r in recs)
-    sources = sorted({str(r.meta.get("source", "unknown")) for r in recs})
+    sources = sorted({str(r.meta.get("source") or "unknown") for r in recs})
     synthetic = "synthetic" in sources
-    report = {"status": "no_data", "accuracy_claim": False, "collection": collection,
+    reasons: list[str] = []                             # why no accuracy claim is made
+    report = {"status": "no_data", "accuracy_claim": False, "accuracy_claim_reasons": reasons,
+              "collection": collection,
               "sessions_per_class": {label: per_label.get(label, 0) for label in TARGETS},
               "sources": sources, "contains_synthetic": synthetic, "window_s": window_s,
-              "overlap": overlap, "generated_at": time.time(), "skipped": recs.skipped,
+              "overlap": overlap, "generated_at": time.time(), "skipped": skipped,
               "honesty": HONESTY, "model_saved": False}
 
     def finish():
-        models_dir.mkdir(parents=True, exist_ok=True)
+        report["accuracy_claim"] = bool(report["status"] == "ok" and not reasons)
         clean = _jsonable(report)
-        (models_dir / REPORT_NAME).write_text(json.dumps(clean, indent=2), encoding="utf-8")
+        text = json.dumps(clean, indent=2)
+        tc.atomic_replace(models_dir / report_name, lambda tmp: tmp.write_text(text, encoding="utf-8"))
         return clean
 
     def say_missing():
@@ -194,41 +227,51 @@ def run(recordings_dir=None, models_dir=None, include_synthetic=False, window_s=
             c = collection[label]
             say(f"  {label:<12} have {c['have']:>2} / target {c['target']:>2}   missing {c['missing']}")
 
-    if synthetic:
+    if include_synthetic:
         say("WARNING: synthetic recordings included. This model/report is a pipeline test and must "
             "NOT be presented as real performance.")
     if not recs:
-        say("No labelled recordings found: nothing to train, no model written.")
+        reasons.append("no usable labelled recordings")
+        say("No usable labelled recordings found: nothing to train, no model written.")
         say_missing()
         return finish()
 
     present = sorted(per_label)
     classes_present = sorted({tc.LABEL_TO_CLASS[label] for label in present})
-    enough = len(classes_present) >= 2 and all(per_label[label] >= MIN_SESSIONS_PER_CLASS for label in present)
+    has_tool = "tool_use" in classes_present
+    few = [label for label in present if per_label[label] < MIN_SESSIONS_PER_CLASS]
+    if len(classes_present) < 2:
+        reasons.append("fewer than 2 classes present")
+    if few:
+        reasons.append(f"fewer than {MIN_SESSIONS_PER_CLASS} sessions for: {', '.join(few)}")
+    if not has_tool:
+        reasons.append("no tool_active recordings: the model cannot recognise tool use")
+    enough = not reasons
     report["status"] = "ok" if enough else "insufficient_data"
-    # A claim needs enough sessions AND real data: synthetic signals can never support one.
-    report["accuracy_claim"] = bool(enough and not synthetic)
+    not_real = sorted(set(sources) - {REAL_SOURCE})
+    if not_real:   # a claim needs real band data: synthetic / replay / unknown sources never support one
+        reasons.append(f"recordings with a source other than {REAL_SOURCE}: {', '.join(not_real)}")
     if not enough:
         say(NOT_VALID)
         say_missing()
-    if len(classes_present) < 2:
-        say("Fewer than 2 classes present: no model fitted.")
+    if len(classes_present) < 2 or not has_tool:
+        say("No model fitted: need tool_active recordings plus at least one other class.")
         return finish()
 
-    X, y, groups, _ = build_dataset(recs, window_s, overlap)
-    if len(set(y)) < 2:
-        report["status"] = "insufficient_data"
-        report["accuracy_claim"] = False
-        say("Recordings too short to give windows for 2 classes: no model fitted.")
-        return finish()
-    hz_min = float(min(imu_features.measure_rate(r.samples) for r in recs))
+    rates = [float(imu_features.measure_rate(r.samples)) for r in recs]
+    hz_min, hz_max = min(rates), max(rates)
     names = tuple(imu_features.features_for_model(hz_min))
     info = {"n_sessions": len(recs), "sessions_per_class": dict(per_label), "sources": sources,
-            "contains_synthetic": synthetic, "sample_hz_min": hz_min, "window_s": window_s,
-            "overlap": overlap, "accuracy_claim": report["accuracy_claim"]}
+            "contains_synthetic": synthetic, "sample_hz_min": hz_min, "sample_hz_max": hz_max,
+            "window_s": window_s, "overlap": overlap, "accuracy_claim": False}
 
     train_idx, test_idx = split_by_session(y, groups)
     if len(test_idx) and len(set(y[train_idx])) >= 2:
+        missing_test = sorted(set(y) - set(y[test_idx]))
+        if missing_test:
+            reasons.append(f"classes with no held-out session: {', '.join(missing_test)}")
+            report["status"] = "insufficient_data"
+        valid = report["status"] == "ok"
         forest = tc.ForestClassifier(n_estimators).fit(X[train_idx], y[train_idx], names, info)
         rules = tc.RuleClassifier()
         test_sessions = sorted(set(groups[test_idx]))
@@ -243,7 +286,7 @@ def run(recordings_dir=None, models_dir=None, include_synthetic=False, window_s=
             text = res.pop("text")
             report[key] = {**res, "model": clf.name}
             say(f"\n=== {key} ({clf.name}) on {len(test_sessions)} held-out sessions ===")
-            if not enough:
+            if not valid:
                 say(NOT_VALID)
             say(text)
             say(f"confusion matrix (rows = truth, columns = predicted) {labels}:")
@@ -263,15 +306,20 @@ def run(recordings_dir=None, models_dir=None, include_synthetic=False, window_s=
         for t in trigger:
             say(f"trigger time {t['session_id']}: truth {t['truth_s']:.1f} s, estimated {t['predicted_s']:.1f} s")
     else:
+        reasons.append("nothing could be held out (no class has 2 sessions): no metrics")
+        report["status"] = "insufficient_data"
         report["evaluation_note"] = "no class has 2 sessions: nothing could be held out, no metrics"
         say("No class has 2 sessions, so nothing could be held out: no metrics.")
 
+    info["accuracy_claim"] = bool(report["status"] == "ok" and not reasons)
     final = tc.ForestClassifier(n_estimators).fit(X, y, names, info)   # refit on everything for live use
-    path = final.save(models_dir / tc.MODEL_NAME)
+    path = final.save(models_dir / model_name)
     report.update(model_saved=True, model_path=path, final_model_fit_on="all_sessions",
-                  feature_names=list(names), sample_hz_min=hz_min, n_windows=int(len(y)))
+                  feature_names=list(names), sample_hz_min=hz_min, sample_hz_max=hz_max, n_windows=int(len(y)))
     say(f"\nModel refitted on all sessions and saved to {path}"
-        + (" (flagged contains_synthetic: ignored by the live detector)" if synthetic else ""))
+        + (" (synthetic pipeline-test file: never loaded by the live detector)" if include_synthetic else ""))
+    if reasons:
+        say("No accuracy claim: " + "; ".join(reasons))
     return finish()
 
 
