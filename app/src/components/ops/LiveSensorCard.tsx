@@ -28,7 +28,7 @@ const TICK_MS = 100;    // demo data: how often the window scrolls
 const STEP = 5;         // demo data: samples per tick (50 Hz feel)
 const MODES: Mode[] = ['live', 'reconnecting', 'stale', 'disconnected'];
 
-// Known SDK sources; anything else (e.g. a future 'backend') falls back to a neutral badge.
+// Known sources; anything unexpected falls back to a neutral badge showing the raw value.
 const SOURCES: Record<string, { label: string; tone: Tone }> = {
   mock: { label: 'Demo data', tone: 'neutral' },
   sim: { label: 'Pretend band', tone: 'plum' },
@@ -79,11 +79,12 @@ const CHANNELS = {
   },
 } as const;
 
-function SensorChart({ channel, data, rms }: { channel: keyof typeof CHANNELS; data: Point[]; rms: number }) {
+function SensorChart({ channel, data, rms }: { channel: keyof typeof CHANNELS; data: Point[]; rms: number | null }) {
   const c = CHANNELS[channel];
   const uid = useId().replace(/:/g, '');
   const gradId = `ls-${uid}-${channel}`;
   const b = bound(data.map((p) => p[channel]), c.min, c.step);
+  const rmsText = rms === null ? '—' : rms.toFixed(c.digits);
   return (
     <div>
       <div className="flex items-center justify-between gap-3">
@@ -92,10 +93,10 @@ function SensorChart({ channel, data, rms }: { channel: keyof typeof CHANNELS; d
           <span className="truncate text-sm font-medium text-ink">{c.label}</span>
         </div>
         <span className={clsx('shrink-0 rounded-md px-2 py-0.5 text-xs tabular-nums', c.badgeClass)}>
-          RMS <span className="font-display font-semibold">{rms.toFixed(c.digits)}</span>
+          RMS <span className="font-display font-semibold">{rmsText}</span>
         </span>
       </div>
-      <div className="mt-1.5 h-[72px] w-full" role="img" aria-label={`${c.label}, RMS ${rms.toFixed(c.digits)}`}>
+      <div className="mt-1.5 h-[72px] w-full" role="img" aria-label={`${c.label}, RMS ${rms === null ? 'not available' : rmsText}`}>
         <ResponsiveContainer width="100%" height={72}>
           <AreaChart data={data} margin={{ top: 6, right: 2, bottom: 6, left: 0 }}>
             <defs>
@@ -192,8 +193,16 @@ export function LiveSensorCard({ band, controls }: { band: BandState; controls?:
   const pct = band.battery?.percent;
   const BatteryIcon = band.battery?.charging ? BatteryCharging : BatteryMedium;
   const lastSampleAt = band.samples.length ? band.samples[band.samples.length - 1].time : null;
+  const rate = band.effectiveRate ?? band.motionRate;
+  const quality = [
+    rate != null ? `${Math.round(rate)} Hz` : null,
+    band.completeness != null ? `${Math.round(band.completeness * 100)}%` : null,
+  ].filter(Boolean).join(' · ');
 
-  const pill =
+  // A replay is recorded data: label it plainly and never show the live "Connected" pulse.
+  const pill = band.replay ? (
+    <Pill tone="warn">Replay — recorded data</Pill>
+  ) :
     mode === 'live' ? (
       <Pill tone="ok" className="[&>span]:motion-safe:animate-pulse" dot>Connected</Pill>
     ) : mode === 'reconnecting' ? (
@@ -210,8 +219,8 @@ export function LiveSensorCard({ band, controls }: { band: BandState; controls?:
     <Card className="flex h-full min-h-[296px] flex-col p-5">
       <CardHeader
         icon={<Watch size={18} strokeWidth={1.75} />}
-        title="Vexo Band — Live"
-        subtitle={band.name}
+        title={band.replay ? 'Vexo Band — Replay' : 'Vexo Band — Live'}
+        subtitle={band.name ?? undefined}
         right={
           <div className="flex flex-wrap items-center justify-end gap-x-2.5 gap-y-1">
             {pill}
@@ -227,6 +236,11 @@ export function LiveSensorCard({ band, controls }: { band: BandState; controls?:
 
       <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-ink-3">
         <Pill tone={source.tone} className="!px-2 !py-0.5 text-[11px]">{source.label}</Pill>
+        {quality && (
+          <span className="tabular-nums" title={band.effectiveRate != null ? 'Samples per second arriving · share received' : 'Samples per second asked for'}>
+            {quality}
+          </span>
+        )}
         {band.rssi !== null && (
           <span className="inline-flex items-center gap-1" title="Signal strength">
             <Signal size={13} strokeWidth={1.75} />
