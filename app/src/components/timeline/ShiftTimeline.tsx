@@ -72,11 +72,15 @@ const FILTERS: { id: FilterId; label: string; icon?: LucideIcon }[] = [
   { id: 'workorder', label: 'Work Orders', icon: ClipboardList },
 ];
 
-/** "08:02" → minutes since midnight, for ordering. */
-function toMinutes(hhmm: string): number {
+/** "08:02" → minutes since midnight, for ordering. Unknown start sorts first, so "Latest" is a timed event. */
+function toMinutes(hhmm: string | null): number {
+  if (!hhmm) return -1;
   const [h, m] = hhmm.split(':').map(Number);
   return (h || 0) * 60 + (m || 0);
 }
+
+/** Provenance worth flagging on a chip; band / manual / derived events need no tag. */
+const SOURCE_TAG: Record<string, string> = { replay: 'replay', synthetic: 'synthetic', ai: 'AI' };
 
 function FilterTabs({ value, onChange }: { value: FilterId; onChange: (f: FilterId) => void }) {
   const groupId = useId();
@@ -158,8 +162,13 @@ function TimelineItem({ event, latest, fill }: { event: ShiftEvent; latest: bool
         </span>
         <div className="min-w-0">
           {latest && <p className={clsx('text-[10px] font-semibold uppercase tracking-wide', k.text)}>Latest</p>}
-          <p className="text-[11px] font-semibold tabular-nums text-ink">
-            {event.end ? `${event.start} – ${event.end}` : event.start}
+          <p className="flex items-center gap-1.5 text-[11px] font-semibold tabular-nums text-ink">
+            <span>{event.end ? `${event.start ?? '—'} – ${event.end}` : event.start ?? 'Time unknown'}</span>
+            {event.source && SOURCE_TAG[event.source] && (
+              <span className="rounded bg-surface/80 px-1 py-px text-[9px] font-semibold uppercase tracking-wide text-ink-3 ring-1 ring-line">
+                {SOURCE_TAG[event.source]}
+              </span>
+            )}
           </p>
           <p className="truncate text-xs font-semibold text-ink">{event.title}</p>
           <p className="mt-0.5 line-clamp-2 text-[11px] leading-snug text-ink-2">{event.detail}</p>

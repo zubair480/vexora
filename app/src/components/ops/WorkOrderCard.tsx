@@ -14,9 +14,9 @@ import {
 } from 'lucide-react';
 import { Card, CardHeader, Pill, type Tone } from '../ui/primitives';
 import type { WorkOrder } from '../../data/types';
+import { DASH, OpsEmptyCard } from './OpsEmpty';
 
 type WoStatus = WorkOrder['status'];
-type Priority = WorkOrder['priority'];
 
 const fade = {
   initial: { opacity: 0, y: 6 },
@@ -25,13 +25,13 @@ const fade = {
   transition: { duration: 0.22 },
 };
 
-const STATUS_PILL: Record<WoStatus, { tone: Tone; dot: boolean; label: string }> = {
+const STATUS_PILL: Record<string, { tone: Tone; dot: boolean; label: string }> = {
   draft: { tone: 'warn', dot: false, label: 'Draft' },
   submitted: { tone: 'info', dot: true, label: 'Submitted' },
   approved: { tone: 'ok', dot: false, label: 'Approved' },
 };
 
-const PRIORITY: Record<Priority, { tone: Tone; label: string }> = {
+const PRIORITY: Record<string, { tone: Tone; label: string }> = {
   high: { tone: 'bad', label: 'High' },
   medium: { tone: 'warn', label: 'Medium' },
   low: { tone: 'neutral', label: 'Low' },
@@ -49,10 +49,24 @@ function Row({ icon: Icon, label, children }: { icon: LucideIcon; label: string;
   );
 }
 
-export function WorkOrderCard({ workOrder }: { workOrder: WorkOrder }) {
+const TITLE_ICON = <ClipboardList size={18} strokeWidth={1.75} />;
+
+/** Unknown server values get a neutral pill showing the value itself, never a guessed mapping. */
+function titleCase(v: string) {
+  return v.charAt(0).toUpperCase() + v.slice(1).replace(/[_-]/g, ' ');
+}
+
+export function WorkOrderCard({ workOrder }: { workOrder: WorkOrder | null }) {
+  if (!workOrder) {
+    return <OpsEmptyCard icon={TITLE_ICON} title="Work Order" message="No work order raised this shift" />;
+  }
+  return <WorkOrderBody key={workOrder.id} workOrder={workOrder} />;
+}
+
+function WorkOrderBody({ workOrder }: { workOrder: WorkOrder }) {
   const [status, setStatus] = useState<WoStatus>(workOrder.status);
-  const pill = STATUS_PILL[status];
-  const priority = PRIORITY[workOrder.priority];
+  const pill = STATUS_PILL[status] ?? { tone: 'neutral' as Tone, dot: false, label: titleCase(status) };
+  const priority = PRIORITY[workOrder.priority] ?? { tone: 'neutral' as Tone, label: titleCase(workOrder.priority) };
   const isDraft = status === 'draft';
 
   // The Submit/Undo swap unmounts the focused button; move focus to its counterpart once it has entered.
@@ -78,7 +92,7 @@ export function WorkOrderCard({ workOrder }: { workOrder: WorkOrder }) {
   return (
     <Card className="flex h-full min-h-[248px] flex-col p-5">
       <CardHeader
-        icon={<ClipboardList size={18} strokeWidth={1.75} />}
+        icon={TITLE_ICON}
         title={isDraft ? 'Draft Work Order' : 'Work Order'}
         subtitle={workOrder.id}
         right={
@@ -103,10 +117,10 @@ export function WorkOrderCard({ workOrder }: { workOrder: WorkOrder }) {
           <Pill tone={priority.tone}>{priority.label}</Pill>
         </Row>
         <Row icon={CalendarClock} label="Planned">
-          {workOrder.planned}
+          {workOrder.planned ?? DASH}
         </Row>
         <Row icon={Users} label="Assigned">
-          {workOrder.assignee}
+          {workOrder.assignee ?? DASH}
         </Row>
       </div>
 
@@ -136,13 +150,13 @@ export function WorkOrderCard({ workOrder }: { workOrder: WorkOrder }) {
           ) : (
             <motion.div
               key="submitted"
-              className="flex items-center gap-2 rounded-xl bg-ok-bg px-3 py-2 text-sm text-ok"
+              className={`flex items-center gap-2 rounded-xl px-3 py-2 text-sm ${status === 'submitted' || status === 'approved' ? 'bg-ok-bg text-ok' : 'bg-panel text-ink-2'}`}
               {...fade}
               onAnimationComplete={restoreFocus}
             >
               <CheckCircle2 size={16} strokeWidth={1.75} className="shrink-0" />
               <span className="min-w-0 flex-1 font-medium">
-                {status === 'approved' ? 'Approved' : 'Submitted for approval'}
+                {status === 'approved' ? 'Approved' : status === 'submitted' ? 'Submitted for approval' : pill.label}
                 {status === 'submitted' && <span className="font-normal"> · just now</span>}
               </span>
               {status === 'submitted' && (
