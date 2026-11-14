@@ -1,7 +1,7 @@
 // Vibration-vs-baseline profile along the belt, on the same x scale as the route scene above it.
-// Built only from each station's vibrationDelta (stations without one sit on the baseline), so it
+// Built only from each station's vibrationDelta (stations with no reading are drawn as hollow dots), so it
 // is a visual summary of the station data, not an extra data source. RouteView shows it only when
-// the card has spare height.
+// the card has spare height and at least one station has a reading.
 import type { Station, Status } from '../../data/types';
 import { VB, pctX, stationX } from './route-geometry';
 
@@ -17,6 +17,7 @@ const SIGMA = 46;
 export function VibrationProfile({ stations, idPrefix }: { stations: Station[]; idPrefix: string }) {
   const peaks = stations.map((s) => ({ x: stationX(s.position), d: Math.max(0, s.vibrationDelta ?? 0) }));
   const maxD = Math.max(1, ...peaks.map((p) => p.d));
+  const measured = stations.filter((s) => s.vibrationDelta != null).length;
   const peak = stations.reduce<Station | null>((best, s) => ((s.vibrationDelta ?? 0) > (best?.vibrationDelta ?? 0) ? s : best), null);
 
   const y = (x: number) => {
@@ -33,14 +34,15 @@ export function VibrationProfile({ stations, idPrefix }: { stations: Station[]; 
   return (
     <div className="relative" aria-label={peak ? `Vibration along route: peak +${peak.vibrationDelta}% at ${peak.name}` : 'Vibration along route: at baseline'}>
       <div className="mb-1 flex items-baseline justify-between gap-3 text-[11px]">
-        <span className="text-ink-2">Vibration vs baseline along route</span>
+        <span className="truncate text-ink-2">
+          Vibration vs baseline along route{' '}
+          <span className="text-ink-3">· measured at {measured} of {stations.length} stations</span>
+        </span>
         {peak && peak.vibrationDelta ? (
-          <span className="tabular-nums text-ink-3">
+          <span className="shrink-0 tabular-nums text-ink-3">
             Peak <span className="font-semibold text-bad">+{peak.vibrationDelta}%</span> · {peak.name}
           </span>
-        ) : (
-          <span className="text-ink-3">All stations at baseline</span>
-        )}
+        ) : null}
       </div>
       <div className="relative h-[52px]">
         <svg viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" className="absolute inset-0 h-full w-full" aria-hidden>
@@ -66,7 +68,14 @@ export function VibrationProfile({ stations, idPrefix }: { stations: Station[]; 
           <span
             key={s.id}
             className="absolute h-2 w-2 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-surface"
-            style={{ left: `${pctX(stationX(s.position))}%`, top: `${(BASE / H) * 100}%`, background: c(statusVar[s.status]) }}
+            title={s.vibrationDelta == null ? `${s.name}: no vibration sensor` : undefined}
+            style={{
+              left: `${pctX(stationX(s.position))}%`,
+              top: `${(BASE / H) * 100}%`,
+              // Hollow dot = no sensor at this station (no reading, not a zero reading).
+              background: s.vibrationDelta == null ? c('--surface') : c(statusVar[s.status]),
+              boxShadow: s.vibrationDelta == null ? `inset 0 0 0 1.5px ${c('--ink-3')}` : undefined,
+            }}
           />
         ))}
       </div>

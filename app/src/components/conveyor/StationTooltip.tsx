@@ -18,7 +18,7 @@ export function StationTooltip({
   station: Station;
   open: boolean;
   side: 'left' | 'right';
-  distanceM: number;
+  distanceM: number | null;
   showRole: boolean;
 }) {
   const reduce = useReducedMotion();
@@ -45,13 +45,14 @@ export function StationTooltip({
             <span className="font-semibold">{station.asset ?? station.name}</span>
             <span className="text-surface/50">· {statusLabel[station.status]}</span>
           </div>
-          {showRole && <div className="mt-0.5 text-surface/70">{station.name} · {station.role}</div>}
+          {showRole && <div className="mt-0.5 text-surface/70">{[station.name, station.role].filter(Boolean).join(' · ')}</div>}
           {station.note && <div className="mt-1 leading-snug text-surface/85">{station.note}</div>}
           {/* Compact drops the distance so the card stays clear of the belt; vibration still shows. */}
-          {(!showRole || station.vibrationDelta != null) && (
+          {station.inspected === false && <div className="mt-1 text-warn-bg">Not inspected this shift</div>}
+          {((!showRole && distanceM != null) || station.vibrationDelta != null) && (
             <div className="mt-1.5 border-t border-surface/10 pt-1.5 tabular-nums text-surface/55">
-              {!showRole && <>≈ {distanceM.toLocaleString('en-US')} m from head</>}
-              {!showRole && station.vibrationDelta != null && ' · '}
+              {!showRole && distanceM != null && <>≈ {distanceM.toLocaleString('en-US')} m from head</>}
+              {!showRole && distanceM != null && station.vibrationDelta != null && ' · '}
               {station.vibrationDelta != null && <span className="text-bad-bg">+{station.vibrationDelta}% vibration</span>}
             </div>
           )}

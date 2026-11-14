@@ -5,7 +5,8 @@ import type { Conveyor, Defect } from '../../data/types';
 import { Pill, statusLabel, statusTone } from '../ui/primitives';
 
 /** Distance from the head pulley, rounded to 5 m. RouteView uses the same rule. */
-const metresFromHead = (position: number, lengthM: number) => Math.round((position * lengthM) / 5) * 5;
+const metresFromHead = (position: number, lengthM: number | null) =>
+  lengthM == null ? null : Math.round((position * lengthM) / 5) * 5;
 
 export function StationList({
   conveyor,
@@ -13,7 +14,7 @@ export function StationList({
   focusDefect = false,
 }: {
   conveyor: Conveyor;
-  defect: Defect;
+  defect: Defect | null;
   /** Move focus to the defect row on mount (used when arriving from the route view's defect callout). */
   focusDefect?: boolean;
 }) {
@@ -27,7 +28,7 @@ export function StationList({
   return (
     <ul className="divide-y divide-line overflow-hidden rounded-xl border border-line/70" aria-label={`Stations on ${conveyor.id}`}>
       {stations.map((s) => {
-        const isDefect = s.status === 'defect' || s.id === defect.stationId;
+        const isDefect = s.status === 'defect' || s.id === defect?.stationId;
         const atM = metresFromHead(s.position, conveyor.lengthM);
         return (
           <li
@@ -52,11 +53,12 @@ export function StationList({
             <div className="min-w-0">
               <div className="flex flex-wrap items-baseline gap-x-2">
                 <span className={clsx('text-[13px] font-semibold', isDefect ? 'text-bad' : 'text-ink')}>{s.name}</span>
-                <span className="truncate text-xs text-ink-2">{s.role}</span>
+                {s.role && <span className="truncate text-xs text-ink-2">{s.role}</span>}
               </div>
               <div className="mt-0.5 flex items-center gap-1.5 text-[11.5px] text-ink-3">
                 <span className="truncate">{s.asset ?? '—'}</span>
-                <span className="shrink-0 tabular-nums">· ≈ {atM.toLocaleString('en-US')} m</span>
+                {atM != null && <span className="shrink-0 tabular-nums">· ≈ {atM.toLocaleString('en-US')} m</span>}
+                {s.inspected === false && <span className="shrink-0 text-warn">· Not inspected this shift</span>}
               </div>
               <div
                 className="mt-1.5 hidden h-1 w-full max-w-[220px] overflow-hidden rounded-full bg-panel 2xl:block"
@@ -70,7 +72,7 @@ export function StationList({
               </div>
             </div>
 
-            <p className="hidden min-w-0 text-xs text-ink-2 md:block">{s.note}</p>
+            <p className="hidden min-w-0 text-xs text-ink-2 md:block">{s.note ?? '—'}</p>
 
             <div className="flex flex-wrap items-center justify-end gap-1.5">
               {s.vibrationDelta != null && (

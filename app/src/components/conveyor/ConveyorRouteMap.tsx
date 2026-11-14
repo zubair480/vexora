@@ -16,7 +16,7 @@ function countWord(n: number) {
   return NUMBER_WORDS[n] ?? n.toLocaleString('en-US');
 }
 
-export function ConveyorRouteMap({ conveyor, defect }: { conveyor: Conveyor; defect: Defect }) {
+export function ConveyorRouteMap({ conveyor, defect }: { conveyor: Conveyor; defect: Defect | null }) {
   const [view, setViewState] = useState<RouteMapView>('route');
   const [focusDefect, setFocusDefect] = useState(false);
   const setView = useCallback((v: RouteMapView) => {
@@ -46,7 +46,14 @@ export function ConveyorRouteMap({ conveyor, defect }: { conveyor: Conveyor; def
   const idPrefix = useId().replace(/[^a-zA-Z0-9_-]/g, '');
 
   const n = conveyor.stations.length;
-  const subtitle = `${countWord(n)} station${n === 1 ? '' : 's'} · ${conveyor.lengthM.toLocaleString('en-US')} m · ${conveyor.idlers.toLocaleString('en-US')} idlers`;
+  // Only the known parts: a null length or idler count is left out, never estimated.
+  const subtitle = [
+    `${countWord(n)} station${n === 1 ? '' : 's'}`,
+    conveyor.lengthM != null ? `${conveyor.lengthM.toLocaleString('en-US')} m` : null,
+    conveyor.idlers != null ? `${conveyor.idlers.toLocaleString('en-US')} idlers` : null,
+  ]
+    .filter(Boolean)
+    .join(' · ');
 
   const motionProps = reduce
     ? { initial: false as const, animate: { opacity: 1 }, exit: { opacity: 0 }, transition: { duration: 0 } }

@@ -51,7 +51,7 @@ export function DefectCallout({
       onMouseLeave={onDeactivate}
       onFocus={onActivate}
       onBlur={onDeactivate}
-      aria-label={`Defect detected at ${station.name} / ${defect.asset}. ${meta}. Show in station list`}
+      aria-label={`Defect detected at ${[station.name, defect.asset ?? station.asset].filter(Boolean).join(' / ')}. ${meta}. Show in station list`}
       initial={reduce ? false : { opacity: 0, y: 10, x: '-50%' }}
       animate={{ opacity: 1, y: 0, x: '-50%' }}
       transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1], delay: reduce ? 0 : 0.42 }}
@@ -75,7 +75,7 @@ export function DefectCallout({
           {!compact && defect.detectedAt && <span className="text-[11px] tabular-nums text-ink-3">· {defect.detectedAt}</span>}
         </span>
         <span className="truncate font-display text-[13px] font-semibold text-ink">
-          {station.name} / {defect.asset}
+          {[station.name, defect.asset ?? station.asset].filter(Boolean).join(' / ')}
         </span>
         <span className={clsx('truncate text-ink-2', compact ? 'text-[11px]' : 'text-[11.5px]')}>{meta}</span>
       </span>

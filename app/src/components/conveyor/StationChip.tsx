@@ -32,7 +32,7 @@ export function StationChip({
   order: number;
   active: boolean;
   density: ChipDensity;
-  distanceM: number;
+  distanceM: number | null;
   /** Unique tooltip id (instance-scoped by RouteView). */
   tipId: string;
   onActivate: () => void;
@@ -53,7 +53,7 @@ export function StationChip({
       <motion.button
         type="button"
         aria-describedby={active ? tipId : undefined}
-        aria-label={`${station.name}, ${station.role}, ${statusLabel[station.status]}`}
+        aria-label={[station.name, station.role, statusLabel[station.status]].filter(Boolean).join(', ')}
         onMouseEnter={onActivate}
         onMouseLeave={onDeactivate}
         onFocus={onActivate}
@@ -84,7 +84,9 @@ export function StationChip({
             <span className={clsx('font-semibold', density === 'full' ? 'text-[12.5px]' : 'text-[11.5px]', defect ? 'text-bad' : 'text-ink')}>
               {station.name}
             </span>
-            <span className={clsx('text-ink-2', density === 'full' ? 'text-[11px]' : 'text-[10px]')}>{station.role}</span>
+            {station.role && (
+              <span className={clsx('text-ink-2', density === 'full' ? 'text-[11px]' : 'text-[10px]')}>{station.role}</span>
+            )}
           </span>
         )}
       </motion.button>

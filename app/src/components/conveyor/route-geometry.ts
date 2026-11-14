@@ -37,7 +37,7 @@ export const RETURN_PITCH = 98;
 
 export const stationX = (position: number) => X0 + position * (X1 - X0);
 
-export const isReturnStation = (s: Station) => /return/i.test(s.role);
+export const isReturnStation = (s: Station) => /return/i.test(s.role ?? s.asset ?? '');
 
 /** Where a station's marker sits: on the return idler for return stations, otherwise on the carry run. */
 export function markerY(s: Station) {
