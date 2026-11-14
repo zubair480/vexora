@@ -19,16 +19,21 @@ import { TopBar } from './layout/TopBar';
 export default function App() {
   // The BeltGuard server owns the band and builds the shift; demo data when it is offline.
   const { data: d, mode } = useShift(shift);
-  // Browser-side SDK connection: only a fallback while the server is offline (one link per band).
+  // The browser owns the band link (like the kit dashboard) and forwards readings to the server.
   const vexo = useVexoBand(shift.band);
-  const serverOwnsBand = mode !== 'demo';
-  const band = serverOwnsBand ? d.band : vexo.state;
+  const browserBand = vexo.state.source !== 'mock';
+  const band = browserBand ? vexo.state : mode === 'server' ? d.band : vexo.state;
   return (
     <div className="flex min-h-full">
       <Sidebar />
       <main className="min-w-0 flex-1 px-5 py-5 lg:px-8">
         <div className="mx-auto flex max-w-[1560px] flex-col gap-5">
-          <TopBar conveyor={d.conveyor} mode={mode} replay={Boolean(d.replay)} />
+          <TopBar conveyor={d.conveyor} mode={mode} replay={Boolean(d.replay)} vexo={vexo} />
+          {vexo.state.error && (
+            <p role="alert" className="rounded-xl border border-warn/40 bg-warn-bg px-4 py-2.5 text-sm text-ink">
+              {vexo.state.error}
+            </p>
+          )}
           <HeroHeader conveyor={d.conveyor} shift={d.shift} />
 
           <KpiRow kpis={d.kpis} />
@@ -45,7 +50,7 @@ export default function App() {
 
           <div className="grid grid-cols-12 gap-5">
             <div className="col-span-12 md:col-span-6 xl:col-span-3"><WorkerStatusCard workers={d.workers} /></div>
-            <div className="col-span-12 md:col-span-6 xl:col-span-5"><LiveSensorCard band={band} controls={serverOwnsBand ? undefined : vexo} /></div>
+            <div className="col-span-12 md:col-span-6 xl:col-span-5"><LiveSensorCard band={band} controls={vexo} /></div>
             <div className="col-span-12 md:col-span-6 xl:col-span-4"><ActiveToolCard tool={d.tool} /></div>
             <div className="col-span-12 md:col-span-6 xl:col-span-6"><DefectCard defect={d.defect} /></div>
             <div className="col-span-12 xl:col-span-6"><WorkOrderCard workOrder={d.workOrder} /></div>

@@ -1,7 +1,9 @@
-import { Bell, ChevronDown, MapPin, Search } from 'lucide-react';
+import { Bell, Bluetooth, ChevronDown, MapPin, Search } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { Pill } from '../components/ui/primitives';
 import type { DataMode } from '../api/useShift';
+import { BAND_NUMBER } from '../band/config';
+import type { VexoBand } from '../band/useVexoBand';
 import type { Conveyor } from '../data/types';
 
 /** Where the numbers on screen come from. Replay and demo data are always labelled. */
@@ -12,7 +14,42 @@ function SourcePill({ mode, replay }: { mode: DataMode; replay: boolean }) {
   return <Pill tone="ok" dot>Live</Pill>;
 }
 
-export function TopBar({ conveyor, mode, replay }: { conveyor: Conveyor; mode: DataMode; replay: boolean }) {
+/** The kit dashboard's Connect button, for the team's band. Bluetooth needs a click (browser rule). */
+function BandButton({ vexo }: { vexo: VexoBand }) {
+  const { phase, state, forwarding } = vexo;
+  const busy = phase === 'connecting' || phase === 'setting-up';
+  if (phase === 'connected' || phase === 'setting-up') {
+    return (
+      <div className="flex items-center gap-2">
+        <Pill tone={phase === 'connected' ? 'ok' : 'neutral'} dot>
+          <Bluetooth size={13} /> {state.name ?? 'Band'}
+          {phase === 'setting-up' ? ' · setting up…' : forwarding === 'on' ? ' · streaming to BeltGuard' : ''}
+        </Pill>
+        <button
+          type="button"
+          onClick={() => void vexo.disconnect()}
+          className="rounded-xl border border-line bg-surface px-3 py-1.5 text-xs font-medium text-ink-2 hover:bg-panel"
+        >
+          Disconnect
+        </button>
+      </div>
+    );
+  }
+  return (
+    <button
+      type="button"
+      disabled={busy}
+      onClick={() => void vexo.connect('ble')}
+      title={BAND_NUMBER ? `Double-tap the band first (it blinks blue), then pick Vexo-HACK-${String(BAND_NUMBER).padStart(2, '0')}` : undefined}
+      className="flex items-center gap-2 rounded-xl bg-brand px-3.5 py-2 text-sm font-semibold text-white shadow-card transition hover:brightness-105 disabled:opacity-60"
+    >
+      <Bluetooth size={16} />
+      {busy ? 'Connecting… pick your band' : 'Connect Bluetooth'}
+    </button>
+  );
+}
+
+export function TopBar({ conveyor, mode, replay, vexo }: { conveyor: Conveyor; mode: DataMode; replay: boolean; vexo: VexoBand }) {
   const [now, setNow] = useState(() => new Date());
   useEffect(() => {
     const id = setInterval(() => setNow(new Date()), 30_000);
@@ -34,6 +71,7 @@ export function TopBar({ conveyor, mode, replay }: { conveyor: Conveyor; mode: D
         </nav>
       </div>
       <div className="flex items-center gap-3">
+        <BandButton vexo={vexo} />
         <SourcePill mode={mode} replay={replay} />
         <span className="hidden text-sm text-ink-2 sm:block">
           {now.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })} ·{' '}

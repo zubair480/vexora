@@ -2,7 +2,7 @@
 // Ask the team; never guess it and never use an example number. The app connects to this
 // band only, and only after someone presses Connect. null = not set: the dashboard runs on
 // canned data and the Connect buttons explain what to do.
-export const BAND_NUMBER: number | null = null;
+export const BAND_NUMBER: number | null = 7;   // Vexo-HACK-07, given by the team
 
 // Motion rate asked from the band (samples/second). 50 is plenty for the live chart; HAV
 // measurement proper needs fast motion (firmware 1.1, up to 416 with both sensors on Bluetooth).
