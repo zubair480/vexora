@@ -3,9 +3,16 @@
 import { useCallback, useEffect, useId, useLayoutEffect, useRef, useState } from 'react';
 import type { Conveyor, Defect } from '../../data/types';
 import { DefectCallout } from './DefectCallout';
+import { RouteStats } from './RouteStats';
+import { VibrationProfile } from './VibrationProfile';
 import { RouteIllustration } from './RouteIllustration';
 import { StationChip, type ChipDensity } from './StationChip';
-import { CHIP_Y, VB, X0, X1, pctX, pctY, stationX } from './route-geometry';
+import { CHIP_Y, VB, X0, X1, pctX, stationX } from './route-geometry';
+
+/** Fixed heights (px) of the optional blocks under the scene, and the gap between blocks. */
+const STATS_H = 64;
+const PROFILE_H = 72;
+const GAP = 12;
 
 /** Live border-box size of an element (0 until first layout). */
 function useElementSize<T extends HTMLElement>() {
@@ -36,7 +43,10 @@ export function RouteView({
   /** Called when the defect callout is clicked or activated from the keyboard. */
   onSelectDefect?: () => void;
 }) {
-  const [wrapRef, { width }] = useElementSize<HTMLDivElement>();
+  // The outer box fills whatever height the card gives it (the card stretches to its grid row at
+  // xl). The scene keeps its proportions; extra height grows the viewBox, which lengthens the
+  // leader lines and shows more backdrop instead of leaving an empty band above the chips.
+  const [wrapRef, { width, height }] = useElementSize<HTMLDivElement>();
   const [calloutRef, { height: calloutH }] = useElementSize<HTMLButtonElement>();
   const idPrefix = `rg${useId().replace(/[^a-zA-Z0-9_-]/g, '')}`;
   const [activeId, setActiveId] = useState<string | null>(null);
@@ -51,7 +61,19 @@ export function RouteView({
   // The callout is sized in px while the box scales: convert its measured height to viewBox units
   // so the leader line ends just behind its top edge.
   const scale = width ? width / VB.w : 1;
-  const calloutTopY = VB.h * 0.975 - (calloutH || (compact ? 66 : 78)) / scale;
+  // Height budget. At xl the card stretches to its grid row, which can be much taller than the
+  // scene's base aspect. Spare height goes, in order, to: the route summary strip, the vibration
+  // profile, then a taller scene (longer leaders, more backdrop) up to H_MAX viewBox units.
+  const H_MAX = VB.h * 2.1;
+  const baseH = width * (VB.h / VB.w);
+  const spare = width && height ? height - baseH : 0;
+  const showStats = spare >= STATS_H + GAP;
+  const showProfile = spare >= STATS_H + PROFILE_H + 2 * GAP + 40;
+  const sceneAvail = height - (showStats ? STATS_H + GAP : 0) - (showProfile ? PROFILE_H + GAP : 0);
+  const vbH = width && height ? Math.min(H_MAX, Math.max(VB.h, sceneAvail / scale)) : VB.h;
+  const boxH = vbH * scale;
+  const dy = Math.round((vbH - VB.h) * 0.25);
+  const calloutTopY = vbH * 0.975 - (calloutH || (compact ? 66 : 78)) / scale;
 
   const activate = useCallback((id: string) => setActiveId(id), []);
   const deactivate = useCallback(() => setActiveId(null), []);
@@ -66,11 +88,14 @@ export function RouteView({
   const lengthLabel = `${conveyor.lengthM.toLocaleString('en-US')} m`;
 
   return (
-    <div className="relative my-auto w-full">
+    <div
+      ref={wrapRef}
+      className="relative flex w-full flex-1 flex-col justify-center gap-3"
+      style={{ minHeight: width ? Math.round((width * VB.h) / VB.w) : undefined, aspectRatio: width ? undefined : `${VB.w} / ${VB.h}` }}
+    >
       <div
-        ref={wrapRef}
         className="relative w-full overflow-visible rounded-2xl"
-        style={{ aspectRatio: `${VB.w} / ${VB.h}` }}
+        style={{ height: width ? boxH : undefined, aspectRatio: width ? undefined : `${VB.w} / ${VB.h}` }}
       >
         <RouteIllustration
           stations={stations}
@@ -79,6 +104,8 @@ export function RouteView({
           onHover={setActiveId}
           calloutTopY={calloutTopY}
           idPrefix={idPrefix}
+          h={vbH}
+          dy={dy}
         />
 
         {stations.map((s, i) => (
@@ -87,7 +114,7 @@ export function RouteView({
             station={s}
             order={i}
             xPct={pctX(stationX(s.position))}
-            yPct={pctY(CHIP_Y)}
+            yPct={(CHIP_Y / vbH) * 100}
             active={activeId === s.id}
             density={density}
             distanceM={metresFromHead(s.position, conveyor.lengthM)}
@@ -128,6 +155,8 @@ export function RouteView({
           <span className="h-px w-5 bg-ink-3/50" />
         </div>
       </div>
+      {showProfile && <VibrationProfile stations={stations} idPrefix={idPrefix} />}
+      {showStats && <RouteStats conveyor={conveyor} />}
       <p className="sr-only">
         {conveyor.id}, {lengthLabel}, {conveyor.idlers} idlers. Stations:{' '}
         {stations.map((s) => `${s.name} ${s.role} ${s.status}${s.note ? ` (${s.note})` : ''}`).join('; ')}.

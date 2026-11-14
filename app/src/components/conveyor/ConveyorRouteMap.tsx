@@ -6,6 +6,7 @@ import type { Conveyor, Defect } from '../../data/types';
 import { Card, CardHeader } from '../ui/primitives';
 import { RouteLegend } from './RouteLegend';
 import { RouteView } from './RouteView';
+import { VB } from './route-geometry';
 import { StationList } from './StationList';
 import { ViewToggle, type RouteMapView } from './ViewToggle';
 
@@ -27,16 +28,15 @@ export function ConveyorRouteMap({ conveyor, defect }: { conveyor: Conveyor; def
     setViewState('list');
   }, []);
 
-  // Hold the panel at the route view's rendered height so switching views does not make the card
-  // (and the grid row it shares) jump. The list is sized to fit inside it at common widths.
-  // A callback ref, because AnimatePresence mounts the route body only after the list has exited.
-  const [routeH, setRouteH] = useState(0);
+  // Hold the panel at least at the route scene's base height so switching to the list does not
+  // make the card jump; at xl the card also stretches to its grid row and the route view fills it.
+  const [panelW, setPanelW] = useState(0);
   const roRef = useRef<ResizeObserver | null>(null);
-  const bodyRef = useCallback((el: HTMLDivElement | null) => {
+  const panelRef = useCallback((el: HTMLDivElement | null) => {
     roRef.current?.disconnect();
     roRef.current = null;
     if (!el) return;
-    const read = () => setRouteH(el.offsetHeight);
+    const read = () => setPanelW(el.offsetWidth);
     read();
     roRef.current = new ResizeObserver(read);
     roRef.current.observe(el);
@@ -73,19 +73,18 @@ export function ConveyorRouteMap({ conveyor, defect }: { conveyor: Conveyor; def
         id={`${idPrefix}-panel`}
         role="tabpanel"
         aria-labelledby={`${idPrefix}-tab-${view}`}
+        ref={panelRef}
         className="relative flex min-h-[240px] flex-1 flex-col"
-        style={routeH ? { minHeight: routeH } : undefined}
+        style={panelW ? { minHeight: Math.round((panelW * VB.h) / VB.w) } : undefined}
       >
         <AnimatePresence mode="wait" initial={false}>
           <motion.div
             key={view}
-            className={view === 'route' ? 'flex flex-1 flex-col justify-center' : 'flex-1'}
+            className={view === 'route' ? 'flex flex-1 flex-col' : 'flex-1'}
             {...motionProps}
           >
             {view === 'route' ? (
-              <div ref={bodyRef} className="w-full">
-                <RouteView conveyor={conveyor} defect={defect} onSelectDefect={showDefectInList} />
-              </div>
+              <RouteView conveyor={conveyor} defect={defect} onSelectDefect={showDefectInList} />
             ) : (
               <StationList conveyor={conveyor} defect={defect} focusDefect={focusDefect} />
             )}
