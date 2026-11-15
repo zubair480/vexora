@@ -205,17 +205,24 @@ async def announce(S, wo: dict) -> None:
     now = time.time()
     text = "%s · %s" % (SENT_TITLE, wo_id)
     detail = "In the control room as a new work order with the PDF. A person decides."
+    # refs point at THIS work order's own sentence (or none): never the job agent's last utterance (S2's catch),
+    # because the dashboard puts the action's chip on the transcript line whose id matches.
+    tr = _rows(S, "SELECT id FROM transcripts WHERE work_order_id = ? ORDER BY ts LIMIT 1", (wo_id,))
+    refs = {"work_order_id": wo_id}
+    if tr and tr[0].get("id"):
+        refs["transcript_id"] = tr[0]["id"]
     a = None
     agent = getattr(S, "job_agent", None)
     if agent is not None and hasattr(agent, "_action"):
         try:
             a = agent._action("work_order_pdf", text, "sent", now, detail=detail, work_order_id=wo_id,
                               pdf_url=url, url=url, short="PDF sent to supervisor")
+            a["refs"] = dict(refs)                       # same dict object as in agent.actions: fixes it there too
         except Exception as e:
             _log("agent action failed:", repr(e))
     if a is None:
         a = {"id": "PDF-%s" % wo_id, "ts": now, "kind": "work_order_pdf", "text": text, "title": text, "detail": detail,
-             "status": "sent", "refs": {"work_order_id": wo_id}, "pdf_url": url, "url": url,
+             "status": "sent", "refs": dict(refs), "pdf_url": url, "url": url,
              "short": "PDF sent to supervisor"}
     await S.hub.broadcast({"type": "agent_action", "source": "system", "action": a})
     await S.hub.broadcast({"type": "work_order_pdf", "source": "system", "id": wo_id, "url": url,

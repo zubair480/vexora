@@ -91,3 +91,5 @@
 [band] recording raw motion to C:\Users\zubai\vexo hackathon\beltguard\data\raw\20261114-171915-browser-ble.jsonl
 [app] BAND LIVE (browser-ble) · band 07 streams from the dashboard (Chrome Web Bluetooth) via /ws/ingest
 [band] detector: using S3 detector.py at 416.0 Hz
+[wo_live] installed: /api/work_orders/{wo_id}/pdf, /api/work_orders/recent, watcher on
+[app] loaded wo_pdf.py
