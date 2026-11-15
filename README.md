@@ -34,6 +34,16 @@ One band is the sensor, the interface and the safety device:
 
 The full write-up, with the problem, the solution, every band capability mapped to the code that uses it, the architecture and the limits, is in **[vexora/docs/VEXO_DEEP_DIVE.md](vexora/docs/VEXO_DEEP_DIVE.md)**.
 
+## Algorithms and the research behind them
+
+Every algorithm, how it works, why we chose it, how it was tuned and what is and is not validated is in **[vexora/docs/ALGORITHMS.md](vexora/docs/ALGORITHMS.md)**. In short:
+
+- **Exposure** is the UK Health and Safety Executive's points method (`points = 2 · a² · T`, action value 100, limit 400), with HSE's published magnitude for each tool type.
+- **Tool time** comes from our own wrist-motion detector: windowed FFT features scored with soft thresholds, then a state machine with hysteresis. It is hand-built and tuned on our own band recordings, not a trained model, and it has not been validated on real power tools.
+- **Voice** uses deterministic rules for commands, with an optional language model for defect reports whose station and part are always checked by code.
+
+The pitch deck is **[vexora/pitch/vexora-pitch.html](vexora/pitch/vexora-pitch.html)** (open in a browser; arrow keys to navigate).
+
 ## Run it
 
 ```powershell
