@@ -58,8 +58,8 @@ def test_statements_tick_done_and_garbled_asset_code_is_fine():
     a = agent()
     out = a.on_transcript("Isolate and lock out C B 102.", {})
     assert steps(a) == [("Isolate & lock out CV-102", "done")]
-    assert "authorized person must verify" in out["say"]
-    assert any(x["kind"] == "isolation" and x["status"] == "needs_review" for x in out["actions"])
+    assert out["say"] == "Isolation logged."
+    assert not any(x["status"] == "needs_review" for x in out["actions"])          # no approvals (user, 16:41)
 
 
 def test_repeat_never_moves_a_step_back_and_makes_no_duplicates():
@@ -93,14 +93,14 @@ def test_chat_and_software_talk_create_nothing():
     assert steps(a) == []
 
 
-def test_job_done_awaits_a_person():
+def test_job_done_completes_without_approval():
     a = agent()
-    a.on_transcript("Conveyor's isolated and locked out. Guard's off. New idler fitted.", {})
+    a.on_transcript("Conveyor's isolated and locked out. Guards off. New idler fitted.", {})
     out = a.on_transcript("Job done.", {})
-    snap = a.snapshot()["job"]
-    assert snap["status"] == "awaiting_verification" and ("Supervisor sign-off", "in_progress") in steps(a)
-    assert "awaiting supervisor verification" in out["say"]
-    assert a.supervisor_sign_off("K. Lee")["steps"] == ["signoff"] and a.snapshot()["job"]["status"] == "verified"
+    snap = a.snapshot()
+    assert snap["job"]["status"] == "complete" and out["say"] == "Job complete."
+    assert [t for t, _ in steps(a)] == ["Isolate & lock out CV-102", "Remove guard", "Replace idler"]   # no sign-off step
+    assert not any(x["status"] == "needs_review" for x in snap["agent_actions"])
 
 
 def test_band_tool_session_is_evidence_for_the_step_in_progress():

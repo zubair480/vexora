@@ -34,7 +34,9 @@ const TZ = -1.35;
 const PX = X1 + 2.1;                     // ore stockpile centre (under the discharge)
 const PILE_R = 2.4, PILE_H = 1.6;
 const WALK_X0 = -7.2, WALK_X1 = 5.9;     // walkway ends
-const SOLDIER_URL = 'https://cdn.jsdelivr.net/gh/mrdoob/three.js@r160/examples/models/gltf/Soldier.glb';
+const SOLDIER_CDN = 'https://cdn.jsdelivr.net/gh/mrdoob/three.js@r160/examples/models/gltf/Soldier.glb';
+// vendored copy next to this module (frontend/vendor/models/Soldier.glb); the CDN is only a fallback
+const SOLDIER_URL = (() => { try { return new URL('./vendor/models/Soldier.glb', import.meta.url).href; } catch (e) { return SOLDIER_CDN; } })();
 // tool ids from backend/tool_profiles.json -> the five recognisable models in the tool crib
 const TOOL_KIND = {
   drill: 'drill', hammer_drill: 'hammer', impact_wrench: 'impact', impact_wrench_1in: 'impact', demo_tool: 'impact',
@@ -257,7 +259,7 @@ export function createModel(container, { onStationClick, onToolClick, onWorkerCl
   renderer.shadowMap.enabled = true;
   renderer.shadowMap.type = THREE.PCFSoftShadowMap;
   renderer.domElement.className = 'gl';
-  renderer.domElement.dataset.scene = 'mongomation-v22';
+  renderer.domElement.dataset.scene = 'mongomation-v23';
   Object.assign(renderer.domElement.style, { position: 'absolute', inset: '0', width: '100%', height: '100%', display: 'block' });
   container.appendChild(renderer.domElement);
 
@@ -1767,12 +1769,18 @@ export function createModel(container, { onStationClick, onToolClick, onWorkerCl
     if (fleetData.length) syncFleet(); // the crew may have arrived before the model
     tech.g.visible = false;
   }
-  // a vendored copy can be used offline: createModel(..., { soldierUrl }) or window.BELTGUARD_SOLDIER_URL; default = three.js CDN
+  // the vendored copy (frontend/vendor/models/Soldier.glb) by default; createModel(..., { soldierUrl }) or window.BELTGUARD_SOLDIER_URL
+  // override it. If the local copy cannot load, the three.js CDN copy is tried once before the simple figure stays.
   const soldierSrc = soldierUrl || (typeof window !== 'undefined' && window.BELTGUARD_SOLDIER_URL) || SOLDIER_URL;
-  new GLTFLoader().load(soldierSrc, (gltf) => {
+  const loadSoldier = (src, canRetry) => new GLTFLoader().load(src, (gltf) => {
     if (disposed) return;
     try { setupSoldier(gltf); } catch (err) { soldierFailed = true; console.warn('[model3d] worker model setup failed; keeping the simple figure', err); if (fleetData.length) syncFleet(); }
-  }, undefined, (err) => { soldierFailed = true; console.warn('[model3d] worker model unavailable; keeping the simple figure', err); if (fleetData.length) syncFleet(); });
+  }, undefined, (err) => {
+    if (disposed) return;
+    if (canRetry) { loadSoldier(SOLDIER_CDN, false); return; }
+    soldierFailed = true; console.warn('[model3d] worker model unavailable; keeping the simple figure', err); if (fleetData.length) syncFleet();
+  });
+  loadSoldier(soldierSrc, soldierSrc !== SOLDIER_CDN);
 
   // exposure dial on the floor around the technician's feet (0..400 pts) + tint disc
   const dialTrack = new THREE.Mesh(new THREE.RingGeometry(0.46, 0.5, 72), new THREE.MeshBasicMaterial({ color: 0xe4e4e7, toneMapped: false, transparent: true, opacity: 0.9, depthWrite: false }));

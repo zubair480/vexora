@@ -142,7 +142,7 @@ _FUTURE = _rx(r"going to|gonna|will|i'?ll|we'?ll|need to|needs to|have to|has to
               r"get(?:ting)? (?:the |this |that )?(?:job|work|repair|task) done")    # "get the job done" is an intention
 WORK_STEPS = {"guard_off", "replace", "guard_on"}
 # the laptop speaks BeltGuard's replies; the band mic can hear them. Never act on our own words.
-_ECHO = re.compile(r"^(?:safety check|safety |done |added |in progress |to do |isolation logged|marked complete|"
+_ECHO = re.compile(r"^(?:safety check|safety |warning |done |added |in progress |to do |isolation logged|marked complete|job complete|"
                    r"band evidence|beltguard did|conveyor stopped noted|an authorized person)")
 _GEN = re.compile(r"(?<![a-z])(?P<verb>tighten|torque|grease|lubricate|inspect|check|clean|align|adjust|install|fit|change|"
                   r"swap|remove|replace|measure|secure|unbolt|bolt|weld|repair|fix|test|restart|tension|clear|lift|lower|mount)"
@@ -164,6 +164,8 @@ def _singular(w: str) -> str:
 def _spoken_actions(clause: str) -> list:
     """[(step_id, title, tense)] for the maintenance actions in one short clause. tense: done | progress | plan.
     Known job actions keep their usual names; any other equipment action becomes 'Verb object'."""
+    # Deepgram often drops the apostrophe: "Guards off" / "guards back on" mean "guard's off" / "guard's back on"
+    clause = re.sub(r"(?<![a-z])guards (?=off|on|back|removed|out|refitted|fitted|reinstalled)", "guard's ", clause)
     clause = re.sub(r"(?<![a-z])took (?:out|off) ", "removed ", clause)               # "took out the guard" = removed it
     clause = re.sub(r"(?<![a-z])taking (?:out|off) ", "removing ", clause)
     clause = re.sub(r"(?<![a-z])takes? (?:out|off) ", "remove ", clause)
@@ -500,11 +502,16 @@ class JobAgent:
 
     def _apply_spoken(self, step_id: str, title: str, status: str, evidence: str, now: float) -> tuple:
         """(actions, spoken line, changed) for one heard action."""
-        if step_id == "signoff":                              # "job done": awaiting a person's verification
+        if step_id == "signoff":                              # "job done": the job is complete (no approvals, user 16:41)
             if status != "done":                              # "get the job done" / "is the job done?": not a report
                 return [], None, False
-            acts = self._job_done(now, evidence)
-            return acts, ("Marked complete; awaiting supervisor verification." if acts else None), bool(acts)
+            if self.job.get("status") == "complete":
+                return [], None, False
+            self.job["status"] = "complete"
+            n = sum(1 for s in self.job["steps"] if s["status"] == "done")
+            acts = [self._action("job_complete", "Job complete: %d step%s done." % (n, "" if n == 1 else "s"), "done", now,
+                                 detail="Done · " + evidence)]
+            return acts, "Job complete.", True
         same = next((s for s in self.job["steps"] if s["title"].lower() == title.lower()), None)
         if same:                                              # semantic dedupe: one step per action, whatever the id
             step_id = same["id"]
@@ -519,8 +526,7 @@ class JobAgent:
             (title, word) if not existed else (word.capitalize(), title)), "done", now, detail="Done · " + evidence)]
         line = None
         if step_id == "isolate" and status == "done":
-            acts.append(self._action("isolation", "Isolation logged; an authorized person must verify it.", "needs_review", now))
-            line = "Isolation logged; an authorized person must verify it."
+            line = "Isolation logged."
         elif status == "done":
             line = "Done: %s." % title
         elif not existed:
@@ -528,8 +534,8 @@ class JobAgent:
         if (step_id in WORK_STEPS or step_id.startswith(("gen:", "tool:"))) and status != "left":
             iso = self._step("isolate")
             if (not iso or iso["status"] != "done") and self._warn_once("work_before_isolation"):
-                acts.append(self._action("safety_check", "Safety: work started before isolation was logged. Isolate and "
-                                         "lock out CV-102 first.", "needs_review", now))
+                acts.append(self._action("safety_check", "Warning: work started before isolation was logged. Isolate and "
+                                         "lock out CV-102 first.", "done", now, detail="Warning · spoken to the technician"))
                 line = "Safety check: isolate and lock out the conveyor first."
         return acts, line, True
 
@@ -559,8 +565,8 @@ class JobAgent:
                                         detail="Done · from the band"))
         iso = self._step("isolate")
         if (not iso or iso["status"] != "done") and self._warn_once("band_before_isolation"):
-            actions.append(self._action("safety_check", "Safety: tool running before isolation was logged. Isolate and lock "
-                                        "out first.", "needs_review", now))
+            actions.append(self._action("safety_check", "Warning: tool running before isolation was logged. Isolate and lock "
+                                        "out first.", "done", now, detail="Warning · spoken to the technician"))
             said = "Safety check: isolate and lock out the conveyor first."
         actions += self._exposure_actions(state, now)
         return self._changes(changed, actions, said)
@@ -759,8 +765,8 @@ class JobAgent:
                                     "done", now))
         if total >= exposure.ACTION_POINTS and ("action", day) not in self._notified:
             self._notified.add(("action", day))
-            out.append(self._action("exposure", "Action value reached (%.0f points): supervisor review required." % total,
-                                    "needs_review", now))
+            out.append(self._action("exposure", "Action value reached (%.0f points): supervisor notified." % total,
+                                    "done", now))
         return out
 
     def _changes(self, steps: list, actions: list, say: Optional[str]) -> dict:
