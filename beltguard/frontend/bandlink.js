@@ -139,7 +139,16 @@ async function connectInner() {
     rate = 50;
     try { await band.configure({ motion: 50, sensors: 'both', events: true }); } catch (e2) { /* keep current */ }
   }
+  // The kit can hand back the SAME Band object on a second Connect: wire its listeners only once, or every
+  // reading would be queued (and sent) twice (seen 17:19: x2 readings, broken detector and chart).
+  if (band.__bgWired) { startStreaming(); send({ type: 'connection', state: 'connected', transport: 'browser-ble', band: BAND });
+    send({ type: 'rate', rate, sensors: 'both' }); emit('connected', 'Band 07 connected over Bluetooth'); return status; }
+  band.__bgWired = true;
+  let lastMotionT = null;
   band.on('motion', (m) => {
+    // drop repeats/replays (not newer than the last reading) unless the band clock restarted (jump back > 2 s)
+    if (lastMotionT !== null && m.t <= lastMotionT && m.t > lastMotionT - 2000) return;
+    lastMotionT = m.t;
     queue.push({ t: m.t, n: m.n, ax: m.ax, ay: m.ay, az: m.az, gx: m.gx ?? null, gy: m.gy ?? null, gz: m.gz ?? null });
     if (queue.length > 8000) queue.splice(0, queue.length - 8000);
     // Event-driven flush: Chrome throttles timers in a background tab to ~1 Hz, but Bluetooth

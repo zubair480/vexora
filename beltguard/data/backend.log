@@ -93,3 +93,22 @@
 [band] detector: using S3 detector.py at 416.0 Hz
 [wo_live] installed: /api/work_orders/{wo_id}/pdf, /api/work_orders/recent, watcher on
 [app] loaded wo_pdf.py
+[band] detector: using S3 detector.py at 50 Hz
+[band] usb connect attempt 1 failed (no-port): No band found on USB. Plug the band in, or give the port name yourself: Band.connect(42, transport="serial", port="COM5"). On a Mac the port is called /dev/cu.u
+[app] BAND LIVE (browser-ble) · band 07 streams from the dashboard (Chrome Web Bluetooth) via /ws/ingest
+[band] detector: using S3 detector.py at 416.0 Hz
+[app] BAND LIVE (browser-ble) · band 07 streams from the dashboard (Chrome Web Bluetooth) via /ws/ingest
+[band] detector: using S3 detector.py at 416.0 Hz
+[band] usb connect attempt 2 failed (no-port): No band found on USB. Plug the band in, or give the port name yourself: Band.connect(42, transport="serial", port="COM5"). On a Mac the port is called /dev/cu.u
+[band] usb connect attempt 3 failed (no-port): No band found on USB. Plug the band in, or give the port name yourself: Band.connect(42, transport="serial", port="COM5"). On a Mac the port is called /dev/cu.u
+[app] BAND LIVE (browser-ble) · band 07 streams from the dashboard (Chrome Web Bluetooth) via /ws/ingest
+[band] detector: using S3 detector.py at 416.0 Hz
+[app] BAND LIVE (browser-ble) · band 07 streams from the dashboard (Chrome Web Bluetooth) via /ws/ingest
+[band] detector: using S3 detector.py at 416.0 Hz
+[band] usb connect attempt 20 failed (no-port): No band found on USB. Plug the band in, or give the port name yourself: Band.connect(42, transport="serial", port="COM5"). On a Mac the port is called /dev/cu.u
+[app] BAND LIVE (browser-ble) · band 07 streams from the dashboard (Chrome Web Bluetooth) via /ws/ingest
+[band] detector: using S3 detector.py at 416.0 Hz
+[band] detector: using S3 detector.py at 50 Hz
+[band] recording raw motion to C:\Users\zubai\vexo hackathon\beltguard\data\raw\20261114-172305-browser-ble.jsonl
+[app] BAND LIVE (browser-ble) · band 07 streams from the dashboard (Chrome Web Bluetooth) via /ws/ingest
+[band] detector: using S3 detector.py at 416.0 Hz
