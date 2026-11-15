@@ -167,19 +167,30 @@ def _spoken_actions(clause: str) -> list:
     clause = re.sub(r"(?<![a-z])took (?:out|off) ", "removed ", clause)               # "took out the guard" = removed it
     clause = re.sub(r"(?<![a-z])taking (?:out|off) ", "removing ", clause)
     clause = re.sub(r"(?<![a-z])takes? (?:out|off) ", "remove ", clause)
-    for key in KEYS:
-        if not P[key].search(clause):
+    fixed, seen = [], set()
+    for key in KEYS:                                  # every known action in the clause, not just the first
+        m = P[key].search(clause)
+        if not m:
             continue
         if key == "job_done":
-            return [("signoff", TITLES["signoff"], "done")]
-        if key == "stopped":
-            return [("stop", "Stop conveyor CV-102", "done")]
-        if key == "tool_use":
+            item = ("signoff", TITLES["signoff"], "done")
+        elif key == "stopped":
+            item = ("stop", "Stop conveyor CV-102", "done")
+        elif key == "tool_use":
             tool = re.search(r"hammer drill|hammer|drill|impact wrench|impact|wrench|rattle gun|angle grinder|grinder|breaker|"
                              r"power jack|jack", clause)
             name = tool.group(0) if tool else "tool"
-            return [("tool:" + name.replace(" ", "_"), "Use the %s" % name, "progress")]
-        return [(STEP_OF[key], TITLES[STEP_OF[key]], "progress" if key == "replace_start" else "done")]
+            item = ("tool:" + name.replace(" ", "_"), "Use the %s" % name, "progress")
+        else:
+            words = m.group(0)                        # "removing the guard" is in progress; "guard's off" is done
+            doing = (re.search(r"(?<![a-z])[a-z]{3,}ing(?![a-z])", words)
+                     and not re.search(r"running (?:again|fine|ok|okay)", words))
+            item = (STEP_OF[key], TITLES[STEP_OF[key]], "progress" if (key == "replace_start" or doing) else "done")
+        if item[0] not in seen:
+            seen.add(item[0])
+            fixed.append(item)
+    if fixed:
+        return fixed
     out = []
     for m in _GEN.finditer(clause):
         words = []
@@ -451,7 +462,9 @@ class JobAgent:
                 continue
             asked = sentence.rstrip().endswith("?")
             request = bool(_REQUEST.search(sentence))
-            for clause in [c.strip() for c in re.split(r"[,.;!?]| and | but | then | so ", sentence) if c.strip()]:
+            parts = re.split(r"[,.;!?]| and | but | then | so |(?=(?<![a-z])(?:can|could|would|will) you(?![a-z]))|"
+                             r"(?=(?<![a-z])please(?![a-z]))", sentence)       # live words come without punctuation
+            for clause in [c.strip() for c in parts if c and c.strip()]:
                 req = request or bool(_REQUEST.search(clause))
                 if (len(clause.split()) > MAX_CLAUSE_WORDS or _TRUE_NEG.search(clause)
                         or (asked and not req and _QUESTION.search(clause))):   # "is the guard off?" asks, not tells
@@ -664,6 +677,8 @@ class JobAgent:
 
     @staticmethod
     def _summary(done: list, left: list) -> str:
+        if not left and not done:
+            return "No steps yet: say what you're doing."
         if not left:
             return "All %d steps done." % len(done)
         return "%d done, %d left: %s." % (len(done), len(left), ", ".join(s["title"] for s in left))
