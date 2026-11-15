@@ -1,4 +1,7 @@
-"""Vexora work order as a one-page PDF. Stdlib only.
+"""Vexora work order as a one-page PDF, plus the shift record pages when data["record"] is given. Stdlib only.
+
+data["record"] (from wo_live.gather) adds pages 2+: every sentence the band mic heard this shift, the band's
+motion sensor minute by minute, tool checkout and use, exposure, job steps and every event Vexora logged.
 
     build_work_order_pdf(data: dict) -> bytes     never raises on missing / None keys
     pdf_filename(data: dict) -> str               "Vexora-WO-0007.pdf"
@@ -272,6 +275,11 @@ def _sections(d: dict) -> list:
                                  empty="Nothing recorded"), cap=4)]
     if meta:
         said_rows.append(_Row(None, _val(_cap(meta), MUTED)))
+    rec = d.get("record")
+    if isinstance(rec, dict):
+        n_said = len([t for t in _list(rec.get("transcript")) if isinstance(t, dict) and _clean(t.get("text"))])
+        said_rows.append(_Row(None, _val(f"Every word from this shift ({n_said} sentence{'s' if n_said != 1 else ''}) "
+                                         f"and the band's sensor record start on page 2.", MUTED, SMALL)))
     return [
         ("Conveyor", [
             _Row("Conveyor", _val(_pair(d.get("conveyor")))),
@@ -329,19 +337,36 @@ def _rule(y) -> bytes:
     return f"{RULE} RG 0.6 w {_f(MARGIN)} {_f(y)} m {_f(PAGE_W - MARGIN)} {_f(y)} l S".encode("ascii")
 
 
-def _assemble(content: bytes, title: str) -> bytes:
+def _bar(x, y, w, h, color) -> bytes:
+    return f"{color} rg {_f(x)} {_f(y)} {_f(w)} {_f(h)} re f".encode("ascii")
+
+
+def _footer(i: int, n: int) -> list:
+    ops = [_rule(FOOTER_Y + 12), _text(MARGIN, FOOTER_Y, FOOTER, 7.5, MUTED)]
+    if n > 1:
+        s = f"Page {i} of {n}"
+        ops.append(_text(PAGE_W - MARGIN - _width(s, 7.5), FOOTER_Y, s, 7.5, MUTED))
+    return ops
+
+
+def _assemble(content, title: str) -> bytes:
+    """content: one page's stream (bytes) or a list of page streams."""
+    pages = content if isinstance(content, list) else [content]
     info_title = _clean(title).encode("ascii", "replace")
     info_title = info_title.replace(b"\\", b"\\\\").replace(b"(", b"\\(").replace(b")", b"\\)")
+    n = len(pages)
+    kids = " ".join("%d 0 R" % (6 + 2 * i) for i in range(n)).encode("ascii")
     objs = [
         b"<< /Type /Catalog /Pages 2 0 R >>",
-        b"<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
-        b"<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] "
-        b"/Resources << /Font << /F1 4 0 R /F2 5 0 R >> >> /Contents 6 0 R >>",
+        b"<< /Type /Pages /Kids [" + kids + b"] /Count %d >>" % n,
         b"<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>",
         b"<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold /Encoding /WinAnsiEncoding >>",
-        b"<< /Length %d >>\nstream\n" % len(content) + content + b"\nendstream",
         b"<< /Title (" + info_title + b") /Producer (Vexora) >>",
     ]
+    for i, content_i in enumerate(pages):
+        objs.append(b"<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] "
+                    b"/Resources << /Font << /F1 3 0 R /F2 4 0 R >> >> /Contents %d 0 R >>" % (7 + 2 * i))
+        objs.append(b"<< /Length %d >>\nstream\n" % len(content_i) + content_i + b"\nendstream")
     out = bytearray(b"%PDF-1.4\n%\xe2\xe3\xcf\xd3\n")
     offsets = []
     for num, body in enumerate(objs, 1):
@@ -351,8 +376,241 @@ def _assemble(content: bytes, title: str) -> bytes:
     out += b"xref\n0 %d\n0000000000 65535 f \n" % (len(objs) + 1)
     for off in offsets:
         out += b"%010d 00000 n \n" % off
-    out += b"trailer\n<< /Size %d /Root 1 0 R /Info 7 0 R >>\nstartxref\n%d\n%%%%EOF\n" % (len(objs) + 1, xref)
+    out += b"trailer\n<< /Size %d /Root 1 0 R /Info 5 0 R >>\nstartxref\n%d\n%%%%EOF\n" % (len(objs) + 1, xref)
     return bytes(out)
+
+
+# --- shift record pages (S0 18:45) --------------------------------------------------------------------
+# Everything band 07 recorded from the start of the shift, after the one-page work order: every sentence
+# the band mic heard (with what Vexora answered), the motion sensor minute by minute, tool checkout and use,
+# exposure, job steps and every event Vexora logged. Only drawn when data["record"] is given.
+TIME_W = 54
+GREY, AMBER, RED = "0.831 0.831 0.847", "0.961 0.620 0.043", "0.937 0.267 0.267"
+
+
+def _dur(sec) -> str:
+    try:
+        s = max(0, int(round(float(sec))))
+    except (TypeError, ValueError):
+        return ""
+    if s < 60:
+        return f"{s} s"
+    if s < 3600:
+        return f"{s // 60} min {s % 60:02d} s"
+    return f"{s // 3600} h {(s % 3600) // 60:02d} min"
+
+
+class _Flow:
+    """Rows that flow over as many pages as they need, each page with a running header."""
+
+    def __init__(self, header: str):
+        self.header, self.pages, self.ops, self.y, self.fresh = header, [], [], 0.0, True
+        self.page()
+
+    def page(self) -> None:
+        if self.ops:
+            self.pages.append(self.ops)
+        top = PAGE_H - MARGIN - 9
+        self.ops = [_text(MARGIN, top, _one(self.header, 8.5, CONTENT_W, bold=True), 8.5, MUTED, bold=True)]
+        self.y, self.fresh = top - 26, True
+
+    def done(self) -> list:
+        if self.ops:
+            self.pages.append(self.ops)
+            self.ops = []
+        return self.pages
+
+    def gap(self, h: float) -> None:
+        self.y -= h
+
+    def heading(self, s: str, note: str = "") -> None:
+        if not self.fresh:
+            self.y -= 8
+        if self.y - 33 - 2 * LEAD < BOTTOM:          # keep a heading with its first lines
+            self.page()
+        self.ops.append(_rule(self.y + 1.5))
+        self.y -= 18
+        self.ops.append(_text(MARGIN, self.y, _one(s, 10.5, CONTENT_W, bold=True), 10.5, INK, bold=True))
+        if note:
+            room = CONTENT_W - _width(s, 10.5, True) - 16
+            note = _one(note, SMALL, max(room, 40))
+            self.ops.append(_text(PAGE_W - MARGIN - _width(note, SMALL), self.y, note, SMALL, MUTED))
+        self.y -= 15
+        self.fresh = False
+
+    def row(self, cells, lead: float = LEAD, after: float = 0.0, keep: int = 1, bars=()) -> None:
+        """cells: [(x offset, width, text, color, size, bold)], wrapped side by side; long rows cross pages.
+        bars: [(x offset, width, fraction 0..1, color)] drawn on the first line."""
+        wrapped = []
+        for dx, w, text, color, size, bold in cells:
+            wrapped.append((dx, _wrap(text, size, w, 400, bold) if _clean(text) else [], color, size, bold))
+        n = max((len(c[1]) for c in wrapped), default=0)
+        if n == 0 and not bars:
+            return
+        n = max(n, 1)
+        if self.y - lead * (min(n, keep) - 1) < BOTTOM:
+            self.page()
+        for i in range(n):
+            if self.y < BOTTOM:
+                self.page()
+            for dx, lines, color, size, bold in wrapped:
+                if i < len(lines):
+                    self.ops.append(_text(MARGIN + dx, self.y, lines[i], size, color, bold))
+            if i == 0:
+                for dx, w, frac, color in bars:
+                    self.ops.append(_bar(MARGIN + dx, self.y - 0.5, max(1.0, w * max(0.0, min(1.0, frac))), 7, color))
+            self.y -= lead
+        self.y -= after
+        self.fresh = False
+
+    def text(self, s, color=INK, size=BODY, lead=LEAD, after=0.0, dx=0) -> None:
+        self.row([(dx, CONTENT_W - dx, s, color, size, False)], lead=lead, after=after)
+
+    def kv(self, label, value, color=INK) -> None:
+        self.row([(0, LABEL_W - 10, label, MUTED, BODY, False), (LABEL_W, VALUE_W, value or DASH, color, BODY, False)])
+
+
+def _record_pages(d: dict, rec: dict) -> list:
+    wo, band = _clean(d.get("wo_id")), _clean(d.get("band")) or "07"
+    f = _Flow(f" {DOT} ".join(x for x in ("Vexora shift record", wo, f"band {band}",
+                                            _clean(d.get("technician"))) if x))
+    since, until, made = rec.get("since"), rec.get("until"), rec.get("made")
+    live = bool(rec.get("live"))
+
+    f.row([(0, CONTENT_W, "Shift record", INK, 16, True)], lead=20)
+    try:
+        span = _dur(float(until) - float(since))
+    except (TypeError, ValueError):
+        span = ""
+    when = (f"Shift started {_when(since, '%H:%M:%S')}"
+            + (f", still running ({span} so far)" if live else f", ended {_when(until, '%H:%M:%S')} ({span})")
+            + (f" {DOT} PDF made {_when(made, '%H:%M:%S')}" if made else ""))
+    f.text(when, MUTED)
+    f.text("Everything band 07 recorded from the start of the shift: every sentence its microphone heard, its "
+           "motion sensor minute by minute, tool use, exposure and every action Vexora logged.", MUTED, after=2)
+
+    # every sentence the band mic heard, in full, with what Vexora answered
+    said = [t for t in _list(rec.get("transcript")) if isinstance(t, dict) and _clean(t.get("text"))]
+    f.heading("Everything said on the band mic", f"{len(said)} sentence{'s' if len(said) != 1 else ''}")
+    if not said:
+        f.text("Nothing heard yet this shift.", MUTED)
+    for t in said:
+        typed = _clean(t.get("input")).lower() == "typed"
+        f.row([(0, TIME_W, _when(t.get("ts"), "%H:%M:%S"), MUTED, BODY, False),
+               (TIME_W, CONTENT_W - TIME_W, ("(typed) " if typed else "") + f"“{_clean(t.get('text'))}”",
+                INK, BODY, False)], keep=2)
+        reply = _clean(t.get("response")) or _clean(t.get("acted"))
+        if reply:
+            f.row([(TIME_W, CONTENT_W - TIME_W, f"Vexora: {reply}", MUTED, SMALL, False)], lead=10.5)
+        f.gap(3)
+
+    # the band's own record
+    s = rec.get("sensor") if isinstance(rec.get("sensor"), dict) else {}
+    f.heading("Band 07 sensor")
+    rate, sensors = _num(s.get("rate")), _clean(s.get("sensors"))
+    link = _clean(s.get("link")).replace("browser-ble", "Bluetooth through the Band link page")
+    what = {"both": "accelerometer + gyroscope", "accel": "accelerometer", "gyro": "gyroscope"}.get(sensors, sensors)
+    f.kv("Connection", f" {DOT} ".join(x for x in (link, f"{what} at {rate} Hz" if rate and what else "") if x))
+    n_samples = s.get("samples")
+    if isinstance(n_samples, (int, float)) and n_samples:
+        avg = _num(s.get("avg_hz"))
+        f.kv("Motion samples", f"{int(n_samples):,} samples from {_when(s.get('first_ts'), '%H:%M:%S')} to "
+                               f"{_when(s.get('last_ts'), '%H:%M:%S')}" + (f" (average {avg} Hz)" if avg else ""))
+    else:
+        f.kv("Motion samples", "No motion samples recorded in this shift", MUTED)
+    f.kv("Band mic", f"{len(said)} sentence{'s' if len(said) != 1 else ''} transcribed by Deepgram")
+    if s.get("lost") is not None:
+        f.kv("Packets lost", _clean(s.get("lost")))
+    if _clean(s.get("raw_file")):
+        f.kv("Raw data file", _clean(s.get("raw_file")))
+
+    mins = [m for m in _list(s.get("minutes")) if isinstance(m, dict)]
+    step = int(s.get("bucket_s") or 60)
+    f.heading("Movement, " + ("minute by minute" if step == 60 else f"every {step // 60} minutes"),
+              "accelerometer and gyroscope on the wrist")
+    if not mins:
+        f.text("No motion data in this shift.", MUTED)
+    else:
+        cols = ((0, "Time"), (TIME_W, "Samples"), (TIME_W + 56, "Movement"), (TIME_W + 238, "Rotation"),
+                (TIME_W + 306, "Peak"), (TIME_W + 356, "Tool running"))
+        f.row([(dx, 120, lab, MUTED, SMALL, True) for dx, lab in cols], lead=11)
+        for m in mins:
+            g = float(m.get("move_g") or 0.0)
+            color = RED if g >= 0.15 else AMBER if g >= 0.05 else GREY
+            tool = _clean(m.get("tool"))
+            tool_s = f"{tool} {_dur(m.get('tool_s'))}" if tool and m.get("tool_s") else ""
+            f.row([(0, TIME_W, _when(m.get("t"), "%H:%M"), MUTED, BODY, False),
+                   (TIME_W, 54, f"{int(m.get('n') or 0):,}", INK, BODY, False),
+                   (TIME_W + 56, 46, f"{g:.2f} g", INK, BODY, False),
+                   (TIME_W + 238, 66, f"{float(m.get('rot_dps') or 0):.0f} °/s", INK, BODY, False),
+                   (TIME_W + 306, 48, f"{float(m.get('peak_g') or 0):.2f} g", INK, BODY, False),
+                   (TIME_W + 356, CONTENT_W - TIME_W - 356, tool_s, INK, BODY, False)],
+                  bars=[(TIME_W + 100, 128, g / 0.5, color)])
+        f.text("Movement is the wrist acceleration's spread (g rms); rotation is the gyroscope (°/s rms).",
+               MUTED, SMALL, lead=10.5)
+
+    # tool checkout and use
+    f.heading("Tool checkout and use")
+    outs = [c for c in _list(rec.get("checkouts")) if isinstance(c, dict)]
+    sessions = [x for x in _list(rec.get("sessions")) if isinstance(x, dict)]
+    if not outs and not sessions:
+        f.text("No tool checked out or detected this shift.", MUTED)
+    for c in outs:
+        back = _when(c.get("returned_ts"), "%H:%M:%S")
+        f.row([(0, TIME_W, _when(c.get("ts"), "%H:%M:%S"), MUTED, BODY, False),
+               (TIME_W, CONTENT_W - TIME_W, f"{_clean(c.get('tool')) or 'Tool'} checked out to "
+                                            f"{_clean(c.get('worker_id')) or 'W-01'}"
+                                            + (f" {DOT} returned {back}" if back else f" {DOT} still checked out"),
+                INK, BODY, False)])
+    for x in sessions:
+        a, b = _when(x.get("start"), "%H:%M:%S"), _when(x.get("end"), "%H:%M:%S")
+        pts = _num(x.get("points"), 1)
+        bits = [_clean(x.get("tool")) or "Tool not selected", f"{_dur(x.get('trigger_s'))} trigger",
+                f"confidence {_num(x.get('confidence'), 2)}" if _num(x.get("confidence"), 2) else "",
+                f"{pts} pts" if pts is not None else "", _clean(x.get("status"))]
+        f.row([(0, TIME_W, a, MUTED, BODY, False),
+               (TIME_W, CONTENT_W - TIME_W, f" {DOT} ".join(p for p in bits if p)
+                + (f" {DOT} until {b}" if b else f" {DOT} running"), INK, BODY, False)])
+
+    # exposure
+    ex = rec.get("exposure") if isinstance(rec.get("exposure"), dict) else {}
+    f.heading("Exposure this shift")
+    tot, act, lim = _num(ex.get("total_points"), 1), _num(ex.get("action")), _num(ex.get("limit"))
+    st = {"below_action": "within the action value", "above_action": "above the action value",
+          "above_limit": "above the limit value"}.get(_clean(ex.get("status")), _clean(ex.get("status")).replace("_", " "))
+    f.kv("Total", f" {DOT} ".join(x for x in (f"{tot} points" if tot else "0 points",
+                                                f"action {act} / limit {lim}" if act and lim else "", st) if x))
+    for tid, v in (ex.get("by_tool") or {}).items():
+        if isinstance(v, dict):
+            f.kv(_clean(v.get("name")) or _clean(tid),
+                 f"{_dur(v.get('trigger_s'))} trigger {DOT} {_num(v.get('points'), 1) or '0'} pts")
+    if _clean(ex.get("method")):
+        f.text(_clean(ex.get("method")), MUTED, SMALL, lead=10.5)
+
+    # job steps
+    steps = [x for x in _list(rec.get("steps")) if isinstance(x, dict) and _clean(x.get("title"))]
+    f.heading("Job steps", f"{len(steps)} step{'s' if len(steps) != 1 else ''}")
+    if not steps:
+        f.text("No steps yet.", MUTED)
+    for i, x in enumerate(steps, 1):
+        f.row([(0, 22, f"{i}.", MUTED, BODY, False),
+               (22, CONTENT_W - 22 - 80, _clean(x.get("title")), INK, BODY, False),
+               (CONTENT_W - 76, 76, _clean(x.get("status")), MUTED, BODY, False)])
+        if _clean(x.get("detail")):
+            f.row([(22, CONTENT_W - 22 - 80, _clean(x.get("detail")), MUTED, SMALL, False)], lead=10.5)
+
+    # every event Vexora logged
+    evs = [e for e in _list(rec.get("events")) if isinstance(e, dict) and _clean(e.get("title"))]
+    f.heading("Everything Vexora logged", f"{len(evs)} event{'s' if len(evs) != 1 else ''}")
+    if not evs:
+        f.text("No events yet.", MUTED)
+    for e in evs:
+        f.row([(0, TIME_W, _when(e.get("ts"), "%H:%M:%S"), MUTED, BODY, False),
+               (TIME_W, CONTENT_W - TIME_W, _clean(e.get("title")), INK, BODY, False)])
+        if _clean(e.get("detail")):
+            f.row([(TIME_W, CONTENT_W - TIME_W, _clean(e.get("detail")), MUTED, SMALL, False)], lead=10.5)
+        f.gap(2)
+    return f.done()
 
 
 def build_work_order_pdf(data: dict) -> bytes:
@@ -390,9 +648,16 @@ def build_work_order_pdf(data: dict) -> bytes:
                 ops.append(_text(x, y, s, size, color))
         y -= 11
 
-    ops.append(_rule(FOOTER_Y + 12))
-    ops.append(_text(MARGIN, FOOTER_Y, FOOTER, 7.5, MUTED))
-    return _assemble(b"\n".join(ops), "Vexora work order" + (f" {wo}" if wo else ""))
+    pages = [ops]
+    rec = d.get("record")
+    if isinstance(rec, dict):
+        try:
+            pages += _record_pages(d, rec)
+        except Exception as e:  # the work order page must always render
+            print("[wo_pdf] shift record pages failed:", repr(e), file=sys.stderr)
+    n = len(pages)
+    streams = [b"\n".join(p + _footer(i + 1, n)) for i, p in enumerate(pages)]
+    return _assemble(streams if n > 1 else streams[0], "Vexora work order" + (f" {wo}" if wo else ""))
 
 
 def pdf_filename(data) -> str:

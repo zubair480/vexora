@@ -93,7 +93,7 @@ def gather(S, wo: dict) -> dict:
     if not steps:
         steps = [{"title": str(x), "status": "planned"} for x in _as_list(wo.get("steps"))]
 
-    ss = S.shift_start() if hasattr(S, "shift_start") else 0
+    ss, _until, _live = _shift_window(S, wo)
     iso = _rows(S, "SELECT ts, title FROM shift_events WHERE ts >= ? AND kind = 'isolation_claim' ORDER BY ts DESC LIMIT 1",
                 (ss,))
     if iso:
@@ -102,9 +102,9 @@ def gather(S, wo: dict) -> dict:
     else:
         isolation = "Not reported yet. Isolation must be verified by an authorized person before work starts."
 
-    tool, exposure = None, {"action": 100, "limit": 400}
+    tool, exposure, summary = None, {"action": 100, "limit": 400}, {}
     try:
-        records = S.store.since("exposure_records", ss)
+        records = _rows(S, "SELECT * FROM exposure_records WHERE ts >= ? AND ts < ? ORDER BY ts", (ss, _until))
         assignment, _verdict = S.assignment_view(records)
         summary = S.exposure_summary(records) or {}
         t = (assignment or {}).get("tool") or {}
@@ -129,8 +129,134 @@ def gather(S, wo: dict) -> dict:
         "component": defect.get("component"), "condition": defect.get("condition"), "severity": defect.get("severity"),
         "said": said, "job_steps": steps, "isolation": isolation, "tool": tool, "exposure": exposure, "parts": parts,
         "technician": worker.get("id") or "W-01", "technician_name": worker.get("name"), "band": "07",
-        "created_ts": wo.get("ts"),
+        "created_ts": wo.get("ts"), "record": _record(S, wo, steps, summary),
     }
+
+
+# ---------------------------------------------------------------------------------- shift record (S0 18:45)
+def _shift_window(S, wo: dict):
+    """(start, end, still_running) of the shift this work order was created in: shift_start events bound it."""
+    now = time.time()
+    t_wo = float(wo.get("ts") or now)
+    a = _rows(S, "SELECT MAX(ts) AS ts FROM shift_events WHERE kind = 'shift_start' AND ts <= ?", (t_wo + 1,))
+    since = float((a[0] or {}).get("ts") or 0) if a else 0.0
+    if not since:
+        since = float(S.shift_start()) if hasattr(S, "shift_start") else t_wo - 3600
+    b = _rows(S, "SELECT MIN(ts) AS ts FROM shift_events WHERE kind = 'shift_start' AND ts > ?", (t_wo + 1,))
+    nxt = float((b[0] or {}).get("ts") or 0) if b else 0.0
+    return since, (nxt or now), not nxt
+
+
+def _record(S, wo: dict, job_steps: list, summary: dict) -> dict:
+    """Everything band 07 recorded in the shift this work order belongs to (to now, if it is still running):
+    every transcript line in full, the motion sensor minute by minute, tool checkout and use, exposure, job steps
+    and every shift event. wo_pdf draws it as pages 2+."""
+    try:
+        now = time.time()
+        since, until, live = _shift_window(S, wo)
+        names = {r.get("id"): r.get("name") for r in _rows(S, "SELECT id, name FROM tool_profiles")}
+
+        said = _rows(S, "SELECT ts, text, input, intent, response, acted FROM transcripts WHERE ts >= ? AND ts < ? "
+                        "ORDER BY ts", (since, until))
+        events = _rows(S, "SELECT ts, lane, kind, title, detail FROM shift_events WHERE ts >= ? AND ts < ? "
+                          "AND kind NOT IN ('transcript', 'shift_start') ORDER BY ts", (since, until))
+        outs = _rows(S, "SELECT ts, worker_id, tool_id, returned_ts FROM tool_assignments WHERE ts < ? AND "
+                        "(returned_ts >= ? OR (returned_ts IS NULL AND ts >= ?)) ORDER BY ts", (until, since, since - 43200))
+        ses = _rows(S, "SELECT * FROM tool_sessions WHERE COALESCE(wall_start, ts) >= ? AND COALESCE(wall_start, ts) < ? "
+                       "ORDER BY COALESCE(wall_start, ts)", (since, until))
+        sessions = [{"start": x.get("wall_start") or x.get("ts"),
+                     "end": x.get("wall_end") if x.get("t_end") is not None or x.get("status") != "active" else None,
+                     "tool": names.get(x.get("tool_id")) or x.get("tool_id"), "trigger_s": x.get("trigger_s"),
+                     "confidence": x.get("confidence"), "points": x.get("points"), "status": x.get("status")}
+                    for x in ses]
+        conn = dict(getattr(S, "connection", None) or {})
+        sensor = {"link": conn.get("transport") or conn.get("link"), "rate": conn.get("rate"),
+                  "sensors": conn.get("sensors"), "lost": conn.get("lost_total"), "raw_file": conn.get("raw_file")}
+        sensor.update(_motion(S, since, until, sessions))
+
+        by_tool = {}
+        for tid, v in ((summary or {}).get("by_tool") or {}).items():
+            if isinstance(v, dict):
+                by_tool[tid] = dict(v, name=names.get(tid) or tid)
+        exposure = {k: (summary or {}).get(k) for k in ("total_points", "action", "limit", "status", "method")}
+        exposure["by_tool"] = by_tool
+
+        steps = [{"title": x.get("title"), "status": x.get("status") or "todo", "detail": x.get("detail") or ""}
+                 for x in (job_steps or []) if isinstance(x, dict)]
+        return {"since": since, "until": until, "live": live, "made": now,
+                "transcript": said, "sensor": sensor, "checkouts": [dict(c, tool=names.get(c.get("tool_id"))
+                                                                         or c.get("tool_id")) for c in outs],
+                "sessions": sessions, "exposure": exposure, "steps": steps, "events": events}
+    except Exception as e:
+        _log("shift record for PDF failed:", repr(e))
+        return {}
+
+
+def _motion(S, since: float, until: float, sessions: list) -> dict:
+    """motion_samples between since and until, per minute (5 min for shifts over 3 h): sample count, movement
+    (spread of the wrist acceleration, g rms), rotation (gyro, deg/s rms), peak |a| and the tool time inside it.
+    Uses its own read-only connection (this runs in a worker thread) and finds the id range by binary search, so
+    the 5M-row table is never scanned."""
+    import math
+    import sqlite3
+    from urllib.request import pathname2url
+    path = getattr(getattr(S, "store", None), "path", None)
+    if not path:
+        return {}
+    try:
+        con = sqlite3.connect("file:%s?mode=ro" % pathname2url(os.path.abspath(str(path))), uri=True, timeout=5)
+    except Exception:
+        con = sqlite3.connect(str(path), timeout=5)
+    try:
+        cur = con.cursor()
+        lo, hi = cur.execute("SELECT MIN(id), MAX(id) FROM motion_samples").fetchone()
+        if lo is None:
+            return {}
+
+        def first_id(t: float) -> int:
+            x, y = lo, hi + 1
+            while x < y:
+                m = (x + y) // 2
+                r = cur.execute("SELECT ts FROM motion_samples WHERE id >= ? ORDER BY id LIMIT 1", (m,)).fetchone()
+                if r is None or r[0] >= t:
+                    y = m
+                else:
+                    x = m + 1
+            return x
+
+        i0, i1 = first_id(since), first_id(until)
+        bucket = 60 if until - since <= 3 * 3600 else 300
+        rows = cur.execute(
+            "SELECT CAST(ts / ? AS INTEGER), COUNT(*), SUM(ax), SUM(ay), SUM(az), SUM(ax*ax), SUM(ay*ay), SUM(az*az), "
+            "SUM(gx*gx + gy*gy + gz*gz), MAX(ax*ax + ay*ay + az*az), MIN(ts), MAX(ts) FROM motion_samples "
+            "WHERE id >= ? AND id < ? GROUP BY 1 ORDER BY 1", (bucket, i0, i1)).fetchall()
+    finally:
+        con.close()
+    now = time.time()
+    minutes, total, first, last = [], 0, None, None
+    for k, n, sx, sy, sz, sxx, syy, szz, sg, pk, ta, tb in rows:
+        if not n:
+            continue
+        var = (sxx / n - (sx / n) ** 2) + (syy / n - (sy / n) ** 2) + (szz / n - (sz / n) ** 2)
+        b0, b1 = k * bucket, (k + 1) * bucket
+        tool_s, tool = 0.0, ""
+        for x in sessions:
+            s0 = float(x.get("start") or 0)
+            s1 = float(x.get("end") or now)
+            ov = min(b1, s1) - max(b0, s0)
+            if s0 and ov > 0:
+                tool_s += ov
+                tool = tool or (x.get("tool") or "tool")
+        minutes.append({"t": b0, "n": n, "move_g": round(math.sqrt(max(var, 0.0)), 3),
+                        "rot_dps": round(math.sqrt(max(sg / n, 0.0)), 1), "peak_g": round(math.sqrt(max(pk or 0, 0.0)), 2),
+                        "tool_s": round(tool_s), "tool": tool})
+        total += n
+        first = ta if first is None else min(first, ta)
+        last = tb if last is None else max(last, tb)
+    out = {"samples": total, "first_ts": first, "last_ts": last, "minutes": minutes, "bucket_s": bucket}
+    if total and first is not None and last and last > first:
+        out["avg_hz"] = round(total / (last - first))
+    return out
 
 
 def render(S, wo_id: str):
