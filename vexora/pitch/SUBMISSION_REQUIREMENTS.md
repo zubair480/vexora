@@ -40,10 +40,10 @@ The FAQ says the same: push to GitHub, video demo, README, and the Devpost link,
 
 - **All code must be started after 9:00 AM Saturday**, and the organisers say they'll actively check. The kickoff deck notes hacking officially began at 10:15 AM. ✅ Our repo's first commits are 10:00:30 (Vexo Open kit added as reference) and 10:16:42.
 - The project must be **public on GitHub and related to hardware**. ✅ The remote `github.com/zubair480/vexo-hacks` is public (GitHub API returned 200 at 13:34).
-  - ⚠️ But **`beltguard/` isn't committed yet**: it's all untracked. Nothing counts until it's pushed **before 6:00 PM**. Committing and pushing is the user's call.
+  - ⚠️ But **`vexora/` isn't committed yet**: it's all untracked. Nothing counts until it's pushed **before 6:00 PM**. Committing and pushing is the user's call.
   - ⚠️ **Don't push `VexoHacks-brief.md` or `.claude/`.** The brief holds private team notes (registration status, Discord invites, account notes).
-  - ✅ `beltguard/.gitignore` already excludes `.env`, the SQLite DB and `data/raw/`.
-  - ⚠️ The root `README.md` is just `# vexo-hacks`. Point it at `beltguard/README.md`, or judges land on an empty page (S0 owns READMEs).
+  - ✅ `vexora/.gitignore` already excludes `.env`, the SQLite DB and `data/raw/`.
+  - ⚠️ The root `README.md` is just `# vexo-hacks`. Point it at `vexora/README.md`, or judges land on an empty page (S0 owns READMEs).
 - **To win a track, the project has to meaningfully address it.** Don't tick sponsor tracks we don't really use (see below).
 - Teams are at most 3 people plus AI. Attendance is in person only.
 - Vexo (Discord, 9:40 AM): only connect to your own device. Firmware is fixed. The BLE contract in `VexoAI-Org/vexo-open-kit` is the interface.
@@ -101,6 +101,6 @@ There are two separate kinds of "track". Don't mix them up in the form.
 ## Countdown checklist (suggested; the user decides and does each step)
 
 - [ ] **~5:00 PM:** freeze features. Record the 60–90 s video of the live flow on the real band (shot list in `demo/DEMO_SCRIPT.md`) and upload it unlisted.
-- [ ] **~5:20 PM:** commit `beltguard/` (not the brief or `.claude/`), update the root README, push, and open the repo in a private window to confirm it's public.
+- [ ] **~5:20 PM:** commit `vexora/` (not the brief or `.claude/`), update the root README, push, and open the repo in a private window to confirm it's public.
 - [ ] **~5:30 PM:** one teammate logs in to Devpost, joins VexoHacks, pastes `SUBMISSION.md`, adds the video and repo links and the teammate, and **submits by 5:45 PM** (a 15-minute buffer).
 - [ ] **6:30 PM:** demo station ready per the `demo/DEMO_SCRIPT.md` pre-flight: band 07 charged and live, backend running (`python -u backend/app.py`), clean shift, and the video ready as the fallback (no simulator).

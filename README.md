@@ -3,8 +3,8 @@
 **A Vexo band on the technician's wrist times every power-tool trigger pull, tells them how long they can keep going before the vibration limit, and runs the job by voice.**
 
 <p>
-<img src="beltguard/docs/img/technician-dashboard.jpg" alt="Vexora technician dashboard: 3D conveyor site, the worker at the belt, live wrist signal, trigger time and exposure points" width="49%">
-<img src="beltguard/docs/img/control-room.jpg" alt="Vexora control room: crew KPIs, the 3D site, five worker cards with exposure points and status" width="49%">
+<img src="vexora/docs/img/technician-dashboard.jpg" alt="Vexora technician dashboard: 3D conveyor site, the worker at the belt, live wrist signal, trigger time and exposure points" width="49%">
+<img src="vexora/docs/img/control-room.jpg" alt="Vexora control room: crew KPIs, the 3D site, five worker cards with exposure points and status" width="49%">
 </p>
 
 Built in one day at **VexoHacks** (Y Combinator, San Francisco, 14 November 2026) on the [Vexo Open kit](https://github.com/VexoAI-Org/vexo-open-kit), with team band 07.
@@ -24,20 +24,20 @@ Built in one day at **VexoHacks** (Y Combinator, San Francisco, 14 November 2026
 ## Run it
 
 ```powershell
-cd beltguard
+cd vexora
 python -u backend/app.py            # FastAPI + SQLite on http://127.0.0.1:8765
 ```
 
 1. Open `http://127.0.0.1:8765/bridge.html` in Chrome, click **Connect band 07** and pick the band. Keep this one tab open; it holds the Bluetooth link and the mic.
 2. Technician dashboard: `http://127.0.0.1:8765/`. Control room: `/supervisor.html`. Work-order flow: `/workorder`.
 
-The voice needs a Deepgram key in `beltguard/.env` (`DEEPGRAM_API_KEY=…`, never committed). Full details, architecture, API and tests are in **[beltguard/README.md](beltguard/README.md)**.
+The voice needs a Deepgram key in `vexora/.env` (`DEEPGRAM_API_KEY=…`, never committed). Full details, architecture, API and tests are in **[vexora/README.md](vexora/README.md)**.
 
 ## Repository
 
 | Folder | What's in it |
 |---|---|
-| [`beltguard/`](beltguard/) | The Vexora app (its working folder name): `backend/` (FastAPI, detector, exposure, voice intents, job agent, work-order PDF), `frontend/` (dashboard, control room, Band link, Three.js site), `qa/` tests, `docs/`, `pitch/` |
+| [`vexora/`](vexora/) | `backend/` (FastAPI, detector, exposure, voice intents, job agent, work-order PDF), `frontend/` (dashboard, control room, Band link, Three.js site), `qa/` tests, `docs/`, `pitch/` |
 | [`workorder/`](workorder/) | The work-order flow (Ali): one button runs draft, checks, schedule, create, calendar and verify; mounted into Vexora at `/workorder` |
 | [`reference/`](reference/) | The Vexo Open kit, for reference |
 

@@ -159,7 +159,7 @@ The band's mic is always on while it's connected. Deepgram transcribes every sen
 You need Python 3.11 or newer (built on 3.13), Chrome (for Web Bluetooth), and your own team's Vexo band. **Never connect to another team's band.**
 
 ```powershell
-cd beltguard
+cd vexora
 python -m pip install "./vexo-open-kit/python[ble]"      # official Vexo Open SDK + bleak
 python -m pip install -r backend/requirements.txt         # fastapi, uvicorn, websockets, numpy, openai
 Copy-Item .env.example .env                               # then fill it in
@@ -255,7 +255,7 @@ Minutes to 100 points = 100 / (2 × a²) hours, rounded. HSE warns that manufact
 ## Repository map
 
 ```
-beltguard/
+vexora/
   README.md              this file
   .env.example           key names (copy to .env)
   backend/               FastAPI app, band bridge, SQLite, detector, exposure, intents, inspection, planner, fleet, tests

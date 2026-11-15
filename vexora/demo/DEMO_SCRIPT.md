@@ -49,7 +49,7 @@ Final flow, rewritten at 14:58 PT by S6 from the live app at http://127.0.0.1:87
 
 ## Pre-flight (from 6:15 PM)
 1. **Use one dashboard tab.** Close every other Vexora, Band link and kit dashboard tab in every browser. Only one tab speaks the replies, and extra tabs slow the 3D view.
-2. **Keep the backend running.** S2 does no restarts after 5:30 PM. Don't edit files in `backend/` or `frontend/` during judging, because every save hot-reloads. If the backend is down, run `python -u backend/app.py` from `beltguard/`.
+2. **Keep the backend running.** S2 does no restarts after 5:30 PM. Don't edit files in `backend/` or `frontend/` during judging, because every save hot-reloads. If the backend is down, run `python -u backend/app.py` from `vexora/`.
 3. **Check the band is live.** The backend finds band 07 by itself over Bluetooth or USB. The top bar must say **Band 07 · Live**, and the Inspection tab must say **Listening on band 07**. If not, double-tap the band to wake it and wait up to a minute.
 4. **Turn speech on.** Click once anywhere on the page, because Chrome only speaks after a click. In **Details**, tick **Speak Vexora's replies aloud**. Turn the laptop volume up, and have the wearer stand about 2 m from the speakers (see **Echo** under Fallbacks).
 5. **Do a voice check.** Say "Vexora, how long can I keep going?" You should hear "You're at 0 points, below the 100-point action value." **Don't use "Vexora, help" near the band.** Its spoken examples start with "Vexora", and the band can hear and run them.

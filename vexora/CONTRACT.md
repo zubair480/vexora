@@ -1,6 +1,6 @@
 # BeltGuard build contract — shared by every session
 
-> **13:09 DESIGN CHANGE (user request, overrides any earlier brief): LIGHT MODE.** Every UI follows `beltguard/DESIGN.md` — IBM Plex type, warm paper background, white panels, hairlines, one safety-orange accent. No dark/neon/bloom/scanlines/monospace body. The 3D view is a tasteful tabletop scale model, not a sci-fi hologram.
+> **13:09 DESIGN CHANGE (user request, overrides any earlier brief): LIGHT MODE.** Every UI follows `vexora/DESIGN.md` — IBM Plex type, warm paper background, white panels, hairlines, one safety-orange accent. No dark/neon/bloom/scanlines/monospace body. The 3D view is a tasteful tabletop scale model, not a sci-fi hologram.
 > **Demo tool decision:** a phone held in the palm on vibrate is the safe stand-in for the 1/2-in impact wrench (label it "DEMO stand-in"). S0 is verifying on the real band what the beta firmware actually supports — wait for `BAND_FACTS.md` before relying on 16 g ranges, 208/416/833 Hz or events.
 
 Read this before coding. Re-read it, and `ops/heartbeat.log`, every few minutes. Only the orchestrator (S0) edits this file; ask in the heartbeat log if you need a change.
@@ -15,7 +15,7 @@ Root: `C:\Users\zubai\vexo hackathon\beltguard\` · Python 3.13 (fastapi, uvicor
 
 ## Layout and owners (touch only your own files; commit nothing; switch no branch)
 ```
-beltguard/
+vexora/
   CONTRACT.md            S0 orchestrator
   README.md, .env.example, .gitignore, demo/   S0
   vexo-open-kit/         unchanged copy of github.com/VexoAI-Org/vexo-open-kit — never edit
@@ -138,4 +138,4 @@ Conveyor CV-102. Stations: S1 Tail pulley & loading zone (pos 0.08) · S2 Carry 
 ## Heartbeat (the user asked for a 1-minute heartbeat)
 Append one line to `ops/heartbeat.log` at least every minute while you work, and at every milestone or blocker:
 `HH:MM:SS [S1 hologram-ui] did X · next Y · blocker Z`
-Use bash: `echo "$(date +%H:%M:%S) [S2 band-backend] ..." >> "/c/Users/zubai/vexo hackathon/beltguard/ops/heartbeat.log"`
+Use bash: `echo "$(date +%H:%M:%S) [S2 band-backend] ..." >> "/c/Users/zubai/vexo hackathon/vexora/ops/heartbeat.log"`

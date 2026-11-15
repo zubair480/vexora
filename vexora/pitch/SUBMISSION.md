@@ -15,7 +15,7 @@ Nothing has been submitted. **Check every ⚠️ line just before you paste.** E
 | **Theme track** | **Ambient + Voice** (reason below) |
 | **Sponsor tracks** | None. Deepgram does our speech-to-text, but its track asks for Pipecat, which we don't use. We don't use Gemini, ElevenLabs or Stripe: the spoken replies come from the browser's built-in speech. The rules say a track has to be meaningfully addressed. ⚠️ Change this only if one of them really ends up in the build. |
 | **Built with** | vexo-open, bluetooth-low-energy, python, fastapi, websockets, asyncio, sqlite, numpy, deepgram, openai, javascript, three.js, web-speech-api |
-| **Try it out** | https://github.com/zubair480/vexo-hacks (project in `beltguard/`). ⚠️ Paste this only after `beltguard/` is committed and pushed. |
+| **Try it out** | https://github.com/zubair480/vexo-hacks (project in `vexora/`). ⚠️ Paste this only after `vexora/` is committed and pushed. |
 | **Video** | ⚠️ unlisted YouTube link, 60–90 s (shot list in `demo/DEMO_SCRIPT.md`) |
 | **Team** | Zubair Zafar · Ali Amjad ⚠️ confirm both are added on Devpost |
 

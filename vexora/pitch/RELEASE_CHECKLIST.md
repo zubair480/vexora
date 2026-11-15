@@ -10,13 +10,13 @@ cd "C:\Users\zubai\vexo hackathon"
 @'
 # vexo-hacks
 
-Our VexoHacks project is **BeltGuard**: a Vexo band times every power-tool trigger pull at the wrist and tells the technician how long they can keep going before the legal vibration limit. See [beltguard/README.md](beltguard/README.md).
+Our VexoHacks project is **BeltGuard**: a Vexo band times every power-tool trigger pull at the wrist and tells the technician how long they can keep going before the legal vibration limit. See [vexora/README.md](vexora/README.md).
 '@ | Set-Content -Encoding utf8 README.md
 ```
 
 **2. Commit and push in one paste.**
-- It stages only `beltguard/` and the root `README.md`.
-- Then it refuses to commit if anything outside those got staged, if a `.env`, database, raw recording or `tools/out/` file got staged, or if any staged file contains a key value from `beltguard/.env`. Key values are never printed.
+- It stages only `vexora/` and the root `README.md`.
+- Then it refuses to commit if anything outside those got staged, if a `.env`, database, raw recording or `tools/out/` file got staged, or if any staged file contains a key value from `vexora/.env`. Key values are never printed.
 - If all is clean, it commits what changed since `fc536a7` and pushes both commits to `main`. If nothing changed, git says "nothing to commit" and the push still sends `fc536a7`.
 
 ```powershell
@@ -24,7 +24,7 @@ Our VexoHacks project is **BeltGuard**: a Vexo band times every power-tool trigg
   cd "C:\Users\zubai\vexo hackathon"
   git add beltguard README.md
   $staged = @(git diff --cached --name-only)
-  $bad = $staged | Where-Object { $_ -notmatch '^(beltguard/|README\.md$)' -or $_ -match '(^|/)\.env$|\.db(-wal|-shm)?$|^beltguard/data/raw/|^beltguard/tools/out/' }
+  $bad = $staged | Where-Object { $_ -notmatch '^(vexora/|README\.md$)' -or $_ -match '(^|/)\.env$|\.db(-wal|-shm)?$|^vexora/data/raw/|^vexora/tools/out/' }
   $vals = Get-Content beltguard\.env | Where-Object { $_ -match '^(DEEPGRAM_API_KEY|OPENAI_API_KEY)=.{8,}' } | ForEach-Object { ($_ -split '=', 2)[1].Trim().Trim('"').Trim("'") }
   $leaks = foreach ($v in $vals) { $staged | Where-Object { (Test-Path -LiteralPath $_) -and (Select-String -LiteralPath $_ -SimpleMatch $v -Quiet) } }
   if ($bad -or $leaks) { "STOP: nothing committed."; $bad | ForEach-Object { "DO NOT COMMIT: $_" }; $leaks | ForEach-Object { "LEAK: $_" }; return }
@@ -41,8 +41,8 @@ Our VexoHacks project is **BeltGuard**: a Vexo band times every power-tool trigg
 
 **3. Check it landed.** Open https://github.com/zubair480/vexo-hacks in a private browser window:
 - the repo is public
-- `beltguard/README.md` renders with its three screenshots
-- there's no `beltguard/.env`
+- `vexora/README.md` renders with its three screenshots
+- there's no `vexora/.env`
 - the commit time is before 6:00 PM
 
 | Time (PT) | What |
@@ -59,17 +59,17 @@ Our VexoHacks project is **BeltGuard**: a Vexo band times every power-tool trigg
 ## 1. Release scan (run at 15:22 on what `git add beltguard` would stage)
 - **316 files, 20.4 MB.** More files may appear before the freeze, so re-run the leak check in section 3.
 - **Secrets: clean.**
-  - The `DEEPGRAM_API_KEY` value from `beltguard/.env` appears in none of the 316 files, `ops/heartbeat.log` and every log included.
+  - The `DEEPGRAM_API_KEY` value from `vexora/.env` appears in none of the 316 files, `ops/heartbeat.log` and every log included.
   - There are no OpenAI, AWS, GitHub, Google or Slack token patterns, no private keys, and no email addresses.
   - The only 40-hex strings are Bluetooth protocol test vectors in the kit's docs.
-- **Ignored, so these stay on the laptop:** `beltguard/.env` (`git check-ignore` → `beltguard/.gitignore:1:.env`), `data/beltguard.db` (116 MB) with its `-wal`/`-shm`, `data/raw/` (231 MB, 31 files), `__pycache__/`, and the kit's `build/` and `egg-info/`.
+- **Ignored, so these stay on the laptop:** `vexora/.env` (`git check-ignore` → `vexora/.gitignore:1:.env`), `data/beltguard.db` (116 MB) with its `-wal`/`-shm`, `data/raw/` (231 MB, 31 files), `__pycache__/`, and the kit's `build/` and `egg-info/`.
 - **Staged unless you decide otherwise:**
-  - **Done at 15:36:** `tools/out/` (the 15.1 MB labelled band recording) was added to `beltguard/.gitignore`. The file stays on disk, and it was never staged.
+  - **Done at 15:36:** `tools/out/` (the 15.1 MB labelled band recording) was added to `vexora/.gitignore`. The file stays on disk, and it was never staged.
   - Logs with no secrets: `ops/heartbeat.log` (105 KB, the team's build log), `ops/band_probe.out`, `ops/band_probe.jsonl`, `data/backend.log`, `data/backend-s0.out` and `data/isolated-8799.out`. Keep or drop them; it's your call.
   - Harmless staging copies and old files: `frontend/app3s.js`, `v3s.html`, `v3s.css`, `supervisor-next.*`, `crew-test.html`, `app.js`, `style.css`, `holo.js` and `ops/app3.backup-143001.js`.
   - `pitch/` holds the team names and the repo URL, which are public on Devpost anyway. `pitch/deck/` is the source of the unused old deck.
 - **Licences:** `vexo-open-kit/` and `frontend/vendor/` are the Vexo Open kit, MIT, with its `LICENSE` included. Credited in the README.
-- ⚠️ **`OPENAI_API_KEY` is empty in `beltguard/.env`**, so defect extraction runs on the rules extractor (source `rules`). The README and `SUBMISSION.md` say "when an OpenAI key is set". If you add a key before 5:30, the AI path switches on with no other change.
+- ⚠️ **`OPENAI_API_KEY` is empty in `vexora/.env`**, so defect extraction runs on the rules extractor (source `rules`). The README and `SUBMISSION.md` say "when an OpenAI key is set". If you add a key before 5:30, the AI path switches on with no other change.
 
 ## 2. Before committing (at the 5:30 freeze)
 1. Make sure every session has stopped editing.
@@ -87,12 +87,12 @@ Run these from the repository root in PowerShell. Add only `beltguard` and the r
 ```powershell
 cd "C:\Users\zubai\vexo hackathon"
 git status --short
-git check-ignore -v beltguard/.env
+git check-ignore -v vexora/.env
 git add beltguard README.md
 git status --short
 ```
 
-The second `git status --short` must show only `beltguard/...` and `README.md`, with no `.env`, no `.db`, no `VexoHacks-brief.md` and no `.claude/`.
+The second `git status --short` must show only `vexora/...` and `README.md`, with no `.env`, no `.db`, no `VexoHacks-brief.md` and no `.claude/`.
 
 Leak check on what's staged. It prints `LEAK: <file>` for any staged file that contains a key value, and never prints the key:
 
@@ -114,7 +114,7 @@ If the push is rejected because the remote has newer commits, run `git pull --re
 
 **Check it landed:**
 - Open https://github.com/zubair480/vexo-hacks in a private browser window.
-- The repo must be public, `beltguard/README.md` must render with its three screenshots, and there must be no `beltguard/.env`.
+- The repo must be public, `vexora/README.md` must render with its three screenshots, and there must be no `vexora/.env`.
 - `git log --oneline -3` shows the commit, and its time must be before 6:00 PM.
 
 ## 4. Video (60–90 s, record 5:00–5:20, upload unlisted to YouTube)
@@ -147,7 +147,7 @@ If the push is rejected because the remote has newer commits, run `git pull --re
    | Built with | vexo-open, bluetooth-low-energy, python, fastapi, websockets, asyncio, sqlite, numpy, deepgram, openai, javascript, three.js, web-speech-api |
    | Try it out | https://github.com/zubair480/vexo-hacks |
    | Video | the unlisted YouTube link from section 4 |
-   | Image gallery | `beltguard/docs/img/technician-dashboard.jpg`, `control-room.jpg`, `3d-tool-wall.png` |
+   | Image gallery | `vexora/docs/img/technician-dashboard.jpg`, `control-room.jpg`, `3d-tool-wall.png` |
    | Theme track | Ambient + Voice |
    | Sponsor tracks | none (see `SUBMISSION.md` for why) |
    | Team | add the teammate before submitting |
