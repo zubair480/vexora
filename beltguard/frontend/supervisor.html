@@ -42,11 +42,20 @@
   .top-meta { display:flex; align-items:center; gap:12px; font-size:13px; color:var(--muted-foreground); }
   .vsep { width:1px; height:16px; background:var(--border); }
 
-  /* layout: one screen at 1440x900 */
-  .room { height:calc(100vh - 56px); min-height:640px; display:grid; grid-template-rows:auto minmax(0,1fr) auto; gap:16px; padding:16px 24px 12px; }
-  .split { display:grid; grid-template-columns:minmax(0,58fr) minmax(0,42fr); gap:16px; min-height:0; }
-  .col { display:grid; gap:16px; min-height:0; }
-  .col.left { grid-template-rows:minmax(0,1fr) 290px; }
+  /* layout: one screen at 1440x900 (S8 16:3x). The site 3D is the hero: ~2/3 width and up to 60vh tall, so the
+     supervisor can see the workers (and S7's speech bubbles above them). The crew list sits beside it and scrolls
+     inside; the crew story runs full width underneath. The site row takes up to 60vh first; the story keeps at
+     least 140px, so nothing ever pushes the page into scrolling at 1440x900 or 1280x800. */
+  .room { height:calc(100vh - 56px); min-height:600px; display:grid; grid-template-rows:auto minmax(0,60vh) minmax(140px,1fr) auto; gap:12px; padding:12px 24px 10px; }
+  .split { display:grid; grid-template-columns:minmax(0,2fr) minmax(0,1fr); gap:16px; min-height:0; }
+  .split > .card, .story-card { min-height:0; overflow:hidden; }
+  .crew { --spark-w:76px; }
+  .crew .card-header .card-title { flex:none; }
+  .crew .card-header .legend { white-space:nowrap; overflow:hidden; text-overflow:ellipsis; min-width:0; }
+  /* narrower crew column: names stay readable — the chips take at most 58% of the row and wrap upward
+     (status badge on top beside the name, device chips under it); the tool name gets more room than the bar */
+  .crew .w-chips { flex:0 1 auto; max-width:58%; flex-wrap:wrap-reverse; justify-content:flex-end; row-gap:4px; column-gap:8px; }
+  .crew .w-mid { grid-template-columns:minmax(0,1.6fr) var(--spark-w,112px) minmax(0,.8fr) 64px; gap:10px; }
 
   /* card */
   .card { background:var(--card); border:1px solid var(--border); border-radius:var(--radius); box-shadow:var(--shadow-sm); min-width:0; min-height:0; display:flex; flex-direction:column; }
@@ -101,13 +110,13 @@
   .w-chips { display:flex; align-items:center; gap:8px; flex:none; }
   .dev { display:inline-flex; align-items:center; gap:4px; font:400 12px var(--mono); color:var(--muted-foreground); white-space:nowrap; }
   .dev svg { width:14px; height:14px; }
-  .w-mid { display:grid; grid-template-columns:minmax(0,1.15fr) 112px minmax(0,1fr) 64px; align-items:center; gap:12px; }
+  .w-mid { display:grid; grid-template-columns:minmax(0,1.15fr) var(--spark-w,112px) minmax(0,1fr) 64px; align-items:center; gap:12px; }
   .w-tool { display:flex; align-items:center; gap:6px; font-size:13px; min-width:0; }
   .w-tool > span:not(.badge) { white-space:nowrap; overflow:hidden; text-overflow:ellipsis; min-width:0; }
   .w-tool .badge { flex:none; }
   .w-tool svg { width:14px; height:14px; flex:none; }
   .w-tool.none { color:var(--muted-foreground); }
-  canvas.spark { width:112px; height:26px; display:block; }
+  canvas.spark { width:var(--spark-w,112px); height:26px; display:block; }
   .bar { position:relative; height:8px; border-radius:4px; background:var(--muted); overflow:hidden; }
   .bar .zone { position:absolute; top:0; bottom:0; left:25%; right:0; background:var(--zone-action); }
   .bar .fill { position:absolute; left:0; top:0; bottom:0; background:var(--primary); border-radius:4px; transition:width .4s ease; }
@@ -141,6 +150,12 @@
   .s-item.red { background:#FEF2F2; } .s-item.red .s-icon { background:#FEE2E2; color:#B91C1C; }
   .s-item.mic .s-icon { background:#18181B; color:#FAFAFA; }
   .s-item.acked { background:transparent; opacity:.6; }
+  @media (min-width:1200px) {
+    .story { display:grid; grid-template-columns:repeat(2, minmax(0,1fr)); align-content:start; }
+    .story .s-item:nth-child(odd) { border-right:1px solid var(--border); }
+    .story .s-item:nth-last-child(2):nth-child(odd) { border-bottom:0; }
+    .story .empty { grid-column:1 / -1; }
+  }
   /* heard */
   .heard { display:flex; align-items:center; gap:8px; font-size:12px; min-width:0; }
   .heard .mic { width:20px; height:20px; flex:none; border-radius:50%; display:grid; place-items:center; background:#18181B; color:#FAFAFA; }
@@ -157,10 +172,20 @@
   @media (prefers-reduced-motion: reduce) { .avatar.busy::after { animation:none; } }
   .foot { font-size:12px; color:var(--muted-foreground); }
 
+  @media (max-width:1360px) { .crew { --spark-w:64px; } .crew .w-chips { max-width:54%; } }
+  @media (max-height:840px) and (min-width:1101px) {   /* 1280x800 and similar: give the 3D the room */
+    .room { gap:10px; padding:10px 24px 8px; }
+    .kpi { padding:8px 14px; }
+    .kpi-value { font-size:22px; }
+    .kpi-name { font-size:16px; margin-top:2px; }
+    .foot { font-size:11px; line-height:1.35; }
+  }
   @media (max-width:1100px) {
-    .room { height:auto; }
+    .room { height:auto; grid-template-rows:auto auto auto auto; }
     .split { grid-template-columns:minmax(0,1fr); }
-    .col.left { grid-template-rows:420px 320px; }
+    .site { height:440px; }
+    .crew { max-height:520px; --spark-w:112px; }
+    .story-card { height:320px; }
     .kpis { grid-template-columns:repeat(2, minmax(0,1fr)); }
   }
   @media (max-width:640px) {
@@ -194,23 +219,20 @@
   </section>
 
   <section class="split">
-    <div class="col left">
-      <div class="card">
-        <div class="card-header"><h2 class="card-title">Site · CV-102</h2><span class="card-desc">Click a worker to focus</span></div>
-        <div class="stage" id="stage"><p class="stage-note" id="stage-note">Loading the site</p></div>
-      </div>
-      <div class="card">
-        <div class="card-header"><h2 class="card-title">Crew story</h2><span class="card-desc">What happened, newest first · acknowledging only marks it here</span></div>
-        <ul class="story" id="story"><li class="empty">Waiting for the crew.</li></ul>
-      </div>
+    <div class="card site">
+      <div class="card-header"><h2 class="card-title">Site · CV-102</h2><span class="card-desc">Click a worker to focus</span></div>
+      <div class="stage" id="stage"><p class="stage-note" id="stage-note">Loading the site</p></div>
     </div>
-    <div class="col">
-      <div class="card">
-        <div class="card-header"><h2 class="card-title">Crew</h2><span class="legend">Points today, 0–400 · ticks at 100 action, 400 limit</span></div>
-        <div class="workers" id="workers"></div>
-      </div>
+    <div class="card crew">
+      <div class="card-header"><h2 class="card-title">Crew</h2><span class="legend">Points today, 0–400 · ticks at 100 action, 400 limit</span></div>
+      <div class="workers" id="workers"></div>
     </div>
   </section>
+
+  <div class="card story-card">
+    <div class="card-header"><h2 class="card-title">Crew story</h2><span class="card-desc">What happened, newest first · acknowledging only marks it here</span></div>
+    <ul class="story" id="story"><li class="empty">Waiting for the crew.</li></ul>
+  </div>
 
   <p class="foot">Screening estimates — not certified HAV measurements. Band temperature is the device, not skin. Simulated bands are labelled. <span id="fleet-label"></span></p>
 </main>

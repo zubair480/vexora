@@ -1,5 +1,36 @@
 # BeltGuard: 2-minute live demo (judging from 6:30 PM)
 
+## 60-second demo video: what to click, what to say (added 15:40)
+Record it on the **live** server, http://127.0.0.1:8765/, with band 07 on the wearer's tool-hand wrist.
+
+**Before you record:**
+- **Band 07 · Live** shows in the top bar, and only one dashboard tab is open.
+- Click once on the page, then in **Details** tick **Speak BeltGuard's replies aloud**.
+- Start a clean shift: run `/api/tool/return` (if a tool is out), then `/api/reset` (commands in the pre-flight below). The screen says **Start of shift**.
+- The wearer stands about 2 m from the laptop speakers.
+- Record the Chrome window with **Win+Alt+R**, while a second person films the wrist and screen over the shoulder on a phone, with room audio.
+
+| Time | Click (driver) | Say (wearer) | Screen, and what BeltGuard says |
+|---|---|---|---|
+| 0:00–0:06 | **Start** | "BeltGuard, I'm at station three." | The worker walks to the tool station and **Pick a tool** opens, with m/s² on every tool. BeltGuard: "Station 3, return idlers. Ready when you are." |
+| 0:06–0:15 | — | "BeltGuard, I'm taking the hammer drill." | "Locking the hammer drill to you…", then **Hammer drill locked to Technician W-01** (11.0 m/s², 242 pts/h, 25 min to the action value). The worker takes the drill and walks to station 3. BeltGuard: "Hammer drill assigned to you. I'll time it from your band. About 24 minutes on it before the action value." |
+| 0:15–0:20 | — | "Conveyor's isolated." (no wake word: the job checklist hears every sentence) | BeltGuard: "Isolation logged; an authorized person must verify it. Next: remove guard." |
+| 0:20–0:32 | — | Buzz the phone pressed into the palm of the band hand for about 10 s, wrist still | Step 3, **Using the hammer drill**: **Tool running**, **Trigger time, running** counting up, and "+x pts provisional". The live panel under the 3D view appears. |
+| 0:32–0:38 | — | Only if asked: double-tap the band | "Was that Hammer drill, 10 seconds? Say yes or no, or double-tap to confirm." Then "Confirmed by double-tap: TS-####, 10 s, +0.67 pts". Step 4: **Within the safe limit**, with the 0–400 bar and the minutes left. |
+| 0:38–0:46 | — | "BeltGuard, how long can I keep going?" | "You're at 0.7 points, below the 100-point action value. About 24 minutes left with the hammer drill before 100." |
+| 0:46–0:52 | Hold on the live panel | — | **Technician** shows every sentence, with chat dimmed. **Job** shows ✓ Isolate & lock out CV-102 ("heard …: Conveyor's isolated.") and Replace idler in progress ("band: hammer drill 0:10 trigger, 0.7 pts (confirmed)"). **BeltGuard did** shows "Isolation logged; an authorized person must verify it." |
+| 0:52–1:00 | **Supervisor view** (top bar) | — | The control room: W-01 on **Band 07 · Live** with its points, W-02 to W-05 with **Simulated band** chips, and the crew story. |
+
+**Captions** (burn them in, so the video is honest when watched without sound):
+- 0:00: "Recorded live on Vexo band 07"
+- 0:20: "A phone on vibrate stands in for the hammer drill. The maths uses the drill's HSE value, 11 m/s²."
+- 0:52: "W-02 to W-05 are simulated bands, labelled on screen"
+- end: "Screening estimate, not a certified HAV measurement. AI drafts; people decide."
+
+**Don't say these near the band:** "BeltGuard, help" or "Guard's back on". The laptop reads its replies aloud, and the band mic can hear them and run or tick things; the reply to "Guard's back on" would tick the test-run step. The numbers in the table assume a 10 s buzz. If BeltGuard doesn't ask about the session, skip the double-tap row.
+
+---
+
 Final flow, rewritten at 14:58 PT by S6 from the live app at http://127.0.0.1:8765/ and the code (`backend/intents.py`, `backend/app.py`, `frontend/app3.js`). Screen labels were refreshed at 15:30 for the new **Pick tool** and **Locked to you** screens. Every **BeltGuard says** line is the exact text the code produces. Every spoken command was run through the voice parser and lands on the intended action.
 
 **What the judges see:** a technician checks a tool out of the crib by voice. The band on their wrist times each trigger pull, and BeltGuard gives an exposure verdict with the minutes left. Voice runs the rest of the shift: station, defect, question, tool return, job done. Nothing on screen is simulated.
@@ -92,7 +123,7 @@ Set this once in PowerShell: `$api = "http://127.0.0.1:8765/api"`
 - **What does the LED do?** It flashes red for 4 seconds when the day's total crosses 100 or 400 points. The band locks its LED while the mic is on, so BeltGuard pauses the audio for the flash and then resumes it.
 - **Who buys it?** UK and EU employers already have to assess and control vibration exposure by law. In the US, NIOSH estimated about 1.45 million workers use vibrating tools, and OSHA sets no limit.
 
-## Video: 60–90 s, screen plus band on the wrist
+## Longer video cut: 60–90 s (the 60-second list at the top is the main one)
 
 Record at about 5:00–5:15 PM, upload to YouTube as unlisted by 5:30, then reset the shift before judging.
 

@@ -150,11 +150,13 @@ class SimWorker:
         now = time.time()
         self.last_event = {"kind": kind, "ts": now}
         self.fleet.story.appendleft({"ts": now, "worker_id": self.id, "worker_name": self.name, "kind": kind,
-                                     "text": text, "is_simulated": True, "source": "sim", **extra})
+                                     "text": text + " (SIMULATED)", "is_simulated": True, "simulated": True,
+                                     "source": "sim", **extra})
 
     def _alert(self, kind: str, text: str) -> None:
         self.fleet.alerts.appendleft({"ts": time.time(), "worker_id": self.id, "kind": kind,
-                                      "text": text + " (SIMULATED)", "is_simulated": True, "source": "sim"})
+                                      "text": text + " (SIMULATED)", "is_simulated": True, "simulated": True,
+                                      "source": "sim"})
 
     def _ctx(self) -> dict:
         t = self.tool() if self.tool_id else None
@@ -198,7 +200,8 @@ class SimWorker:
                 reply = ""
                 print("[fleet] intents failed for %s: %r" % (self.id, e), flush=True)
         if reply:                                        # only sentences BeltGuard answered; chat stays out
-            self.heard.appendleft({"ts": time.time(), "text": text, "reply": reply, "is_simulated": True})
+            self.heard.appendleft({"ts": time.time(), "text": text + " (SIMULATED)", "reply": reply,
+                                   "is_simulated": True, "simulated": True})
             self._story("voice", "%s: “%s” → BeltGuard: “%s”" % (self.name, text, reply))
         return reply
 
@@ -355,7 +358,8 @@ class SimWorker:
     def view(self) -> dict:
         t = self.assignment["tool"] if self.assignment else None
         a = float((t or {}).get("vibration_m_s2") or 0) or None
-        return {"id": self.id, "name": self.name, "band": None, "is_simulated": True, "source": "sim",
+        return {"id": self.id, "name": self.name, "band": None, "is_simulated": True, "simulated": True,
+                "source": "sim",
                 "station_id": self.station, "walk": dict(self.walk) if self.walk else None,
                 "assignment": {"tool": {k: t.get(k) for k in ("id", "name", "vibration_m_s2")},
                                "since_ts": self.assignment["since_ts"]} if self.assignment else None,
@@ -385,11 +389,48 @@ def _patch_confirm_window(app) -> None:
         print("[fleet] confirm-window patch failed:", repr(e), flush=True)
 
 
+def _ensure_job_now(app) -> None:
+    """The job checklist exists from the start of a shift (all six steps to do), not only after the first sentence:
+    create it on the agent and broadcast {type:"job"}."""
+    try:
+        agent = app.job_agent if getattr(app, "job_agent", None) is not None else app._agent()
+        if agent is None:
+            return
+        if not (agent.snapshot() or {}).get("job"):
+            agent.on_state(app.intent_context())
+        job = (agent.snapshot() or {}).get("job")
+        loop = getattr(app.hub, "loop", None)
+        if job and loop is not None and loop.is_running():
+            loop.create_task(app.hub.broadcast({"type": "job", "source": "rules", "job": app._job_view(job)}))
+            app.changed()
+    except Exception as e:
+        print("[fleet] ensure job failed:", repr(e), flush=True)
+
+
+def _patch_job_on_reset(app) -> None:
+    """Hot-fix (S0, no restart during the user's session): a reset (new agent) creates the default job at once.
+    app.py carries the same rule natively from its next restart."""
+    import types
+    orig = type(app).new_job_agent
+
+    def new_job_agent(self):
+        agent = orig(self)
+        _ensure_job_now(self)
+        return agent
+    try:
+        app.new_job_agent = types.MethodType(new_job_agent, app)
+        _ensure_job_now(app)                             # the agent running right now too
+    except Exception as e:
+        print("[fleet] job-on-reset patch failed:", repr(e), flush=True)
+
+
 class Fleet:
     def __init__(self, app) -> None:
         self.app = app
         if app is not None and hasattr(app, "store"):
             _patch_confirm_window(app)
+            if hasattr(type(app), "new_job_agent"):
+                _patch_job_on_reset(app)
         self.alerts = collections.deque(maxlen=60)
         self.story = collections.deque(maxlen=120)
         self._stations = None
@@ -419,9 +460,23 @@ class Fleet:
                 for r in rows[::step][-64:] if r["ax"] is not None]
 
     def _w01_heard(self, ss: float) -> list:
-        rows = self.app.store.query("SELECT ts, text, response FROM transcripts WHERE ts >= ? AND response IS NOT NULL "
-                                    "AND response != '' ORDER BY ts DESC LIMIT 3", (ss,))
-        return [{"ts": r["ts"], "text": r["text"], "reply": r["response"] or "", "is_simulated": False} for r in rows]
+        # PRIVACY: only lines that led to a real command, defect or job step; old parser replies to overheard
+        # chat (before the wake word, intent unset) never reach the control room
+        rows = self.app.store.query("SELECT ts, text, response, intent, acted FROM transcripts WHERE ts >= ? "
+                                    "AND response IS NOT NULL "
+                                    "AND response != '' AND ((result_status = 'ok' AND ((intent IS NOT NULL AND intent "
+                                    "NOT IN ('none', 'chat')) OR defect_id IS NOT NULL)) OR (acted IS NOT NULL AND acted != '')) "
+                                    "ORDER BY ts DESC LIMIT 3", (ss,))
+        out = []
+        for r in rows:
+            if (r.get("intent") or "none") in ("none", "chat"):
+                # PRIVACY: only the job agent acted on this sentence; show what was done, never the raw words
+                # (step phrases are often said in the middle of private conversation)
+                text = "Job step: " + str(r.get("acted") or "").replace("Step: ", "").split(" · ")[0][:90]
+            else:
+                text = (r["text"] or "")[:100]
+            out.append({"ts": r["ts"], "text": text, "reply": r["response"] or "", "is_simulated": False})
+        return out
 
     STORY_KINDS = {"tool_checkout": "checkout", "tool_return": "return", "tool_start": "start", "station": "arrive",
                    "transcript": "voice", "threshold": "alert", "safety": "fall", "tool_confirmed": "confirm",
@@ -430,14 +485,15 @@ class Fleet:
 
     def _w01_story(self, ss: float) -> list:
         kinds = tuple(self.STORY_KINDS)
-        rows = self.app.store.query("SELECT ts, kind, title, detail FROM shift_events WHERE ts >= ? AND kind IN (%s) "
+        rows = self.app.store.query("SELECT ts, kind, title, detail, refs FROM shift_events WHERE ts >= ? AND kind IN (%s) "
                                     "ORDER BY ts DESC LIMIT 30" % ",".join("?" * len(kinds)), (ss, *kinds))
         name = self.app.store.worker().get("name") or "W-01"
         out = []
         for r in rows:
             text = r["title"] or ""
             if r["kind"] == "transcript":
-                if (r.get("detail") or "") in self.CHAT_DETAILS:
+                refs = r.get("refs") or {}
+                if (r.get("detail") or "") in self.CHAT_DETAILS or not (refs.get("intent") or refs.get("defect_id")):
                     continue                             # overheard chat from the real band never goes out
                 text += " → BeltGuard: “%s”" % r["detail"]
             entry = {"ts": r["ts"], "worker_id": "W-01", "worker_name": name, "kind": self.STORY_KINDS[r["kind"]],

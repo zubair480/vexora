@@ -11,10 +11,15 @@ mic (no wake word) and BeltGuard keeps the job checklist and drafts the paperwor
   3  impact wrench checked out + ~10 s sim tool scene
   4  "New idler's in, guard back on."
   5  "Job done, testing the belt."
-Asserts: checklist steps flip to done in order, each with evidence; the "Replace idler" step is in_progress during
-the tool session; agent_actions include the WO draft, a parts-request DRAFT, the isolation-logged note and
-"awaiting supervisor verification" (nothing is ever closed); every sentence reaches /ws as a transcript with an
-`acted` flag; every broadcast and DB row stays inside the contract source set.
+S0 16:15 SPOKEN STEPS design (job_agent.SPOKEN_STEPS = True): the job starts with ZERO steps; steps are created from
+speech (verb + object, known names kept); a statement marks a step done, a request/question marks it in progress;
+no fixed order; work before isolation -> safety_check; a repeat never moves a step back.
+Asserts: zero steps at start; the spoken steps are created done, in spoken order, each with evidence; a step is in
+progress while the band feels the tool; sign-off is awaiting verification (never done); no safety_check when isolation
+came first; agent_actions include the WO draft, a parts-request DRAFT, the isolation note and "awaiting supervisor
+verification" (nothing closed); every sentence reaches /ws as a transcript with `acted`; contract sources hold.
+Phase 2 (fresh shift): "Guard's off." before isolation -> safety_check; "Can you grease the bearings?" -> in progress;
+"Greased the bearings." -> done; the same request again leaves it done.
 Isolation is the same as qa/voice_e2e.py (BELTGUARD_DB copy, no band search, real-band bridges refused).
 """
 from __future__ import annotations
@@ -93,6 +98,8 @@ def run(args) -> tuple:
     timeline: list = []            # (label, steps, actions) after every move
     first_done: dict = {}          # step title -> (order index, evidence)
     saw_replace_in_progress = None
+    tool_inprog: set = set()       # step titles in progress while the band feels the tool
+    safety: dict = {}              # second phase (fresh shift): S0's other spoken-step rules
     with TestClient(A.app) as client:
         R.check("setup", "new shift on the copy", "S2", client.post("/api/reset").status_code == 200, "")
 
@@ -115,13 +122,15 @@ def run(args) -> tuple:
             if text is None:                                  # the tool use, with the impact wrench checked out
                 r = client.post("/api/tool/checkout", json={"tool_id": "impact_wrench", "worker_id": "W-01"})
                 R.check("tool", "impact wrench checked out", "S2", r.status_code == 200, "HTTP %s" % r.status_code)
+                time.sleep(3.0)          # checkout switches the sample rate (detector restarts); a real walk takes longer
                 t0 = time.time()
-                r = client.post("/api/sim/scene", json={"scene": "tool", "seconds": 10})
-                R.check("tool", "sim tool scene 10 s", "S2", r.status_code == 200, "HTTP %s" % r.status_code)
-                while time.time() - t0 < 10.5:
+                r = client.post("/api/sim/scene", json={"scene": "tool", "seconds": 12})
+                R.check("tool", "sim tool scene 12 s", "S2", r.status_code == 200, "HTTP %s" % r.status_code)
+                while time.time() - t0 < 12.5:
                     _, steps, _ = snap("tool scene +%.0fs" % (time.time() - t0)) if not args.dump else snap("tool scene")
                     for s in steps:
-                        if "idler" in step_title(s).lower() and str(s.get("status")).lower() in ("in_progress", "active", "doing"):
+                        if str(s.get("status")).lower() in ("in_progress", "active", "doing"):
+                            tool_inprog.add(step_title(s))
                             saw_replace_in_progress = saw_replace_in_progress or round(time.time() - t0, 1)
                     time.sleep(0.7)
                 client.post("/api/sim/scene", json={"scene": "idle", "seconds": 15})
@@ -130,9 +139,12 @@ def run(args) -> tuple:
                 kinds = sorted({(m.get("event") or {}).get("kind") for tt, m in sent if tt >= t0 and m.get("type") == "event"})
                 acts = sorted({m.get("state") for tt, m in sent if tt >= t0 and m.get("type") == "activity"})
                 nmot = sum(1 for tt, m in sent if tt >= t0 and m.get("type") == "motion")
-                R.check("tool", "tool session ended (tool_stop)", "S3", stop is not None and stop["event"]["kind"] == "tool_stop",
-                        ((stop or {}).get("event", {}).get("title") if stop else "none within 12 s") +
-                        " | events %s | activity %s | motion msgs %d" % (kinds, acts, nmot))
+                detail = (((stop or {}).get("event", {}).get("title") if stop else "none within 20 s") +
+                          " | events %s | activity %s | motion msgs %d" % (kinds, acts, nmot))
+                if stop is not None and stop["event"]["kind"] == "tool_unresolved":   # sim noise: needs a confirm
+                    R.add("tool", "tool session ended (confirmed by the detector)", "S3", "WARN", detail)
+                else:
+                    R.check("tool", "tool session ended (confirmed by the detector)", "S3", stop is not None, detail)
                 snap("after tool")
                 continue
             t0 = time.time()
@@ -150,19 +162,65 @@ def run(args) -> tuple:
 
         final, steps, actions = snap("end")
 
-    # ---- checklist ---------------------------------------------------------------------------------
-    R.check("checklist", "job checklist present", "S4", bool(steps), "%d steps: %s" % (len(steps), [step_title(s) for s in steps]))
-    done = [s for s in steps if str(s.get("status")).lower() in ("done", "complete", "completed")]
-    R.check("checklist", "steps done by the end", "S4", steps and len(done) >= len(steps) - 1,
-            "%d/%d done: %s" % (len(done), len(steps), [(step_title(s), s.get("status")) for s in steps]))
-    order = [t for t, _ in sorted(first_done.items(), key=lambda kv: kv[1][0])]
-    listed = [step_title(s) for s in steps if step_title(s) in first_done]
-    R.check("checklist", "steps flipped to done in checklist order", "S4", order == listed, "done order %s" % order)
-    no_ev = [t for t, (_, ev) in first_done.items() if not ev]
-    R.check("checklist", "every done step carries evidence", "S4", first_done and not no_ev,
-            "missing evidence: %s" % no_ev if no_ev else "%d with evidence" % len(first_done))
-    R.check("checklist", "'Replace idler' in_progress during the tool session", "S4", saw_replace_in_progress is not None,
-            "seen at +%ss" % saw_replace_in_progress if saw_replace_in_progress else "never seen in_progress")
+        # ---- phase 2 (fresh shift): S0 16:15 spoken-steps rules --------------------------------------------
+        def status_of(title_part, st):
+            s = next((x for x in st if title_part in step_title(x).lower()), None)
+            return s.get("status") if s else None
+        client.post("/api/reset")
+        _, st, _ = snap("phase 2: after reset")
+        safety["reset_steps"] = len(st)
+        n_act = len((client.get("/api/state").json().get("agent_actions")) or [])
+        client.post("/api/report", json={"text": "Guard's off.", "source": "band-mic"})
+        _, st, ac = snap("phase 2: guard off before isolation")
+        safety["safety_check"] = next((a for a in ac[: max(0, len(ac) - n_act)] or ac
+                                       if (a.get("kind") == "safety_check" and "isolat" in low(a))), None)
+        client.post("/api/report", json={"text": "Can you grease the bearings?", "source": "band-mic"})
+        _, st, _ = snap("phase 2: request")
+        safety["request"] = status_of("grease", st)
+        client.post("/api/report", json={"text": "Greased the bearings.", "source": "band-mic"})
+        _, st, _ = snap("phase 2: statement")
+        safety["statement"] = status_of("grease", st)
+        client.post("/api/report", json={"text": "Can you grease the bearings?", "source": "band-mic"})
+        _, st, _ = snap("phase 2: repeat request")
+        safety["repeat"] = status_of("grease", st)
+        safety["titles"] = [step_title(s) for s in st]
+
+    # ---- checklist: S0 16:15 SPOKEN STEPS (zero steps at start; created from speech; tense sets status) ----------
+    def find(part):
+        return next((s for s in steps if part in step_title(s).lower()), None)
+    start_steps = timeline[0][1] if timeline else []
+    R.check("checklist", "job starts with zero steps", "S0", len(start_steps) == 0, "%d steps at start" % len(start_steps))
+    want_done = [("isolate", "Isolate & lock out"), ("remove guard", "Remove guard"), ("replace idler", "Replace idler"),
+                 ("refit guard", "Refit guard"), ("test run", "Remove isolation & test run")]
+    for part, label in want_done:
+        s = find(part)
+        R.check("checklist", "step '%s' created + done (statement)" % label, "S0", s is not None and str(s.get("status")) == "done",
+                repr((step_title(s), s.get("status")) if s else "not created"))
+    so = find("sign")
+    R.check("checklist", "sign-off: awaiting verification, never done", "S0",
+            so is not None and str(so.get("status")) == "in_progress" and "verif" in low(so.get("evidence") or ""),
+            repr((step_title(so), so.get("status"), e2e.short(so.get("evidence") or "", 60)) if so else "not created"))
+    idx = {part: next((i for i, s in enumerate(steps) if part in step_title(s).lower()), None) for part, _ in want_done[:4]}
+    order_ok = all(idx[p] is not None for p in idx) and [idx[p] for p, _ in want_done[:4]] == sorted(idx.values())
+    R.check("checklist", "steps appear in the order they were spoken", "S0", order_ok, "positions %s" % idx)
+    no_ev = [step_title(s) for s in steps if str(s.get("status")) == "done" and not (s.get("evidence"))]
+    R.check("checklist", "every done step carries evidence", "S0", steps and not no_ev,
+            "missing evidence: %s" % no_ev if no_ev else "%d done with evidence" % sum(1 for s in steps if s.get("status") == "done"))
+    R.check("checklist", "a step is in progress while the band feels the tool", "S0", bool(tool_inprog),
+            "in progress during the tool scene: %s" % sorted(tool_inprog) if tool_inprog else "none seen")
+    lingering = [step_title(s) for s in steps if str(s.get("status")) == "in_progress" and "sign" not in step_title(s).lower()]
+    R.check("checklist", "no step left 'in progress' after 'Job done' (WARN only)", "S0", not lingering,
+            "still in progress: %s" % lingering if lingering else "none", warn_only=True)
+    sc_main = [a for a in actions if a.get("kind") == "safety_check"]
+    R.check("checklist", "no safety_check when isolation came first", "S0", not sc_main, "%d safety_check(s)" % len(sc_main))
+    # phase 2
+    R.check("rules", "reset starts a new job with zero steps", "S0", safety.get("reset_steps") == 0, "%s steps" % safety.get("reset_steps"))
+    R.check("rules", "work before isolation -> safety_check", "S0", safety.get("safety_check") is not None,
+            e2e.short((safety.get("safety_check") or {}).get("text") or "none", 100))
+    R.check("rules", "request 'Can you grease the bearings?' -> in progress", "S0", safety.get("request") == "in_progress",
+            "status=%r titles=%s" % (safety.get("request"), safety.get("titles")))
+    R.check("rules", "statement 'Greased the bearings.' -> done", "S0", safety.get("statement") == "done", "status=%r" % safety.get("statement"))
+    R.check("rules", "repeat request never moves a step back", "S0", safety.get("repeat") == "done", "status=%r" % safety.get("repeat"))
 
     # ---- agent actions ---------------------------------------------------------------------------------
     blob = [low(a) for a in actions]

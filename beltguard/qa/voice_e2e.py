@@ -257,17 +257,29 @@ def chk_ignored(b, a, body):
 
 # (text, accepted intents, checker, expect a spoken answer). S4 14:40: on the always-on band mic, commands need
 # the wake word ("BeltGuard, ..."); only a clear defect report is heard without it; everything else is ignored.
+def chk_isolation_proactive(b, a, body):
+    """S0 proactive job agent (no wake word): narrating isolation logs it and defers to an authorized person."""
+    txt = low(body.get("response_text"))
+    flags = re.findall(r'"(isolation_verified|isolated|isolation_confirmed)":\s*true', json.dumps(a).lower())
+    return [("proactive: isolation logged, defers to an authorized person", "authori" in txt and "verif" in txt and not flags,
+             repr(body.get("response_text")), "S0")]
+
+
+# (text, accepted intents, checker, expect a spoken answer). S4 14:40: band-mic COMMANDS need the wake word
+# ("BeltGuard, ..."). S0 15:28/16:15: the proactive job agent also listens to job NARRATION without it, so unaddressed
+# narration can act (log isolation, tick steps); non-job chatter and un-woken commands stay silent; a repeated job
+# phrase is a silent no-op (a step never moves back).
 CASES = [
     ("BeltGuard, I'm at station three", {"select_station"}, chk_station, True),
     ("Return idler seized, needs replacement", {"report_defect", "defect_report"}, chk_defect, True),
-    ("I'm taking the hammer drill", {"chat", "none"}, chk_ignored, False),                 # no wake word
-    ("Idler replaced, job done", {"chat", "none"}, chk_ignored, False),                    # no wake word
+    ("I'm taking the hammer drill", {"chat", "none"}, chk_ignored, False),                 # command, no wake word
     ("We need to do something based on the conversations", {"chat", "none"}, chk_ignored, False),   # team chatter
     ("BeltGuard, I'm taking the hammer drill", {"tool_checkout"}, chk_checkout, True),
     ("BeltGuard, how long can I keep going?", {"exposure_query"}, chk_exposure_query, True),
     ("BeltGuard, done, returning the drill", {"tool_return"}, chk_return, True),
     ("BeltGuard, idler replaced, job done", {"job_complete"}, chk_job_done, True),
-    ("Conveyor isolated", {"chat", "none"}, chk_ignored, False),                           # no wake word
+    ("Idler replaced, job done", {"chat", "none"}, chk_ignored, False),                    # repeat narration: no-op
+    ("Conveyor isolated", {"chat", "none"}, chk_isolation_proactive, True),                # proactive, no wake word
     ("Belt guard, conveyor isolated", {"isolation_claim"}, chk_isolation, True),            # split wake word
     ("Hey BeltGuard, what can I say", {"help"}, chk_help, True),
 ]

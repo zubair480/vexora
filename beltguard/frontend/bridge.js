@@ -4,6 +4,8 @@ import { connect, disconnect, status } from './bandlink.js';
 
 const $ = (id) => document.getElementById(id);
 const COLOURS = ['#2563EB', '#10B981', '#F59E0B'];
+// Raw readings to the dashboard tabs (same origin) so their charts draw every sample smoothly, like the kit.
+const motionCh = typeof BroadcastChannel !== 'undefined' ? new BroadcastChannel('beltguard-motion') : null;
 const WINDOW_S = 6;                                  // seconds of history on each chart
 const acc = [], gyr = [];                            // [t_seconds, x, y, z]
 let lastT = null, hzSamples = [];
@@ -42,6 +44,7 @@ setState(status);
 
 window.addEventListener('bandlink:batch', (e) => {
   const { samples, sent, ingest } = e.detail;
+  if (motionCh && samples.length) { try { motionCh.postMessage(samples); } catch (err) { /* channel closed */ } }
   $('sent').textContent = sent.toLocaleString();
   $('ingest').textContent = ingest ? 'Live' : 'Waiting';
   $('ingest').style.color = ingest ? '#10B981' : '#F59E0B';

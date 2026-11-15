@@ -126,7 +126,153 @@ const app = {
 const SIG = ['#18181B', '#3B82F6', '#A1A1AA'];
 const accelChart = new StripChart(canvasOr('#accelChart'), { colors: SIG, minRange: 1.2 });
 const gyroChart = new StripChart(canvasOr('#gyroChart'), { colors: SIG, minRange: 30 });
-const spark = new Sparkline(canvasOr('#spark'));
+// Smooth live wrist chart (S0): every raw sample, drawn each animation frame over a 6 s window that glides on band time.
+// Source: the Band link tab's BroadcastChannel 'beltguard-motion' (≈42 samples / 100 ms at 416 Hz); the /ws motion
+// batches are the fallback when nothing has come over the channel for 2 s (e.g. the simulated band on :8799).
+class SmoothLine {
+  constructor(canvas, { seconds = 6, minSpan = 0.15 } = {}) {
+    this.c = canvas;
+    this.g = canvas.getContext('2d');
+    this.seconds = seconds;
+    this.minSpan = minSpan;
+    this.cap = 8192;                                   // ≈19 s at 416 Hz
+    this.t = new Float64Array(this.cap);
+    this.v = new Float32Array(this.cap);
+    this.range = minSpan;
+    this.src = null;
+    this.clear();
+  }
+  setRate() { /* the window is time-based */ }
+  setColor() { /* one calm line (zinc-900) */ }
+  clear() { this.head = 0; this.n = 0; this.lastT = 0; this.off = null; this.offSrc = null; this.gap = 0.1; this.lastArrive = 0; this.play = null; this.lastFrame = 0; }
+  add(tSec, ax, ay, az) {
+    if (!isFinite(tSec)) return;
+    if (this.n && tSec <= this.lastT) {                  // overlap (WS ↔ channel hand-over): drop; a band clock reset: start over
+      if (tSec < this.lastT - 10) this.clear(); else return false;
+    }
+    const i = this.head;
+    this.t[i] = tSec;
+    this.v[i] = Math.hypot(ax, ay, az) - 1;             // accel magnitude minus 1 g
+    this.head = (i + 1) % this.cap;
+    if (this.n < this.cap) this.n += 1;
+    this.lastT = tSec;
+    return true;
+  }
+  // Playout buffer. Batches can come 10×/s or, when Chrome throttles the Band link tab, as ~1 s chunks, so the
+  // chart never draws "now": it plays the band's own timeline about one arrival gap behind the newest sample
+  // (≈1.1 s with 1 s chunks, ≈0.12 s at 10×/s), advanced by the wall clock every frame.
+  //   target = page clock − offset − delay. Offset = page minus band time, taken from the earliest-arriving batch
+  //   (late batches can't drag it), re-learnt when the source changes, drifting up slowly.
+  //   The shown time only ever moves forward at wall speed: inside ±0.3 s of target it free-runs (±3 % trim);
+  //   beyond that it re-syncs softly (0.7× to 2× speed). It never jumps while visible and stops 150 ms past the
+  //   newest sample when data stops.
+  arrived() {
+    if (!this.n) return;
+    const p = performance.now() / 1000;
+    if (this.lastArrive) this.gap = Math.max(Math.min(p - this.lastArrive, 2), this.gap * 0.985);
+    this.lastArrive = p;
+    const off = p - this.lastT;
+    if (this.off == null || this.offSrc !== this.src || off < this.off || off - this.off > 2) { this.off = off; this.offSrc = this.src; }
+    else this.off += (off - this.off) * 0.01;
+  }
+  nowT() {
+    if (this.off == null) return this.lastT;
+    const p = performance.now() / 1000;
+    const delay = Math.min(1.5, Math.max(0.12, this.gap * 1.1));
+    const target = p - this.off - delay;
+    const dt = p - this.lastFrame;
+    if (this.play == null || dt > 1 || Math.abs(target - this.play) > 6) this.play = target;   // chart wasn't on screen (or the band clock leapt): re-sync unseen
+    else if (dt > 0.1) this.play += dt;                                                         // a short main-thread stall: catch up at wall speed
+    else {
+      const err = target - this.play;
+      const rate = Math.abs(err) <= 0.3 ? 1 + Math.max(-0.03, Math.min(0.03, err * 0.1)) : 1 + Math.max(-0.3, Math.min(1, err * 0.5));
+      this.play += dt * rate;
+    }
+    this.play = Math.min(this.play, this.lastT + 0.15);
+    this.lastFrame = p;
+    return this.play;
+  }
+  pushBatch(samples) {
+    if (!samples.length) return;
+    this.src = 'bc';
+    // band time comes in ms (kit library); accept seconds too if the spacing says so
+    const k = samples.length;
+    const dt = k > 1 ? Math.abs(Number(samples[k - 1].t) - Number(samples[0].t)) / (k - 1) : 2.4;
+    const scale = dt > 0.5 ? 1 / 1000 : 1;
+    let kept = 0;
+    for (const x of samples) if (x && this.add(Number(x.t) * scale, +x.ax || 0, +x.ay || 0, +x.az || 0)) kept += 1;
+    if (kept) this.arrived();
+  }
+  pushWS(m) {
+    const A = Array.isArray(m.accel) ? m.accel : [];
+    if (!A.length) return;
+    this.src = 'ws';
+    const dt = Number(m.dt) || 1 / (Number(m.rate) || 50);
+    const t0 = m.t0 != null && isFinite(Number(m.t0)) ? Number(m.t0) : (this.n ? this.lastT + dt : performance.now() / 1000);
+    let kept = 0;
+    A.forEach((a, j) => { if (a && this.add(t0 + j * dt, +a[0] || 0, +a[1] || 0, +a[2] || 0)) kept += 1; });
+    if (kept) this.arrived();
+  }
+  draw() {
+    const c = this.c;
+    if (!c.offsetParent || !c.clientWidth || !c.clientHeight) return;
+    const d = Math.min(window.devicePixelRatio || 1, 2);
+    const W = Math.max(1, Math.round(c.clientWidth * d)), H = Math.max(1, Math.round(c.clientHeight * d));
+    if (c.width !== W) c.width = W;
+    if (c.height !== H) c.height = H;
+    const g = this.g;
+    g.setTransform(1, 0, 0, 1, 0, 0);
+    g.clearRect(0, 0, W, H);
+    const mid = Math.round(H / 2) + 0.5;
+    g.strokeStyle = '#E4E4E7';
+    g.lineWidth = Math.max(1, Math.round(d));
+    g.beginPath(); g.moveTo(0, mid); g.lineTo(W, mid); g.stroke();
+    if (!this.n) return;
+    const now = this.nowT();
+    const t0 = now - this.seconds;
+    // newest → oldest until the window's left edge: the visible samples are a contiguous tail of the ring
+    let first = this.n, m = 0;
+    for (let j = this.n - 1; j >= 0; j -= 1) {
+      const i = (this.head - this.n + j + this.cap) % this.cap;
+      if (this.t[i] < t0 - 0.05) break;
+      first = j;
+      const a = Math.abs(this.v[i]);
+      if (a > m) m = a;
+    }
+    if (first >= this.n) return;
+    const target = Math.max(this.minSpan, m * 1.15);
+    this.range += (target - this.range) * (target > this.range ? 0.25 : 0.04);
+    const amp = H / 2 - 3 * d;
+    const sx = W / this.seconds;
+    g.strokeStyle = '#18181B';
+    g.lineWidth = 1.5 * d;
+    g.lineJoin = 'round';
+    g.lineCap = 'round';
+    g.beginPath();
+    for (let j = first; j < this.n; j += 1) {
+      const i = (this.head - this.n + j + this.cap) % this.cap;
+      const x = (this.t[i] - t0) * sx;
+      const y = mid - (Math.max(-this.range, Math.min(this.range, this.v[i])) / this.range) * amp;
+      if (j === first) g.moveTo(x, y); else g.lineTo(x, y);
+    }
+    g.stroke();
+  }
+}
+const spark = new SmoothLine(canvasOr('#spark'));
+spark.c.__smooth = spark;                            // debug hook (like the 3D's stage.__bg3d)
+app.bcLast = 0;
+try {
+  if (typeof BroadcastChannel !== 'undefined') {
+    const motionCh = new BroadcastChannel('beltguard-motion');
+    motionCh.onmessage = (ev) => safe(function onBandBatch() {
+      const d = ev.data;
+      const samples = Array.isArray(d) ? d : (d && (d.samples || d.batch)) || [];
+      if (!samples.length) return;
+      spark.pushBatch(samples);
+      app.bcLast = performance.now();               // exposure gating stays on the backend's /ws motion
+    });
+  }
+} catch { /* no channel: the /ws batches drive the chart */ }
 
 let model = null;
 import(`./model3d.js?v=${Date.now()}`)          // always fetch the newest scene (S7 owns model3d.js)
@@ -135,6 +281,7 @@ import(`./model3d.js?v=${Date.now()}`)          // always fetch the newest scene
     model.apply(modelState());
     model.setActivity(app.activity.state);
     focusModel();
+    applyConveyor();
   })
   .catch((err) => {
     console.warn('3D model unavailable:', err);
@@ -350,7 +497,11 @@ function techFromTranscript(m) {
   const key = techKey(m.transcript_id, m.text, ts);
   const cur = tech.get(key) || {};
   const voice = m.input ? m.input === 'voice' : !(m.source === 'user');
-  tech.set(key, { ...cur, key, ts: cur.ts || ts, text: m.text, voice, pending: !cur.result });
+  const done = m.pending === false || (m.acted != null && m.acted !== '');
+  tech.set(key, {
+    ...cur, key, ts: cur.ts || ts, text: m.text, voice, acted: m.acted ? m.acted : cur.acted, reply: m.reply || cur.reply,
+    pending: done ? false : !cur.result && !cur.acted, ignored: done && !m.acted && !cur.result ? true : cur.ignored,
+  });
 }
 function techFromEvent(e) {
   if ((Number(e.ts) || 0) < CONVO_SINCE) return;
@@ -370,7 +521,8 @@ function techFromRow(row) {
   const intent = row.intent && row.intent !== 'none' && row.intent !== 'chat' ? row.intent : undefined;
   tech.set(key, {
     ...cur, key, ts: cur.ts || ts, text: row.text || cur.text || '', voice: row.input ? row.input === 'voice' : cur.voice !== false,
-    result: cur.result || result, intent: cur.intent || intent, ignored: row.result_status === 'ignored', pending: row.result_status === 'pending',
+    result: cur.result || result, intent: cur.intent || intent, ignored: row.result_status === 'ignored' && !row.acted, pending: row.result_status === 'pending',
+    acted: row.acted || cur.acted, reply: row.response || cur.reply,
   });
 }
 async function loadTranscripts() {
@@ -392,10 +544,28 @@ function agentActions() {
 function onAgentAction(m) {
   const a = m.action && typeof m.action === 'object' ? m.action : m;
   const id = String(a.id ?? `${a.ts}-${a.kind}-${a.title}`);
+  const known = agentLive.has(id) || (Array.isArray(app.state.agent_actions) && app.state.agent_actions.some((x) => x && String(x.id ?? `${x.ts}-${x.kind}-${x.title}`) === id));
+  if (!known) fxMark(`a:${id}`, 'new');
   agentLive.set(id, { ...a, ts: Number(a.ts) || Number(m.ts) || nowS() });
   if (agentLive.size > 200) agentLive.delete(agentLive.keys().next().value);
 }
+const KIND_LABEL = {
+  isolation: 'Isolation logged', job_done: 'Awaiting sign-off', signoff: 'Signed off', missing_evidence: 'Missing evidence',
+  work_order: 'Work order drafted', parts_request: 'Parts request drafted', supervisor_notified: 'Supervisor notified',
+  rotation: 'Rotation suggested', verification: 'Awaiting verification',
+};
+function agentLabel(a) {
+  if (a.title) return a.title;
+  const k = String(a.kind || '').toLowerCase();
+  const t = String(a.text || '');
+  if (k === 'exposure') return /notified/i.test(t) ? 'Supervisor notified' : /review|action value/i.test(t) ? 'Supervisor review' : 'Exposure check';
+  if (k === 'work_order') { const m = t.match(/WO-\d+/); return m ? `${m[0]} drafted` : KIND_LABEL.work_order; }
+  if (k === 'parts_request') { const m = t.match(/PR-\d+/); return m ? `${m[0]} parts request` : KIND_LABEL.parts_request; }
+  return KIND_LABEL[k] || cap(k.replace(/_/g, ' ')) || 'Action';
+}
 function agentKind(a) {
+  const exact = { work_order: 'wo', parts_request: 'parts', isolation: 'job', job_done: 'verify', signoff: 'verify', missing_evidence: 'other', exposure: 'notify' }[String(a.kind || '').toLowerCase()];
+  if (exact) return exact;
   const k = `${a.kind || a.type || ''} ${a.title || ''}`.toLowerCase();
   if (/part/.test(k)) return 'parts';
   if (/supervisor|notif/.test(k)) return 'notify';
@@ -423,6 +593,7 @@ function agentStatus(a) {
 }
 function actionShort(a) {
   if (a.chip || a.short) return a.chip || a.short;
+  if (a.kind && (KIND_LABEL[String(a.kind).toLowerCase()] || String(a.kind).toLowerCase() === 'exposure')) return agentLabel(a);
   const k = agentKind(a);
   const wo = (a.refs && a.refs.work_order_id) || (String(a.title || '').match(/WO-\d+/) || [])[0];
   if (k === 'job') return `ticked ${a.step_label || a.step || a.title || 'a step'}`;
@@ -453,27 +624,57 @@ function intentChip(intent) {
   if (/defect|report/.test(k)) return 'defect logged';
   return k.replace(/_/g, ' ');
 }
-function techChip(l) {
+const shortStep = (label) => {
+  const s0 = String(label || '').split(/\s+&\s+|\s+—\s+|\s+CV-/)[0].trim();
+  const w = s0.split(/\s+/);
+  return w.length > 3 ? w.slice(0, 3).join(' ') : s0;
+};
+function actedChips(acted, reply) {
+  const out = [];
+  const add = (cls, t) => { if (t && !out.some((c) => c[1] === t)) out.push([cls, t]); };
+  for (const raw of String(acted || '').split(/\s+·\s+/)) {
+    const part = raw.trim();
+    if (!part) continue;
+    let m = part.match(/^Step:\s*(.+)$/i);
+    if (m) { add('', /sign-?off/i.test(m[1]) ? 'Awaiting sign-off' : `✓ ${shortStep(m[1])}`); continue; }
+    if ((m = part.match(/\b(WO-\d+)\b/)) && /draft/i.test(part)) { add('', `→ ${m[1]} drafted`); continue; }
+    if ((m = part.match(/\b(PR-\d+)\b/))) { add('', `→ ${m[1]} parts request`); continue; }
+    if (/^Asked:/i.test(part)) { add('ask', '→ asked back'); continue; }
+    if (/isolation logged/i.test(part)) { if (!out.some((c) => /Isolat/i.test(c[1]))) add('', '✓ Isolation logged'); continue; }
+    if (/awaiting supervisor verification|marked complete/i.test(part)) { add('', 'Awaiting sign-off'); continue; }
+    if (/supervisor notified/i.test(part)) { add('', '→ Supervisor notified'); continue; }
+    if (reply && String(reply).slice(0, 90) === part) continue;
+    if (part.length <= 28) add('', `→ ${part}`);
+  }
+  return out.slice(0, 3);
+}
+function techChips(l) {
+  const out = [];
   const act = agentActions().find((a) => a && a.refs && a.refs.transcript_id && `t:${a.refs.transcript_id}` === l.key);
-  if (act) return ['', `→ ${actionShort(act)}`];
-  const r = l.result || '';
-  const wo = r.match(/\b(WO-\d+)\s+drafted/i);
-  if (wo) return ['', `→ ${wo[1]} drafted`];
-  if (/^question back/i.test(r)) return ['ask', '→ asked back'];
-  if (l.intent && !l.ignored) return ['', `→ ${intentChip(l.intent)}`];
-  if (l.pending) return ['wait', 'checking…'];
-  return null;
+  if (act) out.push(['', `→ ${actionShort(act)}`]);
+  for (const c of actedChips(l.acted, l.reply)) if (!out.some((x) => x[1] === c[1])) out.push(c);
+  if (!out.length) {
+    const r = l.result || '';
+    const wo = r.match(/\b(WO-\d+)\s+drafted/i);
+    if (wo) out.push(['', `→ ${wo[1]} drafted`]);
+    else if (/^question back/i.test(r)) out.push(['ask', '→ asked back']);
+    else if (l.intent && !l.ignored) out.push(['', `→ ${intentChip(l.intent)}`]);
+    else if (l.pending) out.push(['wait', 'checking…']);
+  }
+  return out.slice(0, 3);
 }
 function renderTech() {
   const list = $('#lpTechList');
   const rows = [...tech.values()].sort((a, b) => a.ts - b.ts).slice(-40);
   const atBottom = list.scrollHeight - list.scrollTop - list.clientHeight < 24;
   const html = rows.length ? rows.map((l) => {
-    const chip = techChip(l);
-    const chat = l.ignored || (!chip && !l.pending);
-    return `<li class="tx-line${chat ? ' chat' : ''}"><span class="tm">${fmtHM(l.ts)}</span><span class="tx-words">${l.voice ? '' : 'Typed: '}“${esc(l.text)}”</span>${chip ? `<span class="chip ${chip[0]}">${esc(chip[1])}</span>` : ''}</li>`;
+    const chips = techChips(l);
+    const chat = !chips.length && !l.pending;
+    return `<li class="tx-line${chat ? ' chat' : ''}"><span class="tm">${fmtHM(l.ts)}</span><span class="tx-words">${l.voice ? '' : 'Typed: '}“${esc(l.text)}”</span>${chips.map((c) => `<span class="chip ${c[0]}">${esc(c[1])}</span>`).join('')}</li>`;
   }).join('') : '<li class="lp-empty">Every sentence the technician says appears here, with what BeltGuard did about it.</li>';
+  const interim = document.getElementById('bgInterim');   // bandlink.js: live words while the technician speaks
   setHtml(list, html);
+  if (interim && list.lastElementChild !== interim) list.appendChild(interim);
   if (atBottom) list.scrollTop = list.scrollHeight;
   const mic = app.state.mic || {};
   const listening = mic.on === true || (bandConnected() && !(mic.via != null || mic.since_ts != null)) || simMode();
@@ -499,36 +700,116 @@ function evidenceText(st) {
   return [head, what && (/heard/.test(head) ? `“${what}”` : what)].filter(Boolean).join(': ');
 }
 const CHECK_SVG = '<svg width="9" height="9" viewBox="0 0 12 12" aria-hidden="true"><path d="M2.5 6.2 5 8.6l4.5-5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+// ---------- live steps (S4 extracts the job's steps from speech: the list starts empty and grows) ----------
+// A step that appears slides in with a soft green glow (1.5 s); a step ticked done flashes green (0.9 s); a new
+// "BeltGuard did" row glows the same way. Effects are keyed by row and carry a negative --fx-delay, so a re-render
+// mid-effect continues it instead of restarting it. Nothing animates for what the first snapshot already had.
+const fxRows = new Map();                                  // 'j:<step>' | 'a:<action id>' → { kind, at }
+const jobSeen = new Map();                                 // step key → 'done' | 'progress' | 'left'
+let jobPrimed = false;
+let agentsPrimed = false;
+const stepTitle = (st) => String(st.label || st.title || st.text || st.name || '');
+const stepKey = (st, i) => String(st.id ?? st.key ?? st.step_id ?? (stepTitle(st) || `#${i}`)).toLowerCase();
+const agentId = (a) => String(a.id ?? `${a.ts}-${a.kind}-${a.title}`);
+function fxMark(key, kind) {
+  const cur = fxRows.get(key);
+  const at = performance.now();
+  fxRows.set(key, cur && cur.kind.includes('new') && at - cur.at < 1500 ? { kind: `${cur.kind} ${kind}`, at: cur.at } : { kind, at });
+  if (fxRows.size > 120) fxRows.delete(fxRows.keys().next().value);
+}
+function fxFor(key) {
+  const f = fxRows.get(key);
+  if (!f) return null;
+  const ms = performance.now() - f.at;
+  if (ms > (f.kind.includes('new') ? 1500 : 900)) { fxRows.delete(key); return null; }
+  return { cls: [...new Set(f.kind.split(' '))].map((x) => ` fx-${x}`).join(''), style: ` style="--fx-delay:-${Math.round(ms)}ms"` };
+}
+// The conveyor in the 3D follows the spoken isolation steps (S7 v19 setConveyorRunning; the last call wins).
+// Tool in hand → S7 stops the belt itself; this adds the job's lock-out on top and keeps it through a tool return.
+const RE_RESTART = /remove (the )?(isolation|lock|loto)|de-?isolat|test run|restart/i;
+const RE_ISOLATE = /isolat|lock ?out|loto/i;
+app.isolated = false;
+function applyConveyor() { if (app.isolated) modelCall('setConveyorRunning', false, { reason: 'isolated by W-01' }); }
+function noteJob() {
+  const job = jobOf();
+  const steps = job && Array.isArray(job.steps) ? job.steps : [];
+  const keys = new Set();
+  let flip = null;
+  steps.forEach((st, i) => {
+    const key = stepKey(st, i);
+    keys.add(key);
+    const k = stepStatus(st);
+    const was = jobSeen.get(key);
+    if (jobPrimed) {
+      if (was === undefined) fxMark(`j:${key}`, 'new');
+      if (k === 'done' && was !== 'done') {
+        fxMark(`j:${key}`, 'done');
+        const t = stepTitle(st);
+        if (RE_RESTART.test(t)) flip = 'run'; else if (RE_ISOLATE.test(t)) flip = 'stop';
+      }
+    }
+    jobSeen.set(key, k);
+  });
+  for (const key of [...jobSeen.keys()]) if (!keys.has(key)) jobSeen.delete(key);
+  if (!steps.length) app.isolated = false;
+  if (!jobPrimed) {
+    jobPrimed = true;
+    const doneT = steps.filter((st) => stepStatus(st) === 'done').map(stepTitle);
+    if (doneT.some((t) => RE_ISOLATE.test(t) && !RE_RESTART.test(t)) && !doneT.some((t) => RE_RESTART.test(t))) { app.isolated = true; applyConveyor(); }
+    return;
+  }
+  if (flip === 'stop') { app.isolated = true; applyConveyor(); }
+  if (flip === 'run') { app.isolated = false; modelCall('setConveyorRunning', true); }
+}
+function noteAgents(prev) {
+  const before = new Set((Array.isArray(prev && prev.agent_actions) ? prev.agent_actions : []).filter(Boolean).map(agentId));
+  if (agentsPrimed) for (const a of (Array.isArray(app.state.agent_actions) ? app.state.agent_actions : [])) if (a && !before.has(agentId(a)) && !agentLive.has(agentId(a))) fxMark(`a:${agentId(a)}`, 'new');
+  agentsPrimed = true;
+}
 function renderJob() {
   const job = jobOf();
   const steps = job && Array.isArray(job.steps) ? job.steps : [];
   const list = $('#lpJobList');
+  const meta = $('#lpJobMeta');
+  if (meta) meta.title = job && (job.title || job.name) ? String(job.title || job.name) : '';
   if (!steps.length) {
-    setHtml(list, `<li class="lp-empty">Say what you're doing; BeltGuard keeps the job list.</li>`);
-    setText($('#lpJobMeta'), job && (job.title || job.name) ? String(job.title || job.name) : '');
+    setHtml(list, '<li class="lp-empty">Speak your steps; BeltGuard writes them down as you go.</li>');
+    setText(meta, '');
     return;
   }
   const done = steps.filter((st) => stepStatus(st) === 'done').length;
-  setText($('#lpJobMeta'), `${job.title || job.name ? `${job.title || job.name} · ` : ''}${done} of ${steps.length}`);
-  setHtml(list, steps.map((st) => {
+  setText(meta, `${steps.length} ${steps.length === 1 ? 'step' : 'steps'} · ${done} done`);
+  setHtml(list, steps.map((st, i) => {
     const k = stepStatus(st);
     const word = k === 'done' ? 'done' : k === 'progress' ? 'in progress' : 'left';
     const ev = evidenceText(st);
-    return `<li class="js-row ${k}"><span class="js-ico" role="img" aria-label="${word}">${k === 'done' ? CHECK_SVG : ''}</span><span class="js-text"><span class="js-label">${esc(st.label || st.title || st.text || st.name || 'Step')}</span>${ev ? `<span class="js-ev">${esc(ev)}</span>` : ''}</span></li>`;
+    const fx = fxFor(`j:${stepKey(st, i)}`);
+    return `<li class="js-row ${k}${fx ? fx.cls : ''}"${fx ? fx.style : ''}><span class="js-ico" role="img" aria-label="${word}">${k === 'done' ? CHECK_SVG : ''}</span><span class="js-text"><span class="js-label">${esc(stepTitle(st) || 'Step')}</span>${ev ? `<span class="js-ev" title="${esc(ev)}">${esc(ev)}</span>` : ''}</span></li>`;
   }).join(''));
+  const cur = [...list.querySelectorAll('.js-row.fx-new')].pop() || list.querySelector('.js-row.progress') || list.querySelector('.js-row.left') || list.querySelector('.js-row:last-child');
+  if (cur) {
+    const lr = list.getBoundingClientRect(), cr = cur.getBoundingClientRect();
+    if (cr.bottom > lr.bottom) list.scrollTop += cr.bottom - lr.bottom + 4;
+    else if (cr.top < lr.top) list.scrollTop -= lr.top - cr.top + 4;
+  }
 }
 function renderAgent() {
   const acts = agentActions().slice(0, 30);
   const list = $('#lpAgentList');
   setText($('#lpAgentMeta'), acts.length ? `${acts.length} ${acts.length === 1 ? 'action' : 'actions'}` : '');
+  let anyFx = false;
   setHtml(list, acts.length ? acts.map((a) => {
     const st = agentStatus(a);
     const k = agentKind(a);
-    const detail = a.detail || a.summary || a.text || '';
-    return `<li class="ag-row"><span class="ag-ico"><svg width="13" height="13" viewBox="0 0 16 16" aria-hidden="true">${AG_ICON[k] || AG_ICON.other}</svg></span>
-      <span class="ag-body"><span class="ag-top"><span class="ag-title">${esc(a.title || actionShort(a))}</span>${st ? `<span class="badge ${st[0]}">${esc(st[1])}</span>` : ''}</span>
+    const label = agentLabel(a);
+    const detail = [a.detail, a.summary, a.text].find((x) => x && x !== label) || '';
+    const fx = fxFor(`a:${agentId(a)}`);
+    if (fx) anyFx = true;
+    return `<li class="ag-row${fx ? fx.cls : ''}"${fx ? fx.style : ''}><span class="ag-ico"><svg width="13" height="13" viewBox="0 0 16 16" aria-hidden="true">${AG_ICON[k] || AG_ICON.other}</svg></span>
+      <span class="ag-body"><span class="ag-top"><span class="ag-title">${esc(label)}</span>${st ? `<span class="badge ${st[0]}">${esc(st[1])}</span>` : ''}</span>
       <span class="ag-meta">${a.ts ? `${fmtHM(Number(a.ts))}` : ''}${detail ? ` · ${esc(detail)}` : ''}</span></span></li>`;
   }).join('') : '<li class="lp-empty">Nothing yet. Work-order drafts, parts requests and notifications appear here as BeltGuard handles them.</li>');
+  if (anyFx) list.scrollTop = 0;                           // newest first: keep the new row in view
 }
 const liveVisible = () => (app.mode === 'tool' && app.step >= 3) || app.mode === 'inspection';
 function renderLive() {
@@ -612,7 +893,6 @@ function onMotion(m) {
   for (const a of A) {
     if (!a) continue;
     accelChart.push(a);
-    spark.push(a);
     const mag = Math.hypot(a[0], a[1], a[2]);
     v.mean += (mag - v.mean) * 0.02;
     const d = mag - v.mean;
@@ -624,6 +904,7 @@ function onMotion(m) {
   if (m.rate) setRate(m.rate);
   if (m.lost_total != null) app.lost = m.lost_total;
   if (A.length) app.lastMotion = performance.now();
+  if (!app.bcLast || performance.now() - app.bcLast > 2000) spark.pushWS(m);   // channel silent for 2 s → /ws samples
   if (model) model.setVibration(v.rms);
 }
 
@@ -681,6 +962,7 @@ function applySnapshot(s) {
   if (len(app.state, 'defects') > len(prev, 'defects')) { app.clarify = null; safe(renderClarify); }
   if (Array.isArray(s.timeline)) for (const e of s.timeline) addEvent(e, true);
   if (s.connection && s.connection.rate) setRate(s.connection.rate);
+  safe(function liveSteps() { noteJob(); noteAgents(prev); });
   if (first) { app.gotSnapshot = true; app.started = app.started || !!outTool(); app.step = initialStep(); showStep(); if (AUTOPLAY) setTimeout(autoArm, 1500); setTimeout(loadTranscripts, 300); }
   else autoAdvance(prev, app.state, ck);
   renderAll();
@@ -703,7 +985,7 @@ function autoAdvance(prev, next, ck) {
     stepNote('#s5Note', '');
     setMode('tool');
     goStep(1);
-    modelCall('returnTool');                               // the technician hands the tool back in the 3D
+    modelCall('returnTool').then(applyConveyor);           // the technician hands the tool back in the 3D; a standing isolation keeps the belt locked out
     modelCall('highlightTools', CRIB_WALL.filter((id) => (app.state.tools || []).some((t) => t.id === id)));  // queued after the walk back
     return;
   }

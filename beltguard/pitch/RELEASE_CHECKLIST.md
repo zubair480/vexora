@@ -1,6 +1,6 @@
 # BeltGuard release checklist: 6:00 PM PT submission
 
-Prepared at 15:30 PT by S6; the copy-paste block was added at 15:40. **Nothing has been committed, pushed or submitted.** Run the block below only after the user says go (S0 is asking at about 5:15 PM).
+Prepared at 15:30 PT by S6; the copy-paste block was added at 15:40. **State at 15:40:** there's a local commit `fc536a7`, "BeltGuard: Vexo band 07 tool-vibration exposure MVP", made at 15:38 with 333 files. S6 checked it: no `.env`, database, raw recordings, `tools/out/` or heartbeat log, and no key values. **Nothing is pushed or submitted.** Run the block below only after the user says go (S0 is asking at about 5:15 PM).
 
 ## Copy-paste: commit and push
 **1. Optional, recommended: point the repo's front page at the project.** The root `README.md` is just `# vexo-hacks`. Paste the whole block, including the closing `'@` line:
@@ -17,7 +17,7 @@ Our VexoHacks project is **BeltGuard**: a Vexo band times every power-tool trigg
 **2. Commit and push in one paste.**
 - It stages only `beltguard/` and the root `README.md`.
 - Then it refuses to commit if anything outside those got staged, if a `.env`, database, raw recording or `tools/out/` file got staged, or if any staged file contains a key value from `beltguard/.env`. Key values are never printed.
-- If all is clean, it commits and pushes to `main`.
+- If all is clean, it commits what changed since `fc536a7` and pushes both commits to `main`. If nothing changed, git says "nothing to commit" and the push still sends `fc536a7`.
 
 ```powershell
 & {
@@ -29,7 +29,7 @@ Our VexoHacks project is **BeltGuard**: a Vexo band times every power-tool trigg
   $leaks = foreach ($v in $vals) { $staged | Where-Object { (Test-Path -LiteralPath $_) -and (Select-String -LiteralPath $_ -SimpleMatch $v -Quiet) } }
   if ($bad -or $leaks) { "STOP: nothing committed."; $bad | ForEach-Object { "DO NOT COMMIT: $_" }; $leaks | ForEach-Object { "LEAK: $_" }; return }
   "OK: $($staged.Count) staged files, no key values, nothing forbidden."
-  git commit -m "BeltGuard: wrist-timed tool checkout and HAV exposure verdict on the Vexo band" -m "Tool checkout, live wrist timing at 416 Hz, exposure verdict and return; voice with the BeltGuard wake word; job checklist from speech and the band; double-tap, free-fall and LED alerts; supervisor control room with W-01 on the real band 07 and W-02 to W-05 simulated and labelled. Screening estimate, not a certified HAV meter." -m "Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
+  git commit -m "BeltGuard: final updates before the 6 PM submission" -m "Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
   git push origin main
   git log --oneline -1
 }
@@ -39,7 +39,7 @@ Our VexoHacks project is **BeltGuard**: a Vexo band times every power-tool trigg
 - **If the push is rejected** because the remote has newer commits, run `git pull --rebase origin main`, then `git push origin main`.
 - **If anything changes before the 5:30 freeze,** paste the block again at about 5:35. It commits only what changed, and says "nothing to commit" if nothing did.
 
-**3. Check it landed.** Open https://github.com/zubai480/vexo-hacks in a private browser window:
+**3. Check it landed.** Open https://github.com/zubair480/vexo-hacks in a private browser window:
 - the repo is public
 - `beltguard/README.md` renders with its three screenshots
 - there's no `beltguard/.env`

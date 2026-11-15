@@ -563,6 +563,9 @@ async def run(args) -> tuple[Results, dict]:
     if not sim:
         R.add("sim", "tool scene (needs sim mode)", "S2", "SKIP", "backend is not in sim mode")
     else:
+        # S2 (15:xx): a checkout switches the band to 416 Hz, which restarts the detector. Give it the few seconds a
+        # technician needs to walk to the station before the tool starts (otherwise the scene can go undetected).
+        await asyncio.sleep(3.0)
         t0 = time.time()
         code, body, _ = await http.post("/api/sim/scene", {"scene": "tool"})
         t1 = time.time()

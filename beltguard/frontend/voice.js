@@ -11,6 +11,7 @@ const $ = (sel) => document.querySelector(sel);
 let link = null, band = null, onAudio = null, listening = false, busy = false;
 let wanted = true;                                   // always on unless the user pauses
 let lastFrame = 0, retryAt = 0, lastProblem = '';
+const liveCh = typeof BroadcastChannel !== 'undefined' ? new BroadcastChannel('beltguard-voice') : null;   // dashboards show partial words
 
 const PROBLEMS = {
   refused: 'Deepgram refused the key.',
@@ -78,6 +79,53 @@ async function addLine(text) {
   }
 }
 
+// Words still being spoken: the newest line of the transcript list, updated on every partial result.
+function showLive(text) {
+  const t = String(text || '').trim();
+  let li = document.getElementById('vLive');
+  if (!t) { if (li) li.remove(); return; }
+  if (!li) {
+    li = document.createElement('li');
+    li.id = 'vLive';
+    li.innerHTML = '<time style="color:#059669;font-weight:600">now</time><span class="t" style="color:#3F3F46;font-style:italic"></span>'
+      + '<span class="r" style="background:#ECFDF5;color:#047857">Hearing…</span>';
+    $('#vLines').prepend(li);
+  }
+  li.querySelector('.t').textContent = t;
+}
+
+// Instant job actions: as soon as the words-so-far contain a job step, send just that clause to BeltGuard,
+// without waiting for Deepgram to close the sentence (background talk can keep it open for many seconds).
+// Each step group is sent at most once per 30 s; the later full sentence is a no-op on the server.
+const JOB_GROUPS = [
+  ['test run', /\b(test run|remov\w* (the )?isolation|isolation('?s| is)? removed)\b/i],
+  ['job done', /\b(job('?s| is)? (done|complete|finished)|all done|ready for sign[- ]?off|work('?s| is)? (done|complete|finished))\b/i],
+  ['guard on', /\b(guard('?s| is)? (back )?on|refit\w* (the )?guard|put (the )?guard back)\b/i],
+  ['guard off', /\b(guard('?s| is)? (off|removed)|remov\w* (the )?guard|tak\w* (the )?guard off)\b/i],
+  ['idler', /\b(new idler|idler('?s| is)? (fitted|in|installed|replaced|changed|done)|replac\w* (the )?idler|fitt?\w* (the )?(new )?idler|chang\w* (the )?idler)\b/i],
+  ['isolation', /\b(isolat\w*|lock(ed)?[ -]?out|loto)\b/i],
+];
+const liveSentAt = {};
+function liveAct(text) {
+  const clauses = String(text || '').split(/(?<=[.?!])\s+/).slice(-3);      // only the newest words
+  for (let i = clauses.length - 1; i >= 0; i--) {
+    const clause = clauses[i].trim();
+    if (!clause || clause.length > 160) continue;
+    const hit = JOB_GROUPS.find(([, re]) => re.test(clause));
+    if (!hit) continue;
+    const group = hit[0];
+    if (Date.now() - (liveSentAt[group] || 0) < 30000) return;
+    liveSentAt[group] = Date.now();
+    const chip = document.querySelector('#vLive .r');
+    if (chip) chip.textContent = 'Acting: ' + group + '…';
+    fetch('/api/report', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ text: clause, source: 'band-mic' }) })
+      .then((r) => r.json().then((j) => ({ ok: r.ok, j })))
+      .then(({ ok, j }) => { const c = document.querySelector('#vLive .r'); if (c) c.textContent = summarize(j, ok); })
+      .catch(() => {});
+    return;
+  }
+}
+
 // Tell the backend the mic state (passive: no band command). Re-sent every 30 s so it recovers after restarts.
 let lastMicReport = 0;
 function reportMic(on) {
@@ -101,8 +149,9 @@ async function start() {
   link = deepgramLink({ key });
   link.start({
     onText: ({ final, text }) => {
-      if (!final) { $('#vInterim').textContent = text; return; }
-      $('#vInterim').textContent = '';
+      try { if (liveCh) liveCh.postMessage({ final: !!final, text: text || '' }); } catch (e) { /* channel closed */ }   // live words to dashboards
+      if (!final) { showLive(text); liveAct(text); return; }
+      showLive('');
       if (text && text.trim()) addLine(text.trim());
     },
     onError: (problem) => {
@@ -171,7 +220,7 @@ function mount() {
   if (document.getElementById('voiceCard')) return;
   const style = document.createElement('style');
   style.textContent = `
-    #voiceCard .interim{min-height:22px;margin-top:14px;color:#71717A;font-style:italic}
+    #voiceCard .interim{display:none}
     #voiceCard .lines{list-style:none;margin:8px 0 0;padding:0;max-height:340px;overflow:auto}
     #voiceCard .lines li{display:grid;grid-template-columns:80px 1fr auto;gap:12px;align-items:baseline;padding:10px 0;border-top:1px solid #F4F4F5}
     #voiceCard .lines time{font:12px 'Geist Mono',ui-monospace,monospace;color:#A1A1AA}

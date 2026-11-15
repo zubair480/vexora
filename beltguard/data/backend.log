@@ -7,10 +7,39 @@
 [app] loaded planner.py
 [app] loaded intents.py
 [band] detector: using S3 detector.py at 50 Hz
-[app] searching for band 07 over usb
-[band] usb connect attempt 1 failed (no-port): No band found on USB. Plug the band in, or give the port name yourself: Band.connect(42, transport="serial", port="COM5"). On a Mac the port is called /dev/cu.u
 [band] detector: using S3 detector.py at 50 Hz
-[band] recording raw motion to C:\Users\zubai\vexo hackathon\beltguard\data\raw\20261114-153604-browser-ble.jsonl
+[app] searching for band 07 over usb
+[band] recording raw motion to C:\Users\zubai\vexo hackathon\beltguard\data\raw\20261114-154604-browser-ble.jsonl
+[app] BAND LIVE (browser-ble) · band 07 streams from the dashboard (Chrome Web Bluetooth) via /ws/ingest
+[band] usb connect attempt 1 failed (no-port): No band found on USB. Plug the band in, or give the port name yourself: Band.connect(42, transport="serial", port="COM5"). On a Mac the port is called /dev/cu.u
+[band] detector: using S3 detector.py at 416.0 Hz
+[app] loaded job_agent.py
+[app] job agent moved to the reloaded class (checklist kept)
+[app] fleet layer (re)loaded
+[app] loaded job_agent.py
+[app] job agent moved to the reloaded class (checklist kept)
+[app] loaded job_agent.py
+[app] job agent moved to the reloaded class (checklist kept)
+[app] loaded job_agent.py
+[app] job agent moved to the reloaded class (checklist kept)
+[app] fleet layer (re)loaded
+[app] loaded job_agent.py
+[app] job agent moved to the reloaded class (checklist kept)
+[app] loaded job_agent.py
+[app] job agent moved to the reloaded class (checklist kept)
+[app] loaded job_agent.py
+[app] job agent moved to the reloaded class (checklist kept)
+[band] detector: using S3 detector.py at 50 Hz
+[band] detector: using S3 detector.py at 50 Hz
+[band] recording raw motion to C:\Users\zubai\vexo hackathon\beltguard\data\raw\20261114-160021-browser-ble.jsonl
 [app] BAND LIVE (browser-ble) · band 07 streams from the dashboard (Chrome Web Bluetooth) via /ws/ingest
 [band] detector: using S3 detector.py at 416.0 Hz
 [app] loaded job_agent.py
+[app] job agent moved to the reloaded class (checklist kept)
+[app] loaded job_agent.py
+[app] job agent moved to the reloaded class (checklist kept)
+[app] loaded job_agent.py
+[app] job agent moved to the reloaded class (checklist kept)
+[app] loaded job_agent.py
+[app] job agent moved to the reloaded class (checklist kept)
+[app] fleet layer (re)loaded

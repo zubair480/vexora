@@ -101,7 +101,7 @@ class Modules:
         if self.keys.get(name) != key:
             self.keys[name] = key
             try:
-                mod = self.mods.get(name)
+                mod = self.mods.get(name) or sys.modules.get(name)   # after a failed reload: reload, never stale
                 self.mods[name] = importlib.reload(mod) if mod else importlib.import_module(name)
                 log("loaded %s.py" % name)
             except Exception as e:
@@ -1085,6 +1085,8 @@ class BeltGuard:
             await self.return_tool(quiet_clear=True)
         worker = self.store.worker()
         a = self.store.insert("tool_assignments", "user", worker_id=worker["id"], tool_id=tool_id, returned_ts=None)
+        if self._agent() is not None and not (self.job_agent.snapshot() or {}).get("job"):
+            self.ensure_job_now()                        # tool locked: the job checklist must be there
         await self.select_tool(tool_id, "user", log=False)
         await self.event("tool", "tool_checkout", "%s assigned to %s" % (tool["name"], worker["id"]),
                          detail="%.1f m/s² (%s). Screening estimate: points = 2 x a² x trigger hours."
@@ -1331,7 +1333,25 @@ class BeltGuard:
             log("job agent not started:", repr(e))
             self.job_agent = None
         self._job_agent_mod = ja
+        self.ensure_job_now()
         return self.job_agent
+
+    def ensure_job_now(self) -> None:
+        """The job checklist exists from the start of a shift (all six steps to do), not only after the first
+        sentence: create it on the agent and broadcast {type:"job"}."""
+        a = self.job_agent
+        if a is None:
+            return
+        try:
+            if not (a.snapshot() or {}).get("job"):
+                a.on_state(self.intent_context())
+            job = (a.snapshot() or {}).get("job")
+            loop = self.hub.loop
+            if job and loop is not None and loop.is_running():
+                loop.create_task(self.hub.broadcast({"type": "job", "source": "rules", "job": self._job_view(job)}))
+                self.changed()
+        except Exception as e:
+            log("ensure_job_now failed:", repr(e))
 
     def _agent(self):
         """ONE JobAgent for W-01, kept across hot reloads of job_agent.py: when the class changes, the running

@@ -1,0 +1,242 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>BeltGuard control room</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script type="importmap">
+{ "imports": {
+  "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+  "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+} }
+</script>
+<style>
+  :root {
+    --background:#FFFFFF; --muted:#F4F4F5; --card:#FFFFFF;
+    --foreground:#09090B; --muted-foreground:#71717A;
+    --border:#E4E4E7; --input:#E4E4E7; --ring:#A1A1AA;
+    --primary:#18181B; --primary-foreground:#FAFAFA;
+    --destructive:#EF4444; --warning:#F59E0B; --success:#10B981;
+    --tool:#F97316;
+    --radius:8px; --shadow-sm:0 1px 2px 0 rgb(0 0 0 / .05);
+    --zone-action:#FEF3C7;
+    --sans:"Geist", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+    --mono:"Geist Mono", ui-monospace, "Cascadia Mono", Consolas, monospace;
+  }
+  * { box-sizing:border-box; }
+  html, body { margin:0; height:100%; }
+  body { background:var(--background); color:var(--foreground); font:400 14px/1.5 var(--sans); -webkit-font-smoothing:antialiased; }
+  p { margin:0; }
+  .mono { font-family:var(--mono); font-variant-numeric:tabular-nums; }
+  .muted { color:var(--muted-foreground); }
+
+  /* top bar */
+  .topbar { height:56px; display:flex; align-items:center; justify-content:space-between; gap:16px; padding:0 24px;
+            border-bottom:1px solid var(--border); }
+  .brand { display:flex; align-items:center; gap:10px; font-weight:600; letter-spacing:-.01em; white-space:nowrap; }
+  .logo { width:24px; height:24px; border-radius:6px; background:var(--primary); display:grid; place-items:center; }
+  .logo i { width:12px; height:2px; border-radius:1px; background:var(--primary-foreground); box-shadow:0 -4px 0 var(--primary-foreground), 0 4px 0 var(--primary-foreground); }
+  .crumb { color:var(--muted-foreground); font-weight:500; }
+  .top-meta { display:flex; align-items:center; gap:12px; font-size:13px; color:var(--muted-foreground); }
+  .vsep { width:1px; height:16px; background:var(--border); }
+
+  /* layout: one screen at 1440x900 (S8 16:3x). The site 3D is the hero: ~2/3 width and up to 60vh tall, so the
+     supervisor can see the workers (and S7's speech bubbles above them). The crew list sits beside it and scrolls
+     inside; the crew story runs full width underneath. The site row takes up to 60vh first; the story keeps at
+     least 140px, so nothing ever pushes the page into scrolling at 1440x900 or 1280x800. */
+  .room { height:calc(100vh - 56px); min-height:600px; display:grid; grid-template-rows:auto minmax(0,60vh) minmax(140px,1fr) auto; gap:12px; padding:12px 24px 10px; }
+  .split { display:grid; grid-template-columns:minmax(0,2fr) minmax(0,1fr); gap:16px; min-height:0; }
+  .split > .card, .story-card { min-height:0; overflow:hidden; }
+  .crew { --spark-w:76px; }
+  .crew .card-header .card-title { flex:none; }
+  .crew .card-header .legend { white-space:nowrap; overflow:hidden; text-overflow:ellipsis; min-width:0; }
+  /* narrower crew column: names stay readable — the chips take at most 58% of the row and wrap upward
+     (status badge on top beside the name, device chips under it); the tool name gets more room than the bar */
+  .crew .w-chips { flex:0 1 auto; max-width:58%; flex-wrap:wrap-reverse; justify-content:flex-end; row-gap:4px; column-gap:8px; }
+  .crew .w-mid { grid-template-columns:minmax(0,1.6fr) var(--spark-w,112px) minmax(0,.8fr) 64px; gap:10px; }
+
+  /* card */
+  .card { background:var(--card); border:1px solid var(--border); border-radius:var(--radius); box-shadow:var(--shadow-sm); min-width:0; min-height:0; display:flex; flex-direction:column; }
+  .card-header { display:flex; justify-content:space-between; align-items:baseline; gap:12px; padding:12px 16px; border-bottom:1px solid var(--border); }
+  .card-title { margin:0; font:600 15px/1.3 var(--sans); letter-spacing:-.01em; }
+  .card-desc { font-size:12px; color:var(--muted-foreground); }
+
+  /* KPIs */
+  .kpis { display:grid; grid-template-columns:repeat(4, minmax(0,1fr)); gap:16px; }
+  .kpi { padding:12px 16px; }
+  .kpi-label { font-size:12px; color:var(--muted-foreground); }
+  .kpi-value { font:500 26px/1.15 var(--mono); font-variant-numeric:tabular-nums; letter-spacing:-.02em; margin-top:2px; }
+  .kpi-value .unit { font:400 13px var(--sans); color:var(--muted-foreground); margin-left:6px; letter-spacing:0; }
+  .kpi-sub { font-size:12px; color:var(--muted-foreground); margin-top:2px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .kpi-name { font:600 18px/1.25 var(--sans); letter-spacing:-.01em; margin-top:4px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+
+  /* 3D */
+  .stage { position:relative; flex:1; min-height:0; border-radius:0 0 var(--radius) var(--radius); overflow:hidden; background:#F6F7F9; }
+  .stage-note { position:absolute; inset:0; display:grid; place-items:center; color:var(--muted-foreground); font-size:13px; }
+
+  /* badges */
+  .badge { display:inline-flex; align-items:center; gap:5px; height:22px; padding:0 8px; border-radius:6px; border:1px solid transparent;
+           font:600 12px/1 var(--sans); white-space:nowrap; }
+  .badge.secondary { background:var(--muted); color:var(--foreground); }
+  .badge.outline { border-color:var(--border); color:var(--foreground); background:var(--card); }
+  .badge.success { background:rgba(16,185,129,.12); color:#047857; }
+  .badge.warning { background:rgba(245,158,11,.16); color:#B45309; }
+  .badge.destructive { background:var(--destructive); color:#FFFFFF; }
+  .badge.tool { background:rgba(249,115,22,.12); color:#C2410C; }
+  .dot { width:6px; height:6px; border-radius:50%; background:currentColor; }
+
+  /* buttons */
+  .btn { height:30px; padding:0 12px; border-radius:6px; border:1px solid var(--input); background:var(--background); color:var(--foreground);
+         font:500 13px var(--sans); cursor:pointer; white-space:nowrap; text-decoration:none; display:inline-flex; align-items:center; }
+  .btn:hover { background:var(--muted); }
+  .btn.ghost { border-color:transparent; }
+  .btn:focus-visible, .worker:focus-visible, a:focus-visible { outline:2px solid var(--ring); outline-offset:2px; }
+
+  /* crew */
+  .workers { flex:1; min-height:0; overflow:auto; display:grid; grid-auto-rows:minmax(100px, 1fr); gap:0; }
+  .worker { display:grid; grid-template-rows:auto auto auto; gap:4px; padding:9px 16px; border-bottom:1px solid var(--border); cursor:pointer;
+            background:var(--card); text-align:left; border-left:2px solid transparent; }
+  .worker:last-child { border-bottom:0; }
+  .worker:hover { background:#FAFAFA; }
+  .worker.selected { background:#FAFAFA; border-left-color:var(--primary); }
+  .worker.placeholder { cursor:default; color:var(--muted-foreground); }
+  .w-top { display:flex; align-items:center; gap:10px; min-width:0; }
+  .avatar { width:30px; height:30px; flex:none; border-radius:50%; background:var(--muted); display:grid; place-items:center; font:600 11px var(--mono); color:var(--foreground); }
+  .w-id { min-width:0; flex:1; }
+  .w-name { font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .w-sub { font-size:12px; color:var(--muted-foreground); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .w-chips { display:flex; align-items:center; gap:8px; flex:none; }
+  .dev { display:inline-flex; align-items:center; gap:4px; font:400 12px var(--mono); color:var(--muted-foreground); white-space:nowrap; }
+  .dev svg { width:14px; height:14px; }
+  .w-mid { display:grid; grid-template-columns:minmax(0,1.15fr) var(--spark-w,112px) minmax(0,1fr) 64px; align-items:center; gap:12px; }
+  .w-tool { display:flex; align-items:center; gap:6px; font-size:13px; min-width:0; }
+  .w-tool > span:not(.badge) { white-space:nowrap; overflow:hidden; text-overflow:ellipsis; min-width:0; }
+  .w-tool .badge { flex:none; }
+  .w-tool svg { width:14px; height:14px; flex:none; }
+  .w-tool.none { color:var(--muted-foreground); }
+  canvas.spark { width:var(--spark-w,112px); height:26px; display:block; }
+  .bar { position:relative; height:8px; border-radius:4px; background:var(--muted); overflow:hidden; }
+  .bar .zone { position:absolute; top:0; bottom:0; left:25%; right:0; background:var(--zone-action); }
+  .bar .fill { position:absolute; left:0; top:0; bottom:0; background:var(--primary); border-radius:4px; transition:width .4s ease; }
+  .bar-wrap { position:relative; }
+  .bar-wrap .tick { position:absolute; top:-3px; bottom:-3px; width:1px; background:var(--ring); }
+  .pts { text-align:right; font:500 15px var(--mono); font-variant-numeric:tabular-nums; }
+  .pts small { font:400 11px var(--sans); color:var(--muted-foreground); margin-left:3px; }
+  .w-bot { display:flex; gap:12px; font-size:12px; color:var(--muted-foreground); min-width:0; }
+  .w-bot .last { white-space:nowrap; overflow:hidden; text-overflow:ellipsis; min-width:0; flex:1; }
+  .legend { font-size:12px; color:var(--muted-foreground); }
+
+  /* alerts */
+  .alerts { list-style:none; margin:0; padding:0; overflow:auto; flex:1; min-height:0; }
+  .alert { display:grid; grid-template-columns:auto minmax(0,1fr) auto; align-items:center; gap:12px; padding:9px 16px; border-bottom:1px solid var(--border); }
+  .alert:last-child { border-bottom:0; }
+  .alert.acked { opacity:.55; }
+  .a-title { font-weight:500; font-size:13px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .a-sub { font-size:12px; color:var(--muted-foreground); }
+  .empty { padding:16px; color:var(--muted-foreground); font-size:13px; }
+
+
+  /* crew story */
+  .story { list-style:none; margin:0; padding:0; overflow:auto; flex:1; min-height:0; }
+  .s-item { display:grid; grid-template-columns:26px minmax(0,1fr) auto; align-items:center; gap:10px; padding:8px 16px; border-bottom:1px solid var(--border); }
+  .s-item:last-child { border-bottom:0; }
+  .s-icon { width:26px; height:26px; border-radius:50%; display:grid; place-items:center; background:var(--muted); color:var(--foreground); }
+  .s-icon svg { width:14px; height:14px; }
+  .s-text { font-size:13px; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .s-meta { font-size:12px; color:var(--muted-foreground); }
+  .s-item.amber { background:#FFFBEB; } .s-item.amber .s-icon { background:#FEF3C7; color:#B45309; }
+  .s-item.red { background:#FEF2F2; } .s-item.red .s-icon { background:#FEE2E2; color:#B91C1C; }
+  .s-item.mic .s-icon { background:#18181B; color:#FAFAFA; }
+  .s-item.acked { background:transparent; opacity:.6; }
+  @media (min-width:1200px) {
+    .story { display:grid; grid-template-columns:repeat(2, minmax(0,1fr)); align-content:start; }
+    .story .s-item:nth-child(odd) { border-right:1px solid var(--border); }
+    .story .s-item:nth-last-child(2):nth-child(odd) { border-bottom:0; }
+    .story .empty { grid-column:1 / -1; }
+  }
+  /* heard */
+  .heard { display:flex; align-items:center; gap:8px; font-size:12px; min-width:0; }
+  .heard .mic { width:20px; height:20px; flex:none; border-radius:50%; display:grid; place-items:center; background:#18181B; color:#FAFAFA; }
+  .heard .mic svg { width:11px; height:11px; }
+  .heard.none .mic { background:var(--muted); color:var(--muted-foreground); }
+  .heard .said { color:var(--foreground); font-weight:500; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:48%; }
+  .heard .reply { color:var(--muted-foreground); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; min-width:0; flex:1; }
+  .pts-sub { display:block; font:400 11px var(--sans); color:var(--muted-foreground); text-align:right; }
+  /* tool running pulse */
+  .avatar { position:relative; }
+  .avatar.busy { background:rgba(249,115,22,.14); color:#C2410C; }
+  .avatar.busy::after { content:""; position:absolute; inset:-3px; border-radius:50%; border:2px solid var(--tool); animation:pulse 1.4s ease-out infinite; }
+  @keyframes pulse { 0% { transform:scale(.92); opacity:.9; } 100% { transform:scale(1.32); opacity:0; } }
+  @media (prefers-reduced-motion: reduce) { .avatar.busy::after { animation:none; } }
+  .foot { font-size:12px; color:var(--muted-foreground); }
+
+  @media (max-width:1360px) { .crew { --spark-w:64px; } .crew .w-chips { max-width:54%; } }
+  @media (max-height:840px) and (min-width:1101px) {   /* 1280x800 and similar: give the 3D the room */
+    .room { gap:10px; padding:10px 24px 8px; }
+    .kpi { padding:8px 14px; }
+    .kpi-value { font-size:22px; }
+    .kpi-name { font-size:16px; margin-top:2px; }
+    .foot { font-size:11px; line-height:1.35; }
+  }
+  @media (max-width:1100px) {
+    .room { height:auto; grid-template-rows:auto auto auto auto; }
+    .split { grid-template-columns:minmax(0,1fr); }
+    .site { height:440px; }
+    .crew { max-height:520px; --spark-w:112px; }
+    .story-card { height:320px; }
+    .kpis { grid-template-columns:repeat(2, minmax(0,1fr)); }
+  }
+  @media (max-width:640px) {
+    .topbar { height:auto; min-height:56px; padding:10px 16px; flex-wrap:wrap; row-gap:8px; }
+    .hide-sm { display:none; }
+    .room { padding:12px 16px; }
+    .w-mid { grid-template-columns:minmax(0,1fr) 64px; }
+    .w-mid canvas.spark, .w-mid .bar-wrap { display:none; }
+  }
+</style>
+</head>
+<body>
+<header class="topbar">
+  <div class="brand"><span class="logo" aria-hidden="true"><i></i></span>BeltGuard<span class="crumb">/ Control room</span></div>
+  <div class="top-meta">
+    <span class="mono hide-sm">CV-102</span>
+    <span class="vsep hide-sm"></span>
+    <span class="badge outline" id="conn">Connecting</span>
+    <span class="mono hide-sm" id="clock"></span>
+    <a class="btn ghost" href="/planning.html">Planning</a>
+    <a class="btn ghost" href="/">Dashboard</a>
+  </div>
+</header>
+
+<main class="room">
+  <section class="kpis" aria-label="Crew summary">
+    <div class="card kpi"><p class="kpi-label">On shift</p><p class="kpi-value" id="k-shift">–</p><p class="kpi-sub" id="k-shift-sub">&nbsp;</p></div>
+    <div class="card kpi"><p class="kpi-label">Tools out</p><p class="kpi-value" id="k-tools">–</p><p class="kpi-sub" id="k-tools-sub">&nbsp;</p></div>
+    <div class="card kpi"><p class="kpi-label">Closest to the action value</p><p class="kpi-name" id="k-close">–</p><p class="kpi-sub" id="k-close-sub">&nbsp;</p></div>
+    <div class="card kpi"><p class="kpi-label">Open alerts</p><p class="kpi-value" id="k-alerts">0</p><p class="kpi-sub" id="k-alerts-sub">&nbsp;</p></div>
+  </section>
+
+  <section class="split">
+    <div class="card site">
+      <div class="card-header"><h2 class="card-title">Site · CV-102</h2><span class="card-desc">Click a worker to focus</span></div>
+      <div class="stage" id="stage"><p class="stage-note" id="stage-note">Loading the site</p></div>
+    </div>
+    <div class="card crew">
+      <div class="card-header"><h2 class="card-title">Crew</h2><span class="legend">Points today, 0–400 · ticks at 100 action, 400 limit</span></div>
+      <div class="workers" id="workers"></div>
+    </div>
+  </section>
+
+  <div class="card story-card">
+    <div class="card-header"><h2 class="card-title">Crew story</h2><span class="card-desc">What happened, newest first · acknowledging only marks it here</span></div>
+    <ul class="story" id="story"><li class="empty">Waiting for the crew.</li></ul>
+  </div>
+
+  <p class="foot">Screening estimates — not certified HAV measurements. Band temperature is the device, not skin. Simulated bands are labelled. <span id="fleet-label"></span></p>
+</main>
+
+<script type="module" src="supervisor.js"></script>
+</body>
+</html>

@@ -223,11 +223,24 @@ function injectStyles() {
 .bg3d-wbadge.action i{background:#F59E0B}.bg3d-wbadge.limit i{background:#EF4444}
 .bg3d-wbadge .pts{font-family:${mono};font-variant-numeric:tabular-nums;color:#71717A}
 .bg3d-wbadge .sim{font:600 9px/1 ${mono};letter-spacing:.04em;color:#71717A;background:#F4F4F5;border-radius:3px;padding:2px 3px}
-.bg3d-wbadge.focus{border-color:#18181B;box-shadow:0 1px 3px 0 rgb(0 0 0 / .12)}`;
+.bg3d-wbadge.focus{border-color:#18181B;box-shadow:0 1px 3px 0 rgb(0 0 0 / .12)}
+.label-layer.bg3d-pre .bg3d-lock{opacity:0!important;pointer-events:none!important}
+.bg3d-lock{position:absolute;left:0;top:0;display:inline-flex;align-items:center;gap:5px;height:22px;padding:0 7px 0 6px;box-sizing:border-box;background:#FACC15;border:1px solid #CA8A04;border-radius:6px;box-shadow:0 1px 2px 0 rgb(0 0 0 / .14);font:600 11px/1 ${mono};letter-spacing:.02em;color:#09090B;white-space:nowrap;pointer-events:auto;cursor:default;user-select:none;will-change:transform;transition:opacity .3s ease}
+.bg3d-lock svg{flex:none;display:block}
+.label-layer.bg3d-pre .bg3d-bubble{opacity:0!important}
+.bg3d-bubble{position:absolute;left:0;top:0;pointer-events:none;will-change:transform}
+.bg3d-bubble .pop{position:relative;transform-origin:50% 100%;animation:bg3dPop .26s cubic-bezier(.2,1.45,.45,1) backwards;transition:opacity .45s ease,transform .45s ease}
+.bg3d-bubble.out .pop{opacity:0;transform:translateY(-6px) scale(.96)}
+.bg3d-bubble .txt{max-width:210px;box-sizing:border-box;padding:6px 9px;background:#FFFFFF;border:1px solid #E4E4E7;border-left:3px solid #A1A1AA;border-radius:8px;box-shadow:0 6px 16px -6px rgb(0 0 0 / .22),0 1px 2px 0 rgb(0 0 0 / .06);font:500 12px/1.35 ${sans};color:#18181B}
+.bg3d-bubble .t{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;overflow-wrap:anywhere}
+.bg3d-bubble .tail{position:absolute;left:50%;bottom:-4px;width:8px;height:8px;margin-left:-4px;box-sizing:border-box;background:#FFFFFF;border-right:1px solid #E4E4E7;border-bottom:1px solid #E4E4E7;transform:rotate(45deg)}
+.bg3d-bubble.done .txt{border-left-color:#10B981}.bg3d-bubble.warn .txt{border-left-color:#F59E0B}.bg3d-bubble.alert .txt{border-left-color:#EF4444}
+.bg3d-bubble .sim{font:600 9px/1 ${mono};letter-spacing:.04em;color:#71717A;margin-right:5px;vertical-align:1px}
+@keyframes bg3dPop{0%{opacity:0;transform:translateY(6px) scale(.6)}100%{opacity:1;transform:none}}`;
   if (!s.parentNode) document.head.appendChild(s);
 }
 
-export function createModel(container, { onStationClick, onToolClick, onWorkerClick, soldierUrl } = {}) {
+export function createModel(container, { onStationClick, onToolClick, onWorkerClick, soldierUrl, liveFeed = true } = {}) {
   injectStyles();
   let reduced = false;
   try { reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches; } catch { /* old browsers */ }
@@ -244,7 +257,7 @@ export function createModel(container, { onStationClick, onToolClick, onWorkerCl
   renderer.shadowMap.enabled = true;
   renderer.shadowMap.type = THREE.PCFSoftShadowMap;
   renderer.domElement.className = 'gl';
-  renderer.domElement.dataset.scene = 'mongomation-v17b';
+  renderer.domElement.dataset.scene = 'mongomation-v22';
   Object.assign(renderer.domElement.style, { position: 'absolute', inset: '0', width: '100%', height: '100%', display: 'block' });
   container.appendChild(renderer.domElement);
 
@@ -253,6 +266,67 @@ export function createModel(container, { onStationClick, onToolClick, onWorkerCl
   labelLayer.className = 'label-layer bg3d-pre';
   Object.assign(labelLayer.style, { position: 'absolute', inset: '0', pointerEvents: 'none', zIndex: '2', overflow: 'hidden' });
   container.appendChild(labelLayer);
+
+  // ---------- isolation & lockout: while W-01 has a tool out the conveyor is isolated. The belt coasts to a full stop in ~1 s,
+  // a red padlock + yellow tag hang on the drive isolator and its lamp turns red; returnTool() or setConveyorRunning(true) restarts it ----------
+  let lockOn = false, lockReason = null, lockK = 0, lockW = 0;
+  const lockEl = document.createElement('div');
+  lockEl.className = 'bg3d-lock';
+  lockEl.innerHTML = '<svg width="10" height="12" viewBox="0 0 10 12" aria-hidden="true"><path d="M2.6 5.2V3.7a2.4 2.4 0 0 1 4.8 0v1.5" fill="none" stroke="#DC2626" stroke-width="1.5"/><rect x="0.8" y="5" width="8.4" height="6.4" rx="1.3" fill="#DC2626"/></svg><span>LOCKED OUT \u00b7 W-01</span>';
+  const lockLeader = document.createElement('div');
+  lockLeader.className = 'bg3d-leader';
+  lockEl.style.display = 'none';
+  lockLeader.style.display = 'none';
+  labelLayer.append(lockLeader, lockEl);
+  const lockItem = { box: null };
+  function setLockout(on, reason) {
+    lockOn = !!on;
+    lockReason = lockOn ? String(reason || 'Tool locked to W-01') : null;
+    lockEl.title = lockOn ? `Conveyor isolated and locked out \u00b7 ${lockReason}` : '';
+  }
+  function updateLockout(dt) {
+    lockK += ((lockOn ? 1 : 0) - lockK) * Math.min(1, dt * 7);
+    if (lockGear) {
+      lockGear.visible = lockK > 0.02;
+      lockGear.position.y = 0.1 * (1 - lockK);
+      lockGear.scale.setScalar(0.5 + 0.5 * lockK);
+    }
+    if (lockLampMat) lockLampMat.color.setHex(lockOn ? C.red : C.green);
+  }
+
+  // ---------- speech bubbles over workers: one per worker (a new one replaces it), ~5 s, then fade ----------
+  const bubbles = new Map();
+  const BUBBLE_KINDS = ['done', 'info', 'warn', 'alert'];
+  const shortText = (s, n = 84) => { const v = String(s == null ? '' : s).replace(/\s+/g, ' ').trim(); return v.length > n ? `${v.slice(0, n - 1).trimEnd()}\u2026` : v; };
+  const capFirst = (s) => (s ? s.charAt(0).toUpperCase() + s.slice(1) : s);
+  function popBubble(workerId, text, { kind = 'info', ms = 5000, sim = false } = {}) {
+    const id = String(workerId || 'W-01');
+    const s = shortText(text);
+    if (!s) return false;
+    const old = bubbles.get(id);
+    if (old) old.el.remove();
+    const k = BUBBLE_KINDS.includes(kind) ? kind : 'info';
+    const el = document.createElement('div');
+    el.className = `bg3d-bubble ${k}`;
+    const pop = document.createElement('div');
+    pop.className = 'pop';
+    const txt = document.createElement('div');
+    txt.className = 'txt';
+    const tx = document.createElement('span');
+    tx.className = 't';
+    if (sim) { const tag = document.createElement('span'); tag.className = 'sim'; tag.textContent = '(SIM)'; tx.appendChild(tag); }
+    tx.appendChild(document.createTextNode(s));
+    txt.appendChild(tx);
+    const tail = document.createElement('i');
+    tail.className = 'tail';
+    pop.append(txt, tail);
+    el.appendChild(pop);
+    el.style.display = 'none';
+    labelLayer.appendChild(el);
+    bubbles.set(id, { id, el, tail, kind: k, text: s, until: performance.now() + Math.max(1200, Number(ms) || 5000), removeAt: 0, w: 0, h: 0, box: null,
+      pri: k === 'alert' ? 27 : k === 'warn' ? 26 : 25 });
+    return true;
+  }
 
   const scene = new THREE.Scene();
   // soft light sky: a gradient dome tone-mapped like the ground, so the fogged horizon meets it seamlessly
@@ -641,6 +715,7 @@ export function createModel(container, { onStationClick, onToolClick, onWorkerCl
 
   // drive: motor + right-angle gearbox + coupling guard at the head (station 5)
   const fan = new THREE.Group();
+  let lockGear = null, lockLampMat = null, lockAnchor = null;
   {
     const g = part('drive', 1.0);
     const b = builder();
@@ -664,6 +739,36 @@ export function createModel(container, { onStationClick, onToolClick, onWorkerCl
     fan.add(blade, blade2);
     fan.position.set(mx - 0.48, my, gz);
     g.add(fan);
+    // local isolator (lockable rotary switch) on a post beside the drive, facing the walkway; run lamp on top
+    const iso = new THREE.Group();
+    iso.position.set(X1 - 1.3, 0, -1.02);
+    const post = new THREE.Mesh(new THREE.BoxGeometry(0.08, 1.62, 0.08), M.aluDark);
+    post.position.y = 0.81;
+    const box = new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.42, 0.2), M.grey);
+    box.position.set(0, 1.42, 0.1);
+    post.castShadow = box.castShadow = true;
+    const knob = new THREE.Mesh(new THREE.CylinderGeometry(0.085, 0.085, 0.04, 20), M.yellow);
+    knob.rotation.x = Math.PI / 2;
+    knob.position.set(0, 1.4, 0.22);
+    const handle = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.05, 0.05), M.alarm);
+    handle.position.set(0, 1.4, 0.255);
+    lockLampMat = new THREE.MeshBasicMaterial({ color: C.green, toneMapped: false });
+    const lampM = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.07, 0.1, 16), lockLampMat);
+    lampM.position.set(0, 1.68, 0.1);
+    lockGear = new THREE.Group();
+    const lockBody = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.11, 0.05), M.alarm);
+    lockBody.position.set(0.05, 1.21, 0.285);
+    const shackle = new THREE.Mesh(new THREE.TorusGeometry(0.038, 0.01, 8, 16, Math.PI), M.alu);
+    shackle.position.set(0.05, 1.265, 0.285);
+    const tagM = new THREE.Mesh(new THREE.BoxGeometry(0.13, 0.19, 0.006), M.yellow);
+    tagM.position.set(0.05, 1.04, 0.295);
+    tagM.rotation.z = 0.08;
+    lockGear.add(lockBody, shackle, tagM);
+    lockGear.visible = false;
+    lockAnchor = new THREE.Object3D();
+    lockAnchor.position.set(0, 1.78, 0.1);
+    iso.add(post, box, knob, handle, lampM, lockGear, lockAnchor);
+    g.add(iso);
   }
 
   { // head hood, discharge chute and stockpile
@@ -1393,6 +1498,19 @@ export function createModel(container, { onStationClick, onToolClick, onWorkerCl
   const chainVisible = (o) => { for (let p = o; p; p = p.parent) if (!p.visible) return false; return true; };
   function placeLabels() {
     const list = [];
+    lockItem.box = null;
+    if (labelsIn && lockOn && lockAnchor && chainVisible(lockAnchor)) {
+      // while locked the tag stays on screen: over the isolator with a leader, or docked at the stage edge toward it
+      lockAnchor.getWorldPosition(_lp).project(camera);
+      const behind = _lp.z < -1 || _lp.z > 1;
+      const ax = behind ? stageW : (_lp.x * 0.5 + 0.5) * stageW, ay = behind ? EDGE : (-_lp.y * 0.5 + 0.5) * stageH;
+      const lead = !behind && ax >= EDGE && ax <= stageW - EDGE && ay >= EDGE && ay <= stageH - EDGE;
+      const w = lockW || 140, h = 22;
+      const l = clamp(ax - w / 2, EDGE, stageW - EDGE - w);
+      const tp = clamp(ay - h - 24, EDGE, stageH - EDGE - h);
+      lockItem.box = { l, t: tp, r: l + w, b: tp + h, ax, ay, lead };
+      list.push({ it: lockItem, box: lockItem.box, pri: 30 });
+    }
     for (const o of stationObjs.values()) {
       o.box = null;
       if (!labelsIn || !chainVisible(o.g)) continue;
@@ -1418,6 +1536,25 @@ export function createModel(container, { onStationClick, onToolClick, onWorkerCl
       wb.box = { l, t: tp, r: l + wb.w, b: tp + wb.h };
       list.push({ it: wb, box: wb.box, pri: wb.id === focusWorkerId ? 12 : wb.v === 'limit' ? 7 : wb.tool ? 6 : 5 });
     }
+    const nowB = performance.now();
+    for (const b of [...bubbles.values()]) {
+      b.box = null;
+      if (b.removeAt) { if (nowB >= b.removeAt) { b.el.remove(); bubbles.delete(b.id); } continue; } // fading out where it was
+      if (nowB >= b.until) { b.el.classList.add('out'); b.removeAt = nowB + 480; continue; }
+      if (!labelsIn || !workerVisible(b.id) || !workerPos(b.id, _lp)) continue;
+      _lp.y = 2.12;
+      _lp.project(camera);
+      if (_lp.z < -1 || _lp.z > 1) continue;
+      const ax = (_lp.x * 0.5 + 0.5) * stageW, ay = (-_lp.y * 0.5 + 0.5) * stageH;
+      if (ax < EDGE || ax > stageW - EDGE || ay < EDGE || ay > stageH - EDGE) continue;
+      if (!b.w) { b.el.style.display = ''; b.w = b.el.offsetWidth || 160; b.h = b.el.offsetHeight || 30; }
+      const wb = workerBadges.get(b.id);
+      const off = wb && wb.box ? Math.max(10, ay - wb.box.t + 8) : 12;
+      const l = clamp(ax - b.w / 2, EDGE, stageW - EDGE - b.w);
+      const tp = clamp(ay - off - b.h, EDGE, stageH - EDGE - b.h);
+      b.box = { l, t: tp, r: l + b.w, b: tp + b.h, ax };
+      list.push({ it: b, box: b.box, pri: b.pri });
+    }
     list.sort((a, b) => b.pri - a.pri);
     const kept = [];
     for (const e of list) {
@@ -1441,6 +1578,28 @@ export function createModel(container, { onStationClick, onToolClick, onWorkerCl
       if (!wb.box) { wb.el.style.display = 'none'; continue; }
       wb.el.style.display = '';
       wb.el.style.transform = `translate(${wb.box.l.toFixed(1)}px,${wb.box.t.toFixed(1)}px)`;
+    }
+    if (!lockItem.box) { lockEl.style.display = 'none'; lockLeader.style.display = 'none'; }
+    else {
+      const bx = lockItem.box;
+      lockEl.style.display = '';
+      if (!lockW) lockW = lockEl.offsetWidth || 0;
+      lockEl.style.transform = `translate(${bx.l.toFixed(1)}px,${bx.t.toFixed(1)}px)`;
+      const x2 = bx.l + (lockW || 140) / 2, y2 = bx.b + 1;
+      const dx = x2 - bx.ax, dy = y2 - bx.ay, len = Math.hypot(dx, dy);
+      if (len < 4 || !bx.lead) lockLeader.style.display = 'none';
+      else {
+        lockLeader.style.display = '';
+        lockLeader.style.height = `${len.toFixed(1)}px`;
+        lockLeader.style.transform = `translate(${bx.ax.toFixed(1)}px,${bx.ay.toFixed(1)}px) rotate(${Math.atan2(-dx, dy).toFixed(4)}rad)`;
+      }
+    }
+    for (const b of bubbles.values()) {
+      if (b.removeAt) continue;
+      if (!b.box) { b.el.style.display = 'none'; continue; }
+      b.el.style.display = '';
+      b.el.style.transform = `translate(${b.box.l.toFixed(1)}px,${b.box.t.toFixed(1)}px)`;
+      b.tail.style.left = `${clamp(b.box.ax - b.box.l, 10, b.w - 10).toFixed(1)}px`;
     }
   }
 
@@ -1701,6 +1860,7 @@ export function createModel(container, { onStationClick, onToolClick, onWorkerCl
     toolKindNow = kind;
     handTool.clear();
     if (!kind) return;
+    if (!lockOn) setLockout(true, 'Tool locked to W-01');
     if (!handTools[kind]) handTools[kind] = makeTool(kind);
     handTool.add(handTools[kind]);
     handPop = pop ? 0 : 1;
@@ -1855,6 +2015,7 @@ export function createModel(container, { onStationClick, onToolClick, onWorkerCl
     }
   }
   function enqueue(fn, timeoutMs = 15000) {
+    endIntro();
     const run = () => new Promise((resolve) => {
       scriptBusy += 1;
       let done = false;
@@ -2098,7 +2259,11 @@ export function createModel(container, { onStationClick, onToolClick, onWorkerCl
     const desired = toolKindOf(checked), nowMs = performance.now();
     if (desired !== lastDesired) { lastDesired = desired; desiredAt = nowMs; }
     if (!techPlaced) setActiveTool(desired, { glow: false, pop: false });
-    else if (!scriptBusy && !reach && nowMs - scriptEndAt > 8000 && nowMs - desiredAt > 4000) setActiveTool(desired);
+    else if (!scriptBusy && !reach && nowMs - scriptEndAt > 8000 && nowMs - desiredAt > 4000 && desired !== toolKindNow) {
+      const had = toolKindNow;
+      setActiveTool(desired);
+      if (had && !desired) setLockout(false);
+    }
     workX = null;
     for (const st of stations) if (stationObjs.get(st.id) && stationObjs.get(st.id).sel) workX = sx(st.pos);
     if (workX == null && toolKindNow) { const d0 = stations.find((st) => defectAt.has(st.id)); if (d0) workX = sx(d0.pos); }
@@ -2355,7 +2520,22 @@ export function createModel(container, { onStationClick, onToolClick, onWorkerCl
   controls.minPolarAngle = 0.3;
   controls.maxPolarAngle = Math.PI * 0.46;
   let userT = 0;
-  controls.addEventListener('start', () => { userT = 1e9; });
+  // page-load establishing shot: low and wide over the world (sky, hills, pit), then ~2.5 s ease into the hero view.
+  // Once per page (window flag), never with reduced motion; any user input, a scripted move (Start) or focusWorker ends it at once.
+  const intro = { phase: 'off', t: 0, wait: 0, az0: 1.04, D0: 40, H0: 60, L0: 300 }; // az0 faces the open pit (S9: no trees within ~44 m)
+  const _di = new THREE.Vector3();
+  if (!reduced && typeof window !== 'undefined' && !window.__bg3dIntroPlayed) {
+    try { window.__bg3dIntroPlayed = true; } catch (e) { /* ignore */ }
+    intro.phase = 'wait';
+    renderer.domElement.style.transition = 'opacity .45s ease';
+    renderer.domElement.style.opacity = '0'; // nothing to see until the world exists (the old backdrop would show from low down)
+  }
+  function endIntro() {
+    if (intro.phase !== 'wait' && intro.phase !== 'fly') return;
+    intro.phase = 'done';
+    renderer.domElement.style.opacity = '';
+  }
+  controls.addEventListener('start', () => { endIntro(); userT = 1e9; });
   controls.addEventListener('end', () => { userT = 8; });
   const target0 = new THREE.Vector3(1.3, 0.55, 0.85);
   const targetSq = new THREE.Vector3(1.6, 0.5, 0.9);
@@ -2404,6 +2584,23 @@ export function createModel(container, { onStationClick, onToolClick, onWorkerCl
   controls.target.copy(look);
   function updateCamera(dt) {
     goal(dt);
+    if (intro.phase === 'wait' || intro.phase === 'fly') {
+      if (intro.phase === 'fly') intro.t += dt;
+      const u = intro.phase === 'fly' ? clamp(intro.t / 2.5, 0, 1) : 0;
+      const ease = (x) => (x < 0.5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2);
+      const e = ease(u), eL = ease(clamp(u / 0.75, 0, 1));
+      const sx0 = Math.sin(intro.az0), sz0 = Math.cos(intro.az0);
+      // start 40 m out and 60 m up (inside S9's tree-free clearing), looking 300 m out over the pit and hills;
+      // the camera glides down a straight line into the live hero goal while the view tilts back to the site
+      _di.set(lookGoal.x + sx0 * intro.D0, intro.H0, lookGoal.z + sz0 * intro.D0);
+      camera.position.lerpVectors(_di, camGoal, e);
+      _di.set(lookGoal.x - sx0 * intro.L0, 0, lookGoal.z - sz0 * intro.L0);
+      look.lerpVectors(_di, lookGoal, eL);
+      camera.lookAt(look);
+      controls.target.copy(look);
+      if (u >= 1) intro.phase = 'done';
+      return;
+    }
     if (userT > 0) { userT -= dt; controls.update(); return; }
     const k = 1 - Math.pow(revealT < 2.6 ? 0.22 : 0.02, dt);
     camera.position.lerp(camGoal, k);
@@ -2442,7 +2639,7 @@ export function createModel(container, { onStationClick, onToolClick, onWorkerCl
     for (const h of ray.intersectObjects(workerHits, false)) if (chainVisible(h.object)) return h.object.userData.workerId;
     return null;
   };
-  const onDown = (e) => { downAt = [e.clientX, e.clientY]; };
+  const onDown = (e) => { endIntro(); downAt = [e.clientX, e.clientY]; };
   const onUp = (e) => {
     if (!downAt) return;
     const moved = Math.hypot(e.clientX - downAt[0], e.clientY - downAt[1]);
@@ -2484,6 +2681,19 @@ export function createModel(container, { onStationClick, onToolClick, onWorkerCl
   ro.observe(container);
   resize();
 
+  // ---------- S9's Earth around the site (sky, terrain to the horizon, pit, trees, haul road, birds): optional ----------
+  // world3d.js sets fog/background/camera.far itself and hides this file's old dome, plane and berms; if the import or
+  // buildWorld fails, the current backdrop simply stays.
+  let world = null, worldState = 'loading';
+  import(`./world3d.js?v=${Date.now()}`).then((wm) => {
+    if (disposed || !wm || typeof wm.buildWorld !== 'function') { worldState = 'failed'; return; }
+    try {
+      world = wm.buildWorld({ THREE, scene, renderer, camera, siteRadius: 26, center: new THREE.Vector3(0, 0, -1.5) });
+      if (world && world.ready && typeof world.ready.then === 'function') world.ready.then(() => { worldState = 'ready'; }, () => { worldState = 'failed'; });
+      else worldState = world ? 'ready' : 'failed';
+    } catch (err) { world = null; worldState = 'failed'; console.warn('[model3d] world3d unavailable; keeping the site backdrop', err); }
+  }).catch((err) => { worldState = 'failed'; console.warn('[model3d] world3d unavailable; keeping the site backdrop', err); });
+
   // ---------- loop ----------
   const clock = new THREE.Clock();
   let t = 0, revealT = reduced ? 99 : 0, raf = 0, beltRun = 0, labelsIn = false;
@@ -2516,18 +2726,29 @@ export function createModel(container, { onStationClick, onToolClick, onWorkerCl
   function tick(rawDt) { // one simulation step (also driven by the debug step() for tests in hidden tabs)
     const dt = Math.min(rawDt, 0.05);
     t += dt;
-    revealT += Math.min(rawDt, 0.5);
+    if (intro.phase === 'wait') {
+      intro.wait += Math.min(rawDt, 0.5);
+      if (worldState === 'failed') endIntro();
+      else if (worldState === 'ready' || intro.wait > 2.5) {
+        if (world) { intro.phase = 'fly'; intro.t = 0; renderer.domElement.style.opacity = ''; } else endIntro();
+      }
+    }
+    if (intro.phase !== 'wait') revealT += Math.min(rawDt, 0.5);
     if (revealT < 3) updateReveal();
-    // the belt is isolated (stopped) while a tool is in use on it
-    beltRun += ((isWorking() ? 0 : 1) * (revealT > 1.2 ? 1 : 0) - beltRun) * Math.min(1, dt * 1.3);
-    const v = BELT_V * beltRun;
+    // isolation: locked out (W-01 has a tool out, or setConveyorRunning(false)) or a tool session running -> the belt coasts
+    // to a full stop in ~1 s; once the isolation is removed it eases back up over ~1.5 s
+    const beltTarget = lockOn || isWorking() || revealT <= 1.2 ? 0 : 1;
+    beltRun = beltTarget < beltRun ? Math.max(beltTarget, beltRun - dt / 1.0) : Math.min(beltTarget, beltRun + dt / 1.5);
+    const beltS = beltRun * beltRun * (3 - 2 * beltRun);
+    const v = BELT_V * beltS;
+    updateLockout(dt);
     carryTex.offset.x -= (v / 1.2) * dt;
     retTex.offset.x += (v / 1.2) * dt;
     for (const p of pulleys) p.rotation.y -= (v / (p === pulleys[2] ? 0.13 : PR)) * dt;
-    fan.rotation.x += 30 * beltRun * dt;
+    fan.rotation.x += 30 * beltS * dt;
     for (let left = dt; left > 1e-4; left -= 0.025) updateOre(Math.min(0.025, left), v);
-    updateDust(dt, beltRun);
-    cw.position.y = 1.2 + 0.05 * Math.sin(t * 0.8) * beltRun - 0.06 * (1 - beltRun);
+    updateDust(dt, beltS);
+    cw.position.y = 1.2 + 0.05 * Math.sin(t * 0.8) * beltS - 0.06 * (1 - beltS);
     const top = 2.75 + 0.12 - 0.2, bot = cw.position.y + 0.33;
     cwCable.scale.y = Math.max(0.01, top - bot);
     cwCable.position.set(TX, (top + bot) / 2, TZ);
@@ -2540,14 +2761,123 @@ export function createModel(container, { onStationClick, onToolClick, onWorkerCl
     updateStations(t);
     updateCrib(dt);
     updateCamera(dt);
+    if (world && typeof world.update === 'function') {
+      try { world.update(dt, t); } catch (err) { console.warn('[model3d] world3d update failed; keeping the site backdrop', err); world = null; }
+    }
   }
   frame();
+
+  // ---------- live feed (own /ws): what the workers do pops up over their heads ----------
+  // W-01 (real band): acted transcripts, agent actions, tool lock/return, job steps done. W-02..W-05: new fleet story
+  // entries (SIM). Alerts (fall, action/limit value) from the fleet feed. Upsert by id; the first fleet message only primes.
+  let feedWs = null, feedTimer = 0, feedRetry = 1000, feedPrimed = false, jobDone = null;
+  const feedSeen = new Set();
+  const FEED_RE = /^\{"type": ?"(transcript|agent_action|event|job|fleet|snapshot)"/;
+  function feedJob(job, prime) {
+    const steps = (job && Array.isArray(job.steps)) ? job.steps : [];
+    const done = new Set();
+    for (const s of steps) if (s && s.status === 'done') done.add(String(s.id || s.title));
+    if (!prime && jobDone) {
+      for (const s of steps) {
+        if (s && s.status === 'done' && !jobDone.has(String(s.id || s.title))) popBubble('W-01', `\u2713 ${s.title || s.text || 'Step done'}`, { kind: 'done' });
+      }
+    }
+    jobDone = done;
+  }
+  function feedFleet(m) {
+    const fresh = [];
+    for (const a of (Array.isArray(m.alerts) ? m.alerts : [])) {
+      if (!a) continue;
+      const key = `a|${a.ts}|${a.worker_id}|${a.kind}`;
+      if (feedSeen.has(key)) continue;
+      feedSeen.add(key);
+      if (feedPrimed) fresh.push(['alert', a]);
+    }
+    for (const s of (Array.isArray(m.story) ? m.story : [])) {
+      if (!s || !s.is_simulated) continue; // W-01's own lines arrive as live events instead
+      const key = `s|${s.ts}|${s.worker_id}|${s.kind}`;
+      if (feedSeen.has(key)) continue;
+      feedSeen.add(key);
+      if (feedPrimed) fresh.push(['story', s]);
+    }
+    feedPrimed = true;
+    fresh.sort((x, y) => (Number(x[1].ts) || 0) - (Number(y[1].ts) || 0)); // oldest first: the newest per worker stays up
+    for (const [what, e] of fresh) {
+      const id = String(e.worker_id || '');
+      if (!id) continue;
+      let text = String(e.text || '').replace(/\s*\(SIMULATED\)\s*$/i, '');
+      const nm = e.worker_name ? String(e.worker_name) : '';
+      if (nm && text.startsWith(nm)) text = text.slice(nm.length).replace(/^[:\s]+/, '');
+      text = capFirst(text);
+      const sim = !!e.is_simulated;
+      if (what === 'alert') popBubble(id, text, { kind: e.kind === 'confirm' ? 'warn' : 'alert', sim, ms: 6500 });
+      else popBubble(id, text, { kind: /fall|alert/.test(String(e.kind)) ? 'alert' : /return|confirm/.test(String(e.kind)) ? 'done' : 'info', sim });
+    }
+    if (feedSeen.size > 600) { const keep = [...feedSeen].slice(-300); feedSeen.clear(); for (const k of keep) feedSeen.add(k); }
+  }
+  function feedEvent(ev) {
+    if (!ev) return;
+    const title = String(ev.title || '');
+    if (ev.kind === 'tool_checkout') {
+      const mm = title.match(/^(.*?) assigned to (W-\d+)/);
+      popBubble(mm ? mm[2] : 'W-01', `${mm ? mm[1] : 'Tool'} locked`, { kind: 'info' });
+    } else if (ev.kind === 'tool_return') {
+      const mm = title.match(/^(.*?) returned by (W-\d+)/);
+      popBubble(mm ? mm[2] : 'W-01', `${mm ? mm[1] : 'Tool'} returned`, { kind: 'done' });
+    }
+  }
+  function onFeed(m) {
+    if (!m || typeof m !== 'object') return;
+    if (m.type === 'snapshot') { if (m.state && m.state.job) feedJob(m.state.job, true); }
+    else if (m.type === 'job') feedJob(m.job, false);
+    else if (m.type === 'transcript') {
+      if (m.final && m.acted && !m.pending) {
+        const key = `t|${m.transcript_id || m.ts}`;
+        if (!feedSeen.has(key)) { feedSeen.add(key); popBubble('W-01', `\u2713 ${shortText(m.acted, 80)}`, { kind: 'done' }); }
+      }
+    } else if (m.type === 'agent_action') {
+      const a = m.action || {};
+      if (!a.text) return;
+      const key = `g|${a.id || a.text}|${a.status}`;
+      if (feedSeen.has(key)) return;
+      feedSeen.add(key);
+      const kind = a.status === 'done' ? 'done' : (a.status === 'needs_review' || /safety|missing|block/.test(String(a.kind || ''))) ? 'warn' : 'info';
+      popBubble('W-01', a.text, { kind });
+    } else if (m.type === 'event') feedEvent(m.event);
+    else if (m.type === 'fleet') feedFleet(m);
+  }
+  function feedConnect() {
+    if (disposed || !liveFeed || (typeof window !== 'undefined' && window.BELTGUARD_BUBBLE_FEED === false)) return;
+    if (typeof WebSocket === 'undefined' || typeof location === 'undefined' || !/^https?:$/.test(location.protocol)) return;
+    let s;
+    try { s = new WebSocket(`${location.protocol === 'https:' ? 'wss' : 'ws'}://${location.host}/ws`); } catch (e) { return; }
+    feedWs = s;
+    s.onopen = () => { feedRetry = 1000; };
+    s.onmessage = (ev) => {
+      const d = ev.data;
+      if (typeof d !== 'string' || !FEED_RE.test(d.slice(0, 40))) return; // skip motion/activity frames unparsed
+      let m;
+      try { m = JSON.parse(d); } catch (e) { return; }
+      try { onFeed(m); } catch (e) { /* a bad message never breaks the scene */ }
+    };
+    s.onclose = () => {
+      if (feedWs === s) feedWs = null;
+      if (!disposed) { feedTimer = setTimeout(feedConnect, feedRetry); feedRetry = Math.min(feedRetry * 2, 15000); }
+    };
+  }
+  feedConnect();
 
   // debug handle (inspection only, like mongomation's host.__f3d)
   container.__bg3d = {
     renderer, scene, camera,
     get soldier() { return !!soldier; },
     get tool() { return toolKindNow; },
+    get world() { return world ? (world.info || true) : null; },
+    get lockout() { return { on: lockOn, reason: lockReason, belt: +beltRun.toFixed(3), tag: !!lockItem.box }; },
+    get intro() { return { phase: intro.phase, t: +intro.t.toFixed(2), wait: +intro.wait.toFixed(2), world: worldState }; },
+    get bubbles() { return [...bubbles.values()].map((b) => ({ id: b.id, kind: b.kind, text: b.text, shown: !!b.box, out: !!b.removeAt })); },
+    get feed() { return { ws: feedWs ? feedWs.readyState : -1, primed: feedPrimed, seen: feedSeen.size }; },
+    feedTest(m) { onFeed(m); },
     get crew() { return [...crew.values()].map((n) => ({ id: n.id, x: +n.pos.x.toFixed(2), z: +n.pos.z.toFixed(2), tool: n.toolKind, state: n.data && n.data.state, visible: n.root.visible })); },
     get worker() { return { x: +techPos.x.toFixed(2), z: +techPos.z.toFixed(2), heading: +heading.toFixed(2), route: route.length, hold: hold && { ...hold }, busy: scriptBusy, reach: !!reach }; },
     step(sec = 1) { const n = Math.round(sec * 30); for (let i = 0; i < n; i += 1) tick(1 / 30); renderer.render(scene, camera); placeLabels(); },
@@ -2564,6 +2894,13 @@ export function createModel(container, { onStationClick, onToolClick, onWorkerCl
     apply,
     setActivity(state) { actState = state || 'idle'; },
     setVibration(rms) { vibRms = Number(rms) || 0; },
+    // isolation from the job checklist; pickTool/returnTool do the same on their own. Returns whether the belt may run.
+    // a speech bubble over a worker's head: kind done|info|warn|alert, ms (default 5000); a new one replaces the old one
+    showBubble(workerId, text, opts) { return popBubble(workerId, text, opts || {}); },
+    setConveyorRunning(on, { reason } = {}) {
+      setLockout(!on, reason || (on ? null : 'Isolated & locked out'));
+      return !lockOn;
+    },
     // optional hook used by the guided flow: closer shot of a station (step 1 or no id = whole line)
     focusStation(id, step) {
       focusId = id && step !== 1 ? String(id) : null;
@@ -2576,6 +2913,7 @@ export function createModel(container, { onStationClick, onToolClick, onWorkerCl
       syncFleet();
     },
     focusWorker(id) {
+      endIntro();
       focusWorkerId = id ? String(id) : null;
       userT = Math.min(userT, 0.5);
       syncWorkerBadges();
@@ -2610,6 +2948,7 @@ export function createModel(container, { onStationClick, onToolClick, onWorkerCl
       return enqueue(async () => {
         const o = stationObjs.get(String(stationId));
         if (!o) return false;
+        if (toolKindNow && !lockOn) setLockout(true, 'Tool locked to W-01'); // at the latest before work starts
         const x = o.g.position.x;
         workX = x;
         techTargetX = x;
@@ -2619,17 +2958,22 @@ export function createModel(container, { onStationClick, onToolClick, onWorkerCl
     },
     returnTool() {
       return enqueue(async () => {
-        if (!toolKindNow) return true;
+        if (!toolKindNow) { setLockout(false); return true; }
         const kind = toolKindNow, slot = slotOf(kind);
-        if (!slot) { setActiveTool(null); return true; }
+        if (!slot) { setActiveTool(null); setLockout(false); return true; }
         await walkTo(pathToCrib(slot.standX), 0, false, 1.15, false);
         await reachTo(slot, 'return', kind); // <= 2.0 s in total
+        setLockout(false); // the tool is back on the board: isolation removed, the belt eases up over ~1.5 s
         return true;
       });
     },
     dispose() {
       snapScripts();
       disposed = true;
+      if (world && typeof world.dispose === 'function') { try { world.dispose(); } catch (e) { /* ignore */ } }
+      world = null;
+      clearTimeout(feedTimer);
+      if (feedWs) { feedWs.onclose = null; try { feedWs.close(); } catch (e) { /* ignore */ } feedWs = null; }
       cancelAnimationFrame(raf);
       ro.disconnect();
       controls.dispose();

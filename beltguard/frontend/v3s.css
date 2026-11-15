@@ -636,3 +636,36 @@ body.live-on #voiceLog { display: none; }
   .lp-list { max-height: 160px; }
 }
 .tx-line.chat { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+/* LIVE panel fixes (S5): one-line evidence, a little more height, compact job rows */
+.live-panel { height: clamp(196px, 30vh, 280px); }
+.js-ev { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+#lpJobList > li { padding: 4px 0; }
+.tx-line .chip + .chip { margin-left: 4px; }
+
+/* S0 hotfix 15:45 — Live panel rows grow with their content; nothing overlaps or bleeds. */
+.lp-list > li { flex-shrink: 0; height: auto; min-height: 0; }
+.js-row .js-text { display: flex; flex-direction: column; gap: 1px; }
+.js-ev { line-height: 1.35; }
+.tx-line.chat { display: flex; gap: 6px; align-items: baseline; overflow: visible; -webkit-line-clamp: unset; line-clamp: unset; }
+.tx-line.chat .tm { flex: none; }
+/* S0 16:18 (user): never trim what the technician says. Full sentences, live; the list scrolls instead. */
+.tx-line.chat .tx-words { flex: 1 1 auto; min-width: 0; display: inline; overflow: visible; -webkit-line-clamp: unset; line-clamp: unset; white-space: normal; overflow-wrap: anywhere; }
+
+/* S8 16:20 — live steps: a new row slides in with a soft green glow (1.5 s); a step ticked done flashes green (0.9 s).
+   The list gets 4px of side padding (offset by a negative margin) so the glow has room without moving the text. */
+.lp-list { padding: 0 4px; margin: 0 -4px; }
+.lp-list > li.fx-new, .lp-list > li.fx-done { position: relative; isolation: isolate; }
+.lp-list > li.fx-new::before, .lp-list > li.fx-done::before { content: ""; position: absolute; inset: 1px -4px; border-radius: 6px; z-index: -1; pointer-events: none; }
+.lp-list > li.fx-done::before { background: #D1FAE5; animation: fxFade .9s ease-out both; animation-delay: var(--fx-delay, 0ms); }
+.lp-list > li.fx-new::before { background: var(--success-bg); box-shadow: inset 2px 0 0 var(--success); animation: fxFade 1.5s ease-in both; animation-delay: var(--fx-delay, 0ms); }
+.lp-list > li.fx-new { animation: fxSlide .28s cubic-bezier(.2, .8, .2, 1) both; animation-delay: var(--fx-delay, 0ms); }
+.js-row.fx-done .js-ico { animation: fxTick .7s cubic-bezier(.2, .8, .2, 1) both; animation-delay: var(--fx-delay, 0ms); }
+@keyframes fxSlide { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: none; } }
+@keyframes fxFade { 0%, 30% { opacity: 1; } 100% { opacity: 0; } }
+@keyframes fxTick {
+  0% { transform: scale(.55); background: var(--success); border-color: var(--success); box-shadow: 0 0 0 0 rgba(16, 185, 129, .55); }
+  45% { transform: scale(1.18); background: var(--success); border-color: var(--success); }
+  75% { box-shadow: 0 0 0 7px rgba(16, 185, 129, 0); }
+  100% { transform: scale(1); }
+}
+@media (prefers-reduced-motion: reduce) { .lp-list > li.fx-new, .js-row.fx-done .js-ico { animation: none; } }

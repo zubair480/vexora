@@ -99,6 +99,12 @@ function finalDisconnect(detail) {
   send({ type: 'connection', state: 'disconnected', transport: 'browser-ble', band: BAND });
   emit('disconnected', detail);
 }
+function flushQueue() {
+  if (!queue.length) return;
+  const samples = queue.splice(0, queue.length);
+  if (ws) { send({ type: 'motion', rate, samples }); sent += samples.length; }
+  window.dispatchEvent(new CustomEvent('bandlink:batch', { detail: { samples, sent, ingest: !!ws } }));
+}
 function startStreaming() {
   stopStreaming();
   timer = setInterval(() => {
@@ -109,10 +115,7 @@ function startStreaming() {
         send({ type: 'rate', rate, sensors: 'both' });
       }).catch(() => {});
     }
-    if (!queue.length) return;
-    const samples = queue.splice(0, queue.length);
-    if (ws) { send({ type: 'motion', rate, samples }); sent += samples.length; }
-    window.dispatchEvent(new CustomEvent('bandlink:batch', { detail: { samples, sent, ingest: !!ws } }));
+    flushQueue();                                   // fallback; the motion handler flushes ~10x/s itself
   }, 100);
 }
 
@@ -139,6 +142,9 @@ async function connectInner() {
   band.on('motion', (m) => {
     queue.push({ t: m.t, n: m.n, ax: m.ax, ay: m.ay, az: m.az, gx: m.gx ?? null, gy: m.gy ?? null, gz: m.gz ?? null });
     if (queue.length > 8000) queue.splice(0, queue.length - 8000);
+    // Event-driven flush: Chrome throttles timers in a background tab to ~1 Hz, but Bluetooth
+    // notifications are not throttled, so batches keep flowing ~10x/s and charts stay smooth.
+    if (queue.length >= Math.max(20, Math.round(rate / 10))) flushQueue();
   });
   wireEvents(band);
   band.on('disconnect', (d) => {
@@ -330,7 +336,7 @@ function mountTranscriptDock() {
   window.addEventListener('resize', applySize);
   const fmt = (ts) => new Date((ts || Date.now() / 1000) * 1000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
   const seen = new Set();
-  const clip = (s) => (s.length > 200 ? s.slice(0, 197) + '…' : s);
+  const clip = (s) => s;                                                       // never trim what was said (user)
   function add(who, text, ts, chip, key) {
     if (!text) return;
     if (key) { if (seen.has(key)) return; seen.add(key); }
@@ -383,6 +389,73 @@ function mountTranscriptDock() {
   });
 }
 
+// ---------- live words while the technician is still speaking ----------
+// The Band link tab (voice.js) posts Deepgram's partial words on BroadcastChannel 'beltguard-voice'
+// (same origin, same browser). They appear as the last row of the Technician column (or of the dock)
+// and disappear when the sentence is finished (the final line then arrives from the server).
+function mountLiveWords() {
+  if (IS_BRIDGE || typeof BroadcastChannel === 'undefined') return;
+  const ch = new BroadcastChannel('beltguard-voice');
+  let clearTimer = null;
+  const drop = () => { const x = document.getElementById('bgInterim'); if (x) x.remove(); };
+  function row() {
+    const list = document.getElementById('lpTechList') || document.getElementById('bgTxList');
+    if (!list) return null;
+    let li = document.getElementById('bgInterim');
+    if (!li) {
+      li = document.createElement('li');
+      li.id = 'bgInterim';
+      li.className = 'tx-line chat';
+      li.innerHTML = '<span class="tm" style="color:#059669;font-weight:600">now</span> '
+        + '<span class="tx-words" style="color:#3F3F46;font-style:italic"></span>';
+    }
+    if (li.parentElement !== list || list.lastElementChild !== li) list.appendChild(li);   // always the last row
+    return li;
+  }
+  ch.onmessage = (e) => {
+    const m = e.data || {};
+    const text = String(m.text || '').trim();
+    clearTimeout(clearTimer);
+    if (!text || m.final) { drop(); return; }
+    const li = row();
+    if (!li) return;
+    li.querySelector('.tx-words').textContent = '“' + text + '”';               // complete, never trimmed (user)
+    li.parentElement.scrollTop = li.parentElement.scrollHeight;
+    clearTimer = setTimeout(drop, 6000);
+  };
+}
+
+// ---------- Reset shift (dashboard top bar) ----------
+// Returns any checked-out tool, then starts a clean shift (POST /api/reset). Old records stay in SQLite.
+function mountResetButton() {
+  if (IS_BRIDGE || document.getElementById('bgReset')) return;
+  if (!/^\/(index\.html)?$/.test(location.pathname)) return;
+  const bar = document.querySelector('.tb-right');
+  if (!bar) return;
+  const btn = document.createElement('button');
+  btn.id = 'bgReset';
+  btn.type = 'button';
+  btn.className = 'btn ghost sm';
+  btn.textContent = 'Reset shift';
+  btn.title = 'Return any tool and start a clean shift. Records stay saved.';
+  btn.addEventListener('click', async () => {
+    if (!window.confirm('Start a clean shift?\n\nAny checked-out tool is returned, and the checklist, points and timeline start fresh. Everything stays saved in the database.')) return;
+    btn.disabled = true;
+    btn.textContent = 'Resetting…';
+    try { await fetch('/api/tool/return', { method: 'POST' }); } catch (e) { /* no tool out */ }
+    try {
+      const r = await fetch('/api/reset', { method: 'POST' });
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      location.reload();
+    } catch (e) {
+      btn.disabled = false;
+      btn.textContent = 'Reset failed · retry';
+    }
+  });
+  const details = [...bar.children].find((el) => el.textContent.trim() === 'Details');
+  bar.insertBefore(btn, details || null);
+}
+
 function start() {
   if (IS_BRIDGE) {                                  // bridge.html draws its own UI (bridge.js)
     // Keep /ws/ingest open from page load, before Connect, so the backend knows a Band link page is
@@ -398,5 +471,8 @@ function start() {
   if (old) old.remove();
   mountIndicator();
   mountTranscriptDock();
+  mountLiveWords();
+  mountResetButton();
+  setInterval(mountResetButton, 2000);              // re-adds itself if the top bar is re-rendered
 }
 if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start); else start();

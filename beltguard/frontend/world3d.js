@@ -133,8 +133,32 @@ function canvasTexture(THREE, w, h, draw, repeat = true) {
 }
 
 // ---------- the world ----------
-export function buildWorld({ THREE, scene, renderer, camera, siteRadius = 26, center = null, yard = null, legacy = true } = {}) {
+// buildWorld returns at once: the sky, haze and ground the default camera sees are built synchronously, the rest
+// (pit, roads, props, vegetation, vehicles) follows in small chunks between frames so page load never freezes.
+// If any later chunk throws, the world removes itself and the old backdrop comes back.
+export function buildWorld(opts = {}) {
+  const api = {
+    group: null,
+    info: { building: true },
+    ready: null,
+    update() {},
+    dispose() { api.update = () => {}; if (api._kill) api._kill(); if (api._dispose) api._dispose(); api._dispose = null; },
+  };
+  api.ready = buildInto(api, opts)
+    .then(() => { api.info.building = false; return api; })
+    .catch((err) => { console.warn('[world3d] build failed, restoring the previous backdrop', err); api.dispose(); return api; });
+  return api;
+}
+
+async function buildInto(api, { THREE, scene, renderer, camera, siteRadius = 26, center = null, yard = null, legacy = true } = {}) {
   const T0 = performance.now();
+  let dead = false;
+  api._kill = () => { dead = true; };
+  let chunkStart = T0, maxChunk = 0;
+  const tick = () => { // yield to the page between chunks (frames keep rendering while the world fills in)
+    maxChunk = Math.max(maxChunk, performance.now() - chunkStart);
+    return new Promise((r) => setTimeout(() => { chunkStart = performance.now(); r(); }, 0));
+  };
   const marks = [];
   const mark = (n) => marks.push(`${n} ${Math.round(performance.now() - T0)}`);
   const cx = center ? center.x : 0, cz = center ? center.z : -1.5;
@@ -153,18 +177,19 @@ export function buildWorld({ THREE, scene, renderer, camera, siteRadius = 26, ce
   const PT = { x: 0, y: 0, z: 0, tx: 1, tz: 0, slope: 0 };
 
   // ---------- legacy background from model3d.js (sky dome, 280 m gravel plane, berm ring) ----------
+  // (applied together with the new fog/background in one go, once the new ground exists, so nothing flashes)
   const hidden = [];
-  if (legacy) {
+  const hideLegacy = () => {
+    if (!legacy) return;
     scene.traverse((o) => {
-      if (!o.isMesh) return;
+      if (!o.isMesh || group.getObjectById(o.id)) return;
       const g = o.geometry, m = o.material, p = g && g.parameters;
       const dome = g && g.type === 'SphereGeometry' && p && p.radius >= 120 && m && m.side === THREE.BackSide;
       const plane = g && g.type === 'PlaneGeometry' && p && p.width >= 200 && p.height >= 200;
       const berm = m && m.isMeshStandardMaterial && m.flatShading && m.color && m.color.getHex() === 0xa9b1b9;
       if (dome || plane || berm) { hidden.push([o, o.visible]); o.visible = false; }
     });
-  }
-  scene.add(group);
+  };
 
   // ---------- sun, sky, haze ----------
   let sunLight = null;
@@ -178,10 +203,31 @@ export function buildWorld({ THREE, scene, renderer, camera, siteRadius = 26, ce
   const shLen = 1 / Math.max(0.35, Math.tan(Math.asin(clamp(lightDir.y, -1, 1)))); // shadow length per metre of height
 
   const HAZE = colr('#d5d9db');
-  const prev = { fog: scene.fog, background: scene.background, far: camera.far };
-  scene.fog = new THREE.FogExp2(HAZE.getHex(), 0.0007);
-  scene.background = HAZE.clone();
-  if (camera.far < 3200) { camera.far = 3200; camera.updateProjectionMatrix(); }
+  const prev = { fog: null, background: null, far: camera.far };
+  let applied = false;
+  const applyToScene = () => { // swap the backdrop: hide the old one, set haze + far plane, show the world
+    hideLegacy();
+    prev.fog = scene.fog; prev.background = scene.background; prev.far = camera.far;
+    scene.fog = new THREE.FogExp2(HAZE.getHex(), 0.0007);
+    scene.background = HAZE.clone();
+    if (camera.far < 3200) { camera.far = 3200; camera.updateProjectionMatrix(); }
+    scene.add(group);
+    applied = true;
+  };
+  api.group = group;
+  api._dispose = () => {
+    scene.remove(group);
+    for (const o of owned) if (o && o.dispose) o.dispose();
+    owned.clear();
+    for (const [o, v] of hidden) o.visible = v;
+    hidden.length = 0;
+    if (applied) {
+      scene.fog = prev.fog;
+      scene.background = prev.background;
+      if (camera.far !== prev.far) { camera.far = prev.far; camera.updateProjectionMatrix(); }
+      applied = false;
+    }
+  };
 
   const sky = new Sky();
   sky.name = 'world3d-sky';
@@ -224,12 +270,20 @@ export function buildWorld({ THREE, scene, renderer, camera, siteRadius = 26, ce
     const u = dx * c + dz * s, v = -dx * s + dz * c;
     return Math.sqrt((u / E.a) * (u / E.a) + (v / E.b) * (v / E.b));
   };
+  PIT.wob = [0.07, 3, 1.2, 0.045, 5, 0.3, 0.03, 7, 2.2];
+  DUMP.wob = [0.09, 2, 0.7, 0.05, 5, 2.1, 0.035, 9, 0.4];
+  const wob = (E, th) => { const w = E.wob; return w ? 1 + w[0] * Math.sin(w[1] * th + w[2]) + w[3] * Math.sin(w[4] * th + w[5]) + w[6] * Math.sin(w[7] * th + w[8]) : 1; };
   const ellXZ = (E, sc, th) => {
-    const c = Math.cos(E.rot), s = Math.sin(E.rot), u = E.a * sc * Math.cos(th), v = E.b * sc * Math.sin(th);
+    const k = sc * wob(E, th), c = Math.cos(E.rot), s = Math.sin(E.rot), u = E.a * k * Math.cos(th), v = E.b * k * Math.sin(th);
     return [E.x + u * c - v * s, E.z + u * s + v * c];
   };
+  const qShape = (E, x, z) => { // like qEll, but against the wobbly outline
+    const dx = x - E.x, dz = z - E.z, c = Math.cos(E.rot), s = Math.sin(E.rot);
+    const u = (dx * c + dz * s) / E.a, v = (-dx * s + dz * c) / E.b;
+    return Math.sqrt(u * u + v * v) / wob(E, Math.atan2(v, u));
+  };
   const yardDist = (x, z) => Math.hypot(Math.max(Y.x0 - x, 0, x - Y.x1), Math.max(Y.z0 - z, 0, z - Y.z1));
-  const flatMask = (x, z) => sstep(1.3, 1.75, qEll(PIT, x, z)) * sstep(1.05, 1.5, qEll(DUMP, x, z)) * sstep(150, 230, Math.hypot(x - PLANT.x, z - PLANT.z));
+  const flatMask = (x, z) => sstep(1.3, 1.75, qShape(PIT, x, z)) * sstep(1.05, 1.5, qShape(DUMP, x, z)) * sstep(150, 230, Math.hypot(x - PLANT.x, z - PLANT.z));
   function rawHeight(x, z) {
     const r = Math.hypot(x - cx, z - cz);
     const m = flatMask(x, z);
@@ -290,7 +344,7 @@ export function buildWorld({ THREE, scene, renderer, camera, siteRadius = 26, ce
       const w = 1 - sstep(R.hw + 1.5, R.hw + 24, nn.d);
       if (w > 0) h = lerp(h, roadY(R, nn) - 0.22, w);
     }
-    const qp = qEll(PIT, x, z);
+    const qp = qShape(PIT, x, z);
     if (qp < 1.34) h -= 1.6 * (1 - sstep(1.27, 1.34, qp));
     if (qp < 1.0) h = Math.min(h, lerp(PIT.floorY - 12, h, sstep(0.965, 1.0, qp)));
     HQ.h = h; HQ.edge = edge;
@@ -305,21 +359,36 @@ export function buildWorld({ THREE, scene, renderer, camera, siteRadius = 26, ce
 
   // ---------- terrain ----------
   const CT = {
-    gravel: colr('#d2d5d8'), dirt: colr('#b5a184'), straw: colr('#ae9a6b'), strawLight: colr('#bfac80'), olive: colr('#857f52'),
+    gravel: colr('#d2d5d8'), dirt: colr('#b19c7e'), straw: colr('#ae9a6b'), strawLight: colr('#bfac80'), olive: colr('#857f52'),
     red: colr('#a97a5b'), disturbed: colr('#b19f86'), hill: colr('#77734c'), hillDark: colr('#5f5d3f'),
   };
-  const grainTex = own(canvasTexture(THREE, 256, 256, (g, w, h) => {
-    g.fillStyle = '#d9d9d9'; g.fillRect(0, 0, w, h);
-    const R = rng(11);
-    for (let i = 0; i < 5200; i += 1) {
-      const x = R() * w, y = R() * h, r = 0.5 + R() * 1.7, l = (140 + R() * 115) | 0;
-      g.fillStyle = `rgba(${l},${l},${l},${(0.25 + R() * 0.55).toFixed(2)})`;
-      for (const ox of [-w, 0, w]) for (const oy of [-h, 0, h]) {
-        if ((ox && (x + ox < -4 || x + ox > w + 4)) || (oy && (y + oy < -4 || y + oy > h + 4))) continue;
-        g.beginPath(); g.arc(x + ox, y + oy, r, 0, Math.PI * 2); g.fill();
+  const grainTex = own((() => { // tileable gravel/soil grain, written straight into pixels (fast)
+    const W = 256, c = document.createElement('canvas');
+    c.width = W; c.height = W;
+    const g = c.getContext('2d'), img = g.createImageData(W, W), d = img.data, R = rng(11);
+    const tvn = (x, y, P) => {
+      const ix = Math.floor(x), iy = Math.floor(y), fx = x - ix, fy = y - iy, ux = fx * fx * (3 - 2 * fx), uy = fy * fy * (3 - 2 * fy);
+      const i0 = ((ix % P) + P) % P, i1 = (i0 + 1) % P, j0 = ((iy % P) + P) % P, j1 = (j0 + 1) % P;
+      const A = hash2(i0, j0), B = hash2(i1, j0), C = hash2(i0, j1), D = hash2(i1, j1);
+      return A + (B - A) * ux + (C - A) * uy + (A - B - C + D) * ux * uy;
+    };
+    for (let y = 0; y < W; y += 1) {
+      for (let x = 0; x < W; x += 1) {
+        const peb = tvn(x / 4, y / 4, 64), grit = tvn(x / 1.6, y / 1.6, 160), big = tvn(x / 16, y / 16, 16);
+        let v = 0.8 + (big - 0.5) * 0.1 + (grit - 0.5) * 0.16 + (R() - 0.5) * 0.12;
+        if (peb > 0.72) v += (peb - 0.72) * 0.9; else if (peb < 0.25) v -= (0.25 - peb) * 0.7;
+        const l = Math.max(0, Math.min(255, Math.round(v * 255))), k = (y * W + x) * 4;
+        d[k] = l; d[k + 1] = l; d[k + 2] = l; d[k + 3] = 255;
       }
     }
-  }));
+    g.putImageData(img, 0, 0);
+    const t = new THREE.CanvasTexture(c);
+    t.wrapS = t.wrapT = THREE.RepeatWrapping;
+    t.colorSpace = THREE.SRGBColorSpace;
+    return t;
+  })());
+  mark('grainTex');
+  await tick(); if (dead) return;
   grainTex.anisotropy = renderer.capabilities.getMaxAnisotropy ? Math.min(8, renderer.capabilities.getMaxAnisotropy()) : 4;
   const U = { time: { value: 0 } };
   const terrainMat = own(new THREE.MeshStandardMaterial({ color: 0xffffff, map: grainTex, vertexColors: true, roughness: 1, metalness: 0 }));
@@ -337,7 +406,8 @@ uniform vec4 uYard;
 float wHash( vec2 p ) { p = fract( p * vec2( 123.34, 456.21 ) ); p += dot( p, p + 45.32 ); return fract( p.x * p.y ); }
 float wNoise( vec2 p ) { vec2 i = floor( p ), f = fract( p ); vec2 u = f * f * ( 3.0 - 2.0 * f );
   return mix( mix( wHash( i ), wHash( i + vec2( 1.0, 0.0 ) ), u.x ), mix( wHash( i + vec2( 0.0, 1.0 ) ), wHash( i + vec2( 1.0, 1.0 ) ), u.x ), u.y ); }`)
-      .replace('#include <map_fragment>', `#ifdef USE_MAP
+      .replace('#include <map_fragment>', `float wEnvK = 1.0;
+#ifdef USE_MAP
   vec4 wG1 = texture2D( map, vMapUv );
   vec4 wG2 = texture2D( map, vMapUv * 0.161 + vec2( 0.37, 0.11 ) );
   diffuseColor *= mix( wG1, wG2, 0.42 );
@@ -348,7 +418,9 @@ float wNoise( vec2 p ) { vec2 i = floor( p ), f = fract( p ); vec2 u = f * f * (
     vec2 yd = max( max( vec2( uYard.x, uYard.z ) - vWXZ, vWXZ - vec2( uYard.y, uYard.w ) ), 0.0 );
     float cs = smoothstep( 0.55, 0.7, cn ) * smoothstep( 30.0, 90.0, length( yd ) );
     diffuseColor.rgb *= 1.0 - 0.3 * cs;
-  }`);
+    wEnvK = mix( 1.0, 0.45, smoothstep( 1.0, 12.0, length( yd ) ) );
+  }`)
+      .replace('#include <lights_fragment_maps>', THREE.ShaderChunk.lights_fragment_maps.replace(/iblIrradiance \+= getIBLIrradiance\( ([^)]*) \);/, 'iblIrradiance += getIBLIrradiance( $1 ) * wEnvK;'));
   };
   {
     const radii = [0];
@@ -374,13 +446,16 @@ float wNoise( vec2 p ) { vec2 i = floor( p ), f = fract( p ); vec2 u = f * f * (
       tmpC.lerp(CT.gravel, 1 - sstep(-1.2, 1.4, d));
       col[vi * 3] = tmpC.r; col[vi * 3 + 1] = tmpC.g; col[vi * 3 + 2] = tmpC.b;
     };
+    mark('terrain-setup');
     put(0, cx, cz);
     for (let i = 1; i < NR; i += 1) {
       for (let j = 0; j < SEG; j += 1) {
         const a = (j / SEG) * Math.PI * 2;
         put(1 + (i - 1) * SEG + j, cx + Math.cos(a) * radii[i], cz + Math.sin(a) * radii[i]);
       }
+      if (i === Math.floor(NR / 2)) { await tick(); if (dead) return; }
     }
+    mark('terrain-verts');
     // inner disc (yard + 75 m) receives the sun's shadows; the outer ring skips the shadow lookups (it is outside the shadow box anyway)
     const idxIn = [], idxOut = [];
     for (let j = 0; j < SEG; j += 1) idxIn.push(0, 1 + ((j + 1) % SEG), 1 + j);
@@ -407,10 +482,12 @@ float wNoise( vec2 p ) { vec2 i = floor( p ), f = fract( p ); vec2 u = f * f * (
       group.add(terrain);
     }
   }
+  applyToScene();
   mark('terrain');
+  await tick(); if (dead) return;
 
   // ---------- open pit (benches, ramp, lake) and waste dump: lathe strips on ellipses ----------
-  const ringMat = own(new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 1, metalness: 0, flatShading: true, side: THREE.DoubleSide }));
+  const ringMat = own(new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 1, metalness: 0, envMapIntensity: 0.5, flatShading: true, side: THREE.DoubleSide }));
   function lathe(E, prof, NT, colourAt) {
     const pos = [], col = [], idx = [];
     let base = 0;
@@ -449,12 +526,12 @@ float wNoise( vec2 p ) { vec2 i = floor( p ), f = fract( p ); vec2 u = f * f * (
     // the haul road meets the rim here; the ramp spirals down from it
     const dx = haul.x[0] - PIT.x, dz = haul.z[0] - PIT.z, c = Math.cos(PIT.rot), sn = Math.sin(PIT.rot);
     const th0 = Math.atan2((-dx * sn + dz * c) / PIT.b, (dx * c + dz * sn) / PIT.a);
-    const strata = ['#a8795b', '#ba966b', '#9b9188', '#b28062', '#ab9e8b', '#977159', '#b69c79', '#918981'].map((h) => colr(h));
-    const berm = colr('#cdbba2'), ramp = colr('#d6c6ab'), floor = colr('#a29584'), water = colr('#5f8783'), apron = CT.disturbed;
+    const strata = ['#946a50', '#a5845e', '#8a8179', '#9d7056', '#978b7a', '#85634e', '#a1896a', '#807972'].map((h) => colr(h));
+    const berm = colr('#b4a38b'), ramp = colr('#c2b195'), floor = colr('#8f8373'), water = colr('#557b77'), apron = colr('#a99780');
     const geo = lathe(PIT, prof, 120, (B, th, isA, out) => {
       const kind = B[2], k = B[3] || 0;
       const rk = th0 + 0.2 + k * 0.43;
-      const onRamp = Math.abs(angDiff(th, rk)) < 0.085;
+      const onRamp = Math.abs(angDiff(th, rk)) < 0.12;
       if (kind === 'apron') out.copy(apron).multiplyScalar(0.96 + 0.08 * vnoise(th * 14, 3.3));
       else if (kind === 'face') { out.copy(onRamp ? ramp : strata[k % 8]).multiplyScalar(0.9 + 0.2 * vnoise(th * 9, k * 3.1) - k * 0.012); }
       else if (kind === 'berm') out.copy(onRamp ? ramp : berm).multiplyScalar(0.97 - k * 0.022 + 0.06 * vnoise(th * 11, k + 0.5));
@@ -474,7 +551,7 @@ float wNoise( vec2 p ) { vec2 i = floor( p ), f = fract( p ); vec2 u = f * f * (
       if (k < DUMP.lifts - 1) { s -= 0.07; prof.push([s, y, 'berm', k]); }
     }
     prof.push([0, y + 0.6, 'top']);
-    const face = colr('#a09487'), bermC = colr('#b9ad9b'), top = colr('#beb19d');
+    const face = colr('#7d746a'), bermC = colr('#91877a'), top = colr('#978b7b');
     const geo = lathe(DUMP, prof, 110, (B, th, isA, out) => {
       const kind = B[2], k = B[3] || 0;
       if (kind === 'face') out.copy(face).multiplyScalar(0.86 + 0.24 * vnoise(th * 46, k * 2.7) + 0.04 * k);
@@ -486,6 +563,7 @@ float wNoise( vec2 p ) { vec2 i = floor( p ), f = fract( p ); vec2 u = f * f * (
     group.add(dump);
   }
   mark('pit+dump');
+  await tick(); if (dead) return;
 
   // ---------- road ribbons (haul road with windrows, access spur, LV track) ----------
   {
@@ -507,8 +585,8 @@ float wNoise( vec2 p ) { vec2 i = floor( p ), f = fract( p ); vec2 u = f * f * (
     }));
     roadTex.wrapS = THREE.ClampToEdgeWrapping;
     roadTex.anisotropy = grainTex.anisotropy;
-    const roadMat = own(new THREE.MeshStandardMaterial({ map: roadTex, vertexColors: true, roughness: 1, metalness: 0, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 }));
-    const RC = { road: colr('#d6c3a6'), edge: colr('#c7b192'), wind: colr('#ab967b'), windBase: colr('#bba68b'), track: colr('#d2c1a6') };
+    const roadMat = own(new THREE.MeshStandardMaterial({ map: roadTex, vertexColors: true, roughness: 1, metalness: 0, envMapIntensity: 0.55, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 }));
+    const RC = { road: colr('#bca98c'), edge: colr('#ae9a7e'), wind: colr('#9a8770'), windBase: colr('#a69279'), track: colr('#b4a286') };
     const pos = [], uv = [], col = [], idx = [];
     const ribbon = (R, prof, windK) => {
       const p = R.path, base = pos.length / 3, m = prof.length;
@@ -568,6 +646,7 @@ float wNoise( vec2 p ) { vec2 i = floor( p ), f = fract( p ); vec2 u = f * f * (
     for (const R of ROADS) corridors.push([R.path, R.hw + 4]);
   }
   mark('roads');
+  await tick(); if (dead) return;
 
   // ---------- static props: one merged, vertex-coloured mesh per material ----------
   const bins = { paint: [], metal: [], matte: [], glass: [] };
@@ -750,6 +829,7 @@ float wNoise( vec2 p ) { vec2 i = floor( p ), f = fract( p ); vec2 u = f * f * (
     shadowAt(px, pz, 12.5, 3.5, 1);
     blockedSpots.push([px, pz, 8]);
   }
+  mark('props-small');
   // overland conveyor from the plant stockpile to the horizon: trestles + covered belt
   {
     const path = P([[320, -325], [520, -470], [800, -660], [1100, -860], [1420, -1070]], { step: 6 });
@@ -779,6 +859,8 @@ float wNoise( vec2 p ) { vec2 i = floor( p ), f = fract( p ); vec2 u = f * f * (
     }
     corridors.push([path, 12]);
   }
+  mark('conveyor');
+  await tick(); if (dead) return;
   // processing plant: crusher, stockpile + stacker gallery, mill, thickeners, silos, stack (steam plume in update)
   const stackTop = new THREE.Vector3();
   {
@@ -830,6 +912,7 @@ float wNoise( vec2 p ) { vec2 i = floor( p ), f = fract( p ); vec2 u = f * f * (
     const [bx, bz] = ellXZ(PIT, 0.62, 4.1);
     box('paint', '#f2c230', 6.2, 3.5, 10, bx, YG + 0.12 - 4 * PIT.bh + 2.4, bz, 0, 1.2, 0);
   }
+  mark('plant+pit');
   const propMats = {
     paint: own(new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.6, metalness: 0.08 })),
     metal: own(new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.45, metalness: 0.5 })),
@@ -859,11 +942,36 @@ float wNoise( vec2 p ) { vec2 i = floor( p ), f = fract( p ); vec2 u = f * f * (
     for (const g of guyLines) pts.push(...g);
     const geo = own(new THREE.BufferGeometry());
     geo.setAttribute('position', new THREE.Float32BufferAttribute(pts, 3));
-    const wires = new THREE.LineSegments(geo, own(new THREE.LineBasicMaterial({ color: 0x3d4247, transparent: true, opacity: 0.75 })));
+    const wireMat = own(new THREE.ShaderMaterial({
+      uniforms: THREE.UniformsUtils.merge([THREE.UniformsLib.fog, { uColor: { value: colr('#3a3f44') }, uOpacity: { value: 0.8 } }]),
+      vertexShader: `varying float vDist;
+#include <fog_pars_vertex>
+void main() {
+  vec4 mvPosition = modelViewMatrix * vec4( position, 1.0 );
+  gl_Position = projectionMatrix * mvPosition;
+  vDist = -mvPosition.z;
+  #include <fog_vertex>
+}`,
+      fragmentShader: `uniform vec3 uColor;
+uniform float uOpacity;
+varying float vDist;
+#include <fog_pars_fragment>
+void main() {
+  float a = uOpacity * ( 1.0 - smoothstep( 60.0, 300.0, vDist ) );
+  if ( a < 0.01 ) discard;
+  gl_FragColor = vec4( uColor, a );
+  #include <tonemapping_fragment>
+  #include <colorspace_fragment>
+  #include <fog_fragment>
+}`,
+      transparent: true, depthWrite: false, fog: true,
+    }));
+    const wires = new THREE.LineSegments(geo, wireMat);
     wires.name = 'world3d-wires';
     group.add(wires);
   }
   mark('props');
+  await tick(); if (dead) return;
 
   // ---------- vegetation, rocks (instanced; trees in three distance bands so far stands cost almost nothing) ----------
   const blob = (detail, seed, jitter) => {
@@ -908,7 +1016,7 @@ float wNoise( vec2 p ) { vec2 i = floor( p ), f = fract( p ); vec2 u = f * f * (
   };
   const blocked = (x, z, yardClear, roadClear, corridorClear = 0) => {
     if (yardDist(x, z) < yardClear) return true;
-    if (qEll(PIT, x, z) < 1.4 || qEll(DUMP, x, z) < 1.1 || Math.hypot(x - PLANT.x, z - PLANT.z) < 175) return true;
+    if (qShape(PIT, x, z) < 1.4 || qShape(DUMP, x, z) < 1.12 || Math.hypot(x - PLANT.x, z - PLANT.z) < 175) return true;
     for (const [bx, bz, br] of blockedSpots) if ((x - bx) * (x - bx) + (z - bz) * (z - bz) < br * br) return true;
     for (const R of ROADS) if (nearest(R.path, x, z, R.hw + roadClear)) return true;
     if (corridorClear) for (const [path, w] of corridors) if (nearest(path, x, z, w * corridorClear)) return true;
@@ -947,8 +1055,8 @@ float wNoise( vec2 p ) { vec2 i = floor( p ), f = fract( p ); vec2 u = f * f * (
     })();
     const trunkSimple = new THREE.CylinderGeometry(0.008, 0.014, 0.62, 5, 1, true).translate(0, 0.31, 0);
     // crowns: canopy space is height 1 (scaled by 0.62 H), width 1 (scaled by W)
-    const eucNear = crownNormals(aoColours(clumps([[0, 0.66, 0, 0.3, 0.22], [0.34, 0.56, 0.1, 0.26, 0.2], [-0.3, 0.6, -0.14, 0.27, 0.2], [0.08, 0.42, 0.33, 0.24, 0.18], [-0.16, 0.86, 0.06, 0.22, 0.17], [0.2, 0.8, -0.24, 0.2, 0.16], [-0.36, 0.4, 0.22, 0.2, 0.16]], 40, 0.42), 0.2, 1.0, 0.5), 0, 0.6, 0);
-    const eucMid = crownNormals(aoColours(clumps([[0, 0.62, 0, 0.42, 0.3], [0.3, 0.48, 0.12, 0.3, 0.22], [-0.28, 0.52, -0.15, 0.3, 0.22]], 60, 0.38), 0.25, 1.0, 0.55), 0, 0.58, 0);
+    const eucNear = crownNormals(aoColours(clumps([[0, 0.7, 0, 0.22, 0.16], [0.28, 0.62, 0.08, 0.2, 0.15], [-0.26, 0.64, -0.1, 0.21, 0.15], [0.06, 0.48, 0.28, 0.19, 0.14], [-0.12, 0.88, 0.05, 0.18, 0.13], [0.18, 0.84, -0.2, 0.17, 0.13], [-0.32, 0.44, 0.2, 0.17, 0.13], [0.36, 0.42, -0.18, 0.16, 0.12], [-0.06, 0.5, -0.32, 0.18, 0.13], [0.12, 0.3, 0.06, 0.15, 0.11], [-0.2, 0.76, 0.26, 0.16, 0.12]], 40, 0.45), 0.2, 1.0, 0.68), 0, 0.6, 0);
+    const eucMid = crownNormals(aoColours(clumps([[0, 0.62, 0, 0.42, 0.3], [0.3, 0.48, 0.12, 0.3, 0.22], [-0.28, 0.52, -0.15, 0.3, 0.22]], 60, 0.38), 0.25, 1.0, 0.68), 0, 0.58, 0);
     const far = (() => {
       const g = blob(0, 7, 0.3).scale(0.5, 0.46, 0.5).translate(0, 0.5, 0);
       const p = g.attributes.position;
@@ -996,14 +1104,14 @@ float wNoise( vec2 p ) { vec2 i = floor( p ), f = fract( p ); vec2 u = f * f * (
 
     const R = rng(1234);
     const L = { trunkN: [], trunkS: [], eucN: [], eucM: [], far: [], pine: [], bushN: [], bushF: [], tuft: [], rock: [] };
-    const EUC_C = ['#8f9a74', '#84906c', '#9aa17f', '#8a946f', '#a0a383', '#7f8a6c'];
-    const PINE_C = ['#5a6b4d', '#526446', '#617153', '#4d5d45'];
+    const EUC_C = ['#9aa483', '#8f9b7a', '#a6ac8c', '#95a07f', '#adb092', '#88947a'];
+    const PINE_C = ['#62735a', '#5a6c52', '#6a7a5e', '#56664f'];
     const BARK_C = ['#d9d3c5', '#c9c1b2', '#bdb5a6', '#e2ddd2'];
     const addTree = (x, z, Hh, isPine) => {
       const y = heightAt(x, z), r = Math.hypot(x - cx, z - cz), ry = R() * 6.28;
       if (r > 620) {
         const W = Hh * (isPine ? 0.34 : 0.55);
-        L.far.push({ m: mtx(x, y - 0.12 * Hh, z, ry, W, Hh, W), c: pick(R, isPine ? PINE_C : EUC_C) });
+        L.far.push({ m: mtx(x, y - 0.24 * Hh, z, ry, W, Hh * 1.05, W), c: pick(R, isPine ? PINE_C : EUC_C) });
         return;
       }
       if (isPine) {
@@ -1011,21 +1119,34 @@ float wNoise( vec2 p ) { vec2 i = floor( p ), f = fract( p ); vec2 u = f * f * (
         L.trunkS.push({ m: mtx(x, y - 0.3, z, ry, Hh, Hh * 0.75, Hh), c: pick(R, ['#6d5a48', '#5f4f40', '#77624e']) });
         L.pine.push({ m: mtx(x, y + Hh * 0.2, z, ry, W, Hh * 0.82, W), c: pick(R, PINE_C) });
       } else {
-        const W = Hh * (0.42 + R() * 0.2), lean = (R() - 0.5) * 0.08, near = r < 280;
+        const W = Hh * (0.42 + R() * 0.2), lean = (R() - 0.5) * 0.08, near = r < 210;
         (near ? L.trunkN : L.trunkS).push({ m: mtx(x, y - 0.3, z, ry, Hh, Hh, Hh, lean, (R() - 0.5) * 0.08), c: pick(R, BARK_C) });
         (near ? L.eucN : L.eucM).push({ m: mtx(x + lean * Hh * 0.5, y + Hh * 0.4, z, R() * 6.28, W, Hh * 0.62, W * (0.8 + R() * 0.3)), c: pick(R, EUC_C) });
       }
       if (r < 330) shadowAt(x, z, Hh * 0.45, Hh, Hh * 0.75);
     };
     // eucalyptus: clumps everywhere, a denser belt just outside the cleared ring round the site
-    for (let tries = 0, n = 0; n < 640 && tries < 40000; tries += 1) {
+    for (let tries = 0, n = 0; n < 420 && tries < 40000; tries += 1) {
       const a = R() * Math.PI * 2, rr = TREE_R + Math.pow(R(), 1.5) * 1250;
       const x = cx + Math.cos(a) * rr, z = cz + Math.sin(a) * rr;
       const dens = sstep(0.45, 0.7, fbm(x * 0.007 + 31, z * 0.007 - 17, 3));
       const belt = (1 - sstep(TREE_R + 10, TREE_R + 90, rr)) * 0.6 * sstep(0.3, 0.55, vnoise(x * 0.04, z * 0.04));
-      if (R() > Math.max(dens, belt)) continue;
+      if (rr > 620 || R() > Math.max(dens, belt)) continue; // far trees come as stands below
       if (Math.hypot(x - camT.x, z - camT.z) < TREE_R || blocked(x, z, 22, 6, 1)) continue;
       addTree(x, z, 10 + R() * 12, false); n += 1;
+    }
+    mark('veg-euc');
+    await tick(); if (dead) return;
+    // far away: whole stands of trees (clusters read as woodland on the hills; lone blobs read as balloons)
+    for (let tries = 0, stands = 0; stands < 46 && tries < 4000; tries += 1) {
+      const a = R() * Math.PI * 2, rr = 640 + R() * 760, x0 = cx + Math.cos(a) * rr, z0 = cz + Math.sin(a) * rr;
+      if (fbm(x0 * 0.007 + 31, z0 * 0.007 - 17, 3) < 0.5 || blocked(x0, z0, 22, 10, 1)) continue;
+      const n = 5 + Math.floor(R() * 8), spread = 14 + R() * 22;
+      for (let k = 0; k < n; k += 1) {
+        const x = x0 + (R() - 0.5) * 2 * spread, z = z0 + (R() - 0.5) * 2 * spread;
+        if (!blocked(x, z, 22, 6, 1)) addTree(x, z, 11 + R() * 10, R() < 0.12);
+      }
+      stands += 1;
     }
     // a pine plantation block on the west slopes + a few strays
     {
@@ -1045,6 +1166,8 @@ float wNoise( vec2 p ) { vec2 i = floor( p ), f = fract( p ); vec2 u = f * f * (
         addTree(x, z, 11 + R() * 7, true); k += 1;
       }
     }
+    mark('veg-pine');
+    await tick(); if (dead) return;
     // scrub bushes
     const BUSH_C = ['#7f8460', '#8a8b66', '#939a74', '#9a8f6c', '#77805d', '#8c9671', '#a0957a'];
     for (let tries = 0, n = 0; n < 1100 && tries < 30000; tries += 1) {
@@ -1057,9 +1180,11 @@ float wNoise( vec2 p ) { vec2 i = floor( p ), f = fract( p ); vec2 u = f * f * (
       if (s > 1.0 && rr < 200) shadowAt(x, z, s * 2.0, s, s * 0.5);
       n += 1;
     }
+    mark('veg-bush');
+    await tick(); if (dead) return;
     // dry grass tufts: dense just outside the fence and along shoulders, scattered further out
     const TUFT_C = ['#dccb98', '#d2bf8a', '#c8b781', '#bdb282', '#b4ad80', '#e0d1a6'];
-    for (let tries = 0; L.tuft.length < 3800 && tries < 40000; tries += 1) {
+    for (let tries = 0; L.tuft.length < 3000 && tries < 40000; tries += 1) {
       let x, z;
       if (R() < 0.72) {
         const w = Y.x1 - Y.x0, d = Y.z1 - Y.z0, side = R() * (2 * w + 2 * d), out = 0.8 + Math.pow(R(), 1.9) * 34;
@@ -1074,6 +1199,8 @@ float wNoise( vec2 p ) { vec2 i = floor( p ), f = fract( p ); vec2 u = f * f * (
       const s = 0.42 + R() * 0.55;
       L.tuft.push({ m: mtx(x, heightAt(x, z) - 0.03, z, R() * 6.28, s * (0.8 + R() * 0.6), s, s * (0.8 + R() * 0.6)), c: pick(R, TUFT_C) });
     }
+    mark('veg-tuft');
+    await tick(); if (dead) return;
     // grey-green tussocks and small stones in the strip the default camera sees beyond the fence
     const TUS_C = ['#a9a77c', '#9da078', '#b5ad83', '#94996f', '#bdb38a'];
     for (let tries = 0, n = 0; n < 520 && tries < 8000; tries += 1) {
@@ -1096,6 +1223,7 @@ float wNoise( vec2 p ) { vec2 i = floor( p ), f = fract( p ); vec2 u = f * f * (
       const s = 0.25 + R() * R() * 1.5, y = heightAt(x, z);
       L.rock.push({ m: mtx(x, y - s * 0.25, z, R() * 6.28, s * (1 + R() * 0.6), s * (0.5 + R() * 0.4), s * (0.9 + R() * 0.5), (R() - 0.5) * 0.3, (R() - 0.5) * 0.3), c: pick(R, ROCK_C) });
     }
+    mark('veg-rocks');
     inst(trunkNear, barkMat, L.trunkN, 'world3d-trunks-near');
     inst(trunkSimple, barkMat, L.trunkS, 'world3d-trunks');
     inst(eucNear, foliage, L.eucN, 'world3d-eucalyptus-near');
@@ -1232,7 +1360,10 @@ void main() {
     return { g, m, P3, S, Al, N, vel: new Float32Array(N * 3), age: new Float32Array(N).fill(1e9), life: new Float32Array(N).fill(1), s0: new Float32Array(N), s1: new Float32Array(N), a0: new Float32Array(N), next: 0 };
   };
   const dust = particles(220, '#d2bf9f');
-  const steam = particles(70, '#f4f4f2');
+  dust.grow = 0.5;
+  const steam = particles(90, '#f7f7f5');
+  steam.m.toneMapped = false; // keep the plume white against the pale sky
+  steam.grow = 1;
   const emit = (ps, x, y, z, vx, vy, vz, life, s0, s1, a0) => {
     const i = ps.next; ps.next = (ps.next + 1) % ps.N;
     ps.P3[i * 3] = x; ps.P3[i * 3 + 1] = y; ps.P3[i * 3 + 2] = z;
@@ -1250,7 +1381,7 @@ void main() {
       ps.vel[j + 2] += (WIND[2] - ps.vel[j + 2]) * drag * dt;
       ps.vel[j + 1] *= 1 - 0.25 * dt;
       ps.P3[j] += ps.vel[j] * dt; ps.P3[j + 1] += ps.vel[j + 1] * dt; ps.P3[j + 2] += ps.vel[j + 2] * dt;
-      ps.S[i] = lerp(ps.s0[i], ps.s1[i], Math.sqrt(k));
+      ps.S[i] = lerp(ps.s0[i], ps.s1[i], Math.pow(k, ps.grow || 0.5));
       ps.Al[i] = k >= 1 ? 0 : ps.a0[i] * Math.min(1, ps.age[i] * 2.5) * Math.pow(1 - k, 1.4);
     }
     ps.g.attributes.position.needsUpdate = true;
@@ -1390,17 +1521,17 @@ void main() {
       const [x, z] = ellXZ(PIT, Math.random() * 0.5, Math.random() * Math.PI * 2);
       emit(dust, x, PIT.floorY + 6 + Math.random() * 10, z, WIND[0] * 0.5, 0.9, WIND[2] * 0.5, 16, 28, 75, 0.1);
     }
-    steamAcc += dt * 4.5;
+    steamAcc += dt * 5.5;
     while (steamAcc >= 1) {
       steamAcc -= 1;
-      emit(steam, stackTop.x + (Math.random() - 0.5), stackTop.y, stackTop.z + (Math.random() - 0.5), (Math.random() - 0.5) * 0.6, 2.6 + Math.random(), (Math.random() - 0.5) * 0.6, 10 + Math.random() * 3, 5, 34, 0.42);
+      emit(steam, stackTop.x + (Math.random() - 0.5), stackTop.y, stackTop.z + (Math.random() - 0.5), (Math.random() - 0.5) * 0.6, 2.6 + Math.random(), (Math.random() - 0.5) * 0.6, 12 + Math.random() * 4, 2.5, 30, 0.34);
     }
     renderer.getDrawingBufferSize(sizeV);
     const scale = sizeV.y / (2 * Math.tan(THREE.MathUtils.degToRad(camera.fov) / 2));
     dust.m.uniforms.uScale.value = scale;
     steam.m.uniforms.uScale.value = scale;
     stepParticles(dust, dt, 0.6);
-    stepParticles(steam, dt, 0.25);
+    stepParticles(steam, dt, 0.55);
     // clouds drift with the wind and wrap round
     for (const c of clouds) {
       c.x += WIND[0] * 2.2 * dt; c.z += WIND[2] * 2.2 * dt;
@@ -1434,25 +1565,14 @@ void main() {
   update(0);
   mark('life');
 
-  const info = {
+  // the group's children were registered for disposal before the chunks finished; register the late ones too
+  for (const o of group.children) { if (o.geometry) owned.add(o.geometry); if (o.material) owned.add(o.material); }
+  Object.assign(api.info, {
     buildMs: Math.round(performance.now() - T0),
     marks,
     hiddenLegacy: hidden.map(([o]) => o.name || o.geometry.type),
     drawObjects: group.children.length,
-  };
-
-  return {
-    group,
-    info,
-    update(dt) { update(dt); },
-    dispose() {
-      scene.remove(group);
-      for (const o of owned) if (o && o.dispose) o.dispose();
-      owned.clear();
-      for (const [o, v] of hidden) o.visible = v;
-      scene.fog = prev.fog;
-      scene.background = prev.background;
-      if (camera.far !== prev.far) { camera.far = prev.far; camera.updateProjectionMatrix(); }
-    },
-  };
+    maxChunkMs: Math.round(Math.max(maxChunk, performance.now() - chunkStart)),
+  });
+  api.update = (dt) => update(dt);
 }
