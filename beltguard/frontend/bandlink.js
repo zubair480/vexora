@@ -425,6 +425,98 @@ function mountLiveWords() {
   };
 }
 
+// ---------- demo exposure alert (user request, 16:58) ----------
+// Constant, fast, rhythmic band movement for 6 s in a row -> a big "Exposure exceeded" alert (banner, beep, voice,
+// bubble over W-01). Raw readings come from the Band link tab on BroadcastChannel 'beltguard-motion'.
+// Honest label on screen: 6 s of sustained vibration is a DEMO stand-in for the daily limit.
+function mountExposureAlert() {
+  if (IS_BRIDGE || typeof BroadcastChannel === 'undefined' || !/^\/(index\.html)?$/.test(location.pathname)) return;
+  const SUSTAIN_S = 6, SEG_S = 0.5, RMS_G = 0.15, MIN_HZ = 3, NEED = 0.85, COOLDOWN_MS = 30000;
+  const ch = new BroadcastChannel('beltguard-motion');
+  let buf = [], lastFire = 0, banner = null, hideTimer = null;
+  function segOk(seg) {                                  // strong (RMS of |a| change) AND fast (zero crossings)
+    if (seg.length < 8) return false;
+    const m = seg.reduce((s, x) => s + x[1], 0) / seg.length;
+    let ss = 0, zc = 0, prev = seg[0][1] - m;
+    for (const x of seg) { const v = x[1] - m; ss += v * v; if ((v >= 0) !== (prev >= 0)) zc++; prev = v; }
+    const dur = (seg[seg.length - 1][0] - seg[0][0]) || SEG_S;
+    return Math.sqrt(ss / seg.length) >= RMS_G && zc / 2 / dur >= MIN_HZ;
+  }
+  function check() {
+    const tEnd = buf.length ? buf[buf.length - 1][0] : 0;
+    if (!buf.length || tEnd - buf[0][0] < SUSTAIN_S - 0.05) return;
+    let ok = 0, n = 0, i = 0;
+    for (let s = tEnd - SUSTAIN_S; s < tEnd - 1e-6; s += SEG_S) {
+      while (i < buf.length && buf[i][0] < s) i++;
+      const seg = [];
+      for (let k = i; k < buf.length && buf[k][0] < s + SEG_S; k++) seg.push(buf[k]);
+      n++;
+      if (segOk(seg)) ok++;
+    }
+    if (n && ok / n >= NEED && Date.now() - lastFire > COOLDOWN_MS) { lastFire = Date.now(); fire(); }
+  }
+  function beep() {
+    try {
+      const ac = new (window.AudioContext || window.webkitAudioContext)();
+      [0, 0.28, 0.56].forEach((at) => {
+        const o = ac.createOscillator(), g = ac.createGain();
+        o.frequency.value = 880; o.connect(g); g.connect(ac.destination);
+        g.gain.setValueAtTime(0.0001, ac.currentTime + at);
+        g.gain.exponentialRampToValueAtTime(0.25, ac.currentTime + at + 0.02);
+        g.gain.exponentialRampToValueAtTime(0.0001, ac.currentTime + at + 0.22);
+        o.start(ac.currentTime + at); o.stop(ac.currentTime + at + 0.24);
+      });
+    } catch (e) { /* audio blocked */ }
+  }
+  function fire() {
+    if (banner) banner.remove();
+    banner = document.createElement('div');
+    banner.id = 'bgExposureAlert';
+    banner.setAttribute('role', 'alert');
+    Object.assign(banner.style, {
+      position: 'fixed', left: '50%', top: '84px', transform: 'translateX(-50%)', zIndex: '60',
+      width: 'min(560px, calc(100vw - 32px))', background: '#FEF2F2', border: '1px solid #FCA5A5', borderRadius: '12px',
+      boxShadow: '0 12px 32px rgb(0 0 0 / .16)', padding: '16px 18px', display: 'flex', gap: '14px', alignItems: 'flex-start',
+      font: '14px/1.45 Geist, system-ui, sans-serif', color: '#7F1D1D',
+    });
+    banner.innerHTML = '<div style="width:36px;height:36px;border-radius:50%;background:#DC2626;color:#fff;display:grid;'
+      + 'place-items:center;font:700 18px Geist,system-ui,sans-serif;flex:none">!</div>'
+      + '<div style="flex:1;min-width:0"><div style="font-size:19px;font-weight:700;color:#991B1B">Exposure exceeded</div>'
+      + '<div style="margin-top:2px">Constant tool vibration on band 07 for 6 s. Stop using the tool and rotate the task.</div>'
+      + '<div style="margin-top:6px;font-size:12px;color:#B91C1C">Demo threshold: 6 s of sustained vibration stands in for the '
+      + 'daily limit (400 points). Screening estimate.</div></div>'
+      + '<button type="button" style="border:0;background:none;color:#991B1B;font:600 13px Geist,system-ui,sans-serif;'
+      + 'cursor:pointer;padding:4px">Dismiss</button>';
+    banner.querySelector('button').addEventListener('click', () => { banner.remove(); banner = null; });
+    document.body.appendChild(banner);
+    beep();
+    try {
+      window.speechSynthesis.cancel();
+      window.speechSynthesis.speak(new SpeechSynthesisUtterance('Exposure exceeded. Stop using the tool.'));
+    } catch (e) { /* no speech */ }
+    try {
+      const m = window.__bg3d || window.BeltGuard3D;
+      if (m && typeof m.showBubble === 'function') m.showBubble('W-01', 'Exposure exceeded', { kind: 'alert', ms: 8000 });
+    } catch (e) { /* 3D not ready */ }
+    clearTimeout(hideTimer);
+    hideTimer = setTimeout(() => { if (banner) { banner.remove(); banner = null; } }, 15000);
+  }
+  ch.onmessage = (e) => {
+    const samples = Array.isArray(e.data) ? e.data : [];
+    for (const s of samples) {
+      if (!s || s.t == null || s.ax == null) continue;
+      const t = s.t / 1000;
+      if (buf.length && t < buf[buf.length - 1][0] - 1) buf = [];      // band clock restarted
+      if (buf.length && t <= buf[buf.length - 1][0]) continue;          // duplicate reading
+      buf.push([t, Math.hypot(s.ax, s.ay, s.az)]);
+    }
+    const tEnd = buf.length ? buf[buf.length - 1][0] : 0;
+    while (buf.length && buf[0][0] < tEnd - SUSTAIN_S - 1) buf.shift();
+    check();
+  };
+  window.BeltGuardExposureAlert = { fire };                          // for a manual test from the console
+}
+
 // ---------- Reset shift (dashboard top bar) ----------
 // Returns any checked-out tool, then starts a clean shift (POST /api/reset). Old records stay in SQLite.
 function mountResetButton() {
@@ -474,5 +566,6 @@ function start() {
   mountLiveWords();
   mountResetButton();
   setInterval(mountResetButton, 2000);              // re-adds itself if the top bar is re-rendered
+  mountExposureAlert();
 }
 if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start); else start();
