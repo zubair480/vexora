@@ -140,6 +140,44 @@ function workerFromState(s) {
   return w;
 }
 
+// Band 07 live (Vexora 18:45): while W-01's tool session runs, add its running trigger time (the 1 s /ws "verdict"
+// ticker) so the card climbs Within limits -> Action -> Over limit as the technician works, instead of jumping when the
+// session closes. Same labelled demo time scale as the backend (exposure.demo_time_scale: 1 s counts as 48 min).
+const demoScale = () => num(state && state.exposure && state.exposure.demo_time_scale) || 1;
+// Live seconds only add while the wrist is really moving (>= 0.1 g RMS in the /ws motion feed), so the ~2 s the
+// detector waits before closing a session is not counted (its record ends at the last active moment too) and the
+// card lands on the confirmed number instead of dropping back. No motion feed: fall back to the backend's elapsed.
+const w01Run = { sid: null, sec: 0, last: 0, moveAt: 0 };
+function runW01(rms) {
+  const t = performance.now();
+  if (rms !== null && rms >= 0.1) w01Run.moveAt = t;
+  const live = state && state.assignment && state.assignment.active_session;
+  const sid = live ? live.tool_session_id : null;
+  if (sid !== w01Run.sid) { w01Run.sid = sid; w01Run.sec = sid ? num(live.elapsed_s) || 0 : 0; }
+  else if (sid && t - w01Run.moveAt < 400) w01Run.sec += Math.min(0.5, (t - w01Run.last) / 1000);
+  w01Run.last = t;
+}
+function liveW01(w) {
+  const a = state && state.assignment, live = a && a.active_session;
+  const ex = (state && state.exposure) || {};
+  const recs = ex.records || [];
+  if (live && num(live.elapsed_s) > 0 && !recs.some((r) => r && r.tool_session_id === live.tool_session_id)) {
+    const gated = w01Run.sid === live.tool_session_id && nowS() - lastMotionAt < 2;
+    const sec = gated ? Math.min(num(live.elapsed_s), w01Run.sec) : num(live.elapsed_s);
+    const vib = num(a.tool && a.tool.vibration_m_s2) || 0;
+    const add = vib ? 2 * vib * vib * (sec / 3600) * demoScale() : (num(live.provisional_points) || 0) * demoScale();
+    const points = (w.points || 0) + add;
+    return Object.assign({}, w, { points, trigger_s: (w.trigger_s || 0) + sec, verdict: verdictOf(points), activity: "tool_active" });
+  }
+  // Just closed: the /ws snapshot already carries the confirmed record; the 1 s fleet feed can lag a moment behind it.
+  const confirmed = num(ex.total_points);
+  if (confirmed !== null && confirmed > (w.points || 0) + 0.05) {
+    const trig = Object.values(ex.by_tool || {}).reduce((acc, v) => acc + (num(v.trigger_s) || 0), 0);
+    return Object.assign({}, w, { points: confirmed, trigger_s: trig, verdict: verdictOf(confirmed) });
+  }
+  return w;
+}
+
 const RANK = { tool_active: 0, unresolved: 1, walking: 2 };
 function crew() {
   let list;
@@ -149,6 +187,7 @@ function crew() {
     const ids = new Set(list.map((w) => w.id));
     list = list.concat(EXPECTED.filter((id) => !ids.has(id)).map((id) => ({ id, placeholder: true })));
   }
+  list = list.map((w) => (w.id === "W-01" && !w.placeholder ? liveW01(w) : w));
   const w01 = list.find((w) => w.id === "W-01");
   if (w01 && !w01.placeholder && !w01.heard && heardW01) w01.heard = heardW01;
   const falls = new Set(((fleet && fleet.alerts) || []).filter((a) => a.kind === "fall" && nowS() - (num(a.ts) || 0) < 60)
@@ -341,7 +380,9 @@ function workerCard(w) {
       '<canvas class="spark" width="224" height="52" data-spark="' + esc(w.id) + '" title="Wrist motion, last ~30 s"></canvas>' +
       '<div class="bar-wrap" title="Points today on a 0–400 scale · ticks at 100 (action) and 400 (limit)"><div class="bar"><i class="zone"></i>' +
         '<i class="fill" style="width:' + pct.toFixed(1) + '%"></i></div><i class="tick" style="left:25%"></i><i class="tick" style="left:calc(100% - 1px)"></i></div>' +
-      '<div class="pts">' + esc(fmtPts(w.points)) + '<small>pts</small><span class="pts-sub">' + esc(w.trigger_s === null ? "" : dur(w.trigger_s) + " trigger") + "</span></div></div>" +
+      '<div class="pts"' + (!w.simulated && demoScale() > 1 ? ' title="' + esc(String((state.exposure || {}).demo_label || "Demo time scale")) + '"' : "") + ">" +
+        esc(fmtPts(w.points)) + '<small>pts</small><span class="pts-sub">' + esc(w.trigger_s === null ? "" : dur(w.trigger_s) + " trigger" +
+        (!w.simulated && demoScale() > 1 ? " · demo time" : "")) + "</span></div></div>" +
     heard + "</article>";
 }
 
@@ -470,8 +511,10 @@ function connect() {
     if (m.type === "snapshot" && m.state) { state = m.state; schedule(); }
     else if (m.type === "fleet") { fleet = normFleet(m.fleet || m.state || m); fleetFromWS = Date.now(); fleetMissing = false; schedule(); }
     else if (m.type === "motion") {
-      pushSpark((state && state.worker && state.worker.id) || "W-01", motionRms(m));
+      const rms = motionRms(m);
+      pushSpark((state && state.worker && state.worker.id) || "W-01", rms);
       lastMotionAt = nowS();
+      runW01(rms);
       if (!fleet) schedule();
     } else if (m.type === "transcript" && m.final !== false && m.text) {
       lastTranscript = { text: m.text, ts: nowS(), input: m.input };     // shown only once Vexora answers it

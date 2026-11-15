@@ -26,6 +26,7 @@ from __future__ import annotations
 import json
 import math
 import os
+import sys
 from typing import Iterable, Optional
 
 ACTION_POINTS = 100
@@ -36,6 +37,13 @@ LIMIT_A8_M_S2 = 5.0
 SCREENING_LABEL = "SCREENING ESTIMATE - not a certified HAV measurement"
 METHOD = ("HSE points = 2 x a^2 x T(h). a comes from the selected tool profile (source recorded); "
           "T is the trigger time the wrist IMU detected. The band does not measure vibration at the hand.")
+
+# DEMO TIME SCALE (hackathon demo, labelled everywhere it is shown): band 07's own tool sessions count each second
+# of detected trigger time as 48 minutes, so 10 s with a 5 m/s2 drill reaches the 400-point limit on stage
+# (5 s = 200 pts, 7 s = 280 pts, 10 s = 400 pts). Raw trigger seconds are stored unchanged. Simulated crew
+# (fleet.py), the planner and every other caller of points() are not scaled.
+DEMO_TIME_SCALE = 2880.0
+DEMO_LABEL = "Demo time x2880: 1 s of band trigger time counts as 48 min"
 
 PROFILES_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "tool_profiles.json")
 
@@ -53,11 +61,24 @@ def _number(value, name: str) -> float:
     return number
 
 
+def _band_scale() -> float:
+    """DEMO_TIME_SCALE when points() is called by the real band's session counter (BeltGuard.add_exposure in
+    app.py, reached from both the detector stop and fleet.py's auto-confirm), else 1.0."""
+    try:
+        code = sys._getframe(2).f_code
+        if code.co_name == "add_exposure" and os.path.basename(code.co_filename) == "app.py":
+            return DEMO_TIME_SCALE
+    except Exception:
+        pass
+    return 1.0
+
+
 def points(vibration_m_s2: float, trigger_hours: float) -> float:
-    """HSE exposure points for one tool-use episode: 2 x a^2 x T(hours)."""
+    """HSE exposure points for one tool-use episode: 2 x a^2 x T(hours).
+    (x DEMO_TIME_SCALE only for band 07's own sessions, see _band_scale.)"""
     a = _number(vibration_m_s2, "vibration_m_s2")
     t = _number(trigger_hours, "trigger_hours")
-    return 2.0 * a * a * t
+    return 2.0 * a * a * t * _band_scale()
 
 
 def minutes_for_points(vibration_m_s2: float, pts: float) -> float:
@@ -170,7 +191,9 @@ def daily_summary(records: list[dict], next_vibration_m_s2: Optional[float] = No
         "sessions_counted": counted,
         "sessions_pending": pending_n,
         "label": SCREENING_LABEL,
-        "method": METHOD,
+        "method": METHOD + " " + DEMO_LABEL + ".",
+        "demo_time_scale": DEMO_TIME_SCALE,
+        "demo_label": DEMO_LABEL,
     }
 
 

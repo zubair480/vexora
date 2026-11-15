@@ -341,7 +341,9 @@ const outTool = (s = app.state) => {
 const asgTool = () => (app.state.assignment && app.state.assignment.tool) || null;
 const ckTool = () => outTool() || (app.ck ? toolById(app.ck.tool_id) : null);
 const aOf = (t) => (t ? Number(t.vibration_m_s2) || 0 : 0);
-const livePts = (sec, t = ckTool()) => 2 * aOf(t) ** 2 * (sec / 3600);
+// Band 07's points use the backend's labelled demo time scale (exposure.demo_time_scale: 1 s counts as 48 min).
+const demoScale = () => Number(((app.state || {}).exposure || {}).demo_time_scale) || 1;
+const livePts = (sec, t = ckTool()) => 2 * aOf(t) ** 2 * (sec / 3600) * demoScale();
 
 // Live trigger time is counted only while the band reports tool_active with fresh motion, and freezes otherwise,
 // so a session the backend still calls "active" can never add time on its own.
@@ -1711,7 +1713,7 @@ function updateLive() {
   const tl = toolById(active.tool_id) || ckTool();
   const el = gate.sid === active.id ? gate.sec : 0;          // only time the band saw the tool running
   row.querySelector('[data-live-dur]').textContent = `${fmtDur(el)}${gate.on ? '' : ' · paused'}`;
-  row.querySelector('[data-live-pts]').textContent = `+${fmtPts(2 * aOf(tl) ** 2 * (el / 3600))} pts provisional`;
+  row.querySelector('[data-live-pts]').textContent = `+${fmtPts(livePts(el, tl))} pts provisional`;
 }
 
 function updateEmpty() {
