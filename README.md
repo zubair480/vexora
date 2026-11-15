@@ -21,6 +21,19 @@ Built in one day at **VexoHacks** (Y Combinator, San Francisco, 14 November 2026
 | **Control room** | Five workers on a live 3D site (W-01 is the real band; W-02..W-05 are labelled simulated), speech bubbles over workers, "Within limits: N of 5", and a shift compliance report (CSV / print) for the regulator. |
 | **Safety events** | Band free-fall raises "Possible drop or fall: check on W-01" on screen, out loud and in the control room. |
 
+## How Vexora uses the Vexo band
+
+One band is the sensor, the interface and the safety device:
+
+- **Motion at 416 Hz, both sensors, 16 g range**: times every trigger pull on the band's own clock and counts lost samples.
+- **Microphone**: always-on voice for commands, defect reports and job steps, through the kit's Deepgram link.
+- **Double-tap**: a gloves-on "yes" that confirms an unsure tool session. **Free-fall**: a drop or fall alert.
+- **LED**: staged amber, orange and red on the wrist; the mic is paused so the flash is never blocked.
+- **Battery, link, notices, auto-reconnect**: the link recovers by itself and re-applies the fast-motion setup.
+- **Three transports**: Web Bluetooth, Python Bluetooth and USB, all through the official SDK, locked to band 07.
+
+The full write-up, with the problem, the solution, every band capability mapped to the code that uses it, the architecture and the limits, is in **[vexora/docs/VEXO_DEEP_DIVE.md](vexora/docs/VEXO_DEEP_DIVE.md)**.
+
 ## Run it
 
 ```powershell
