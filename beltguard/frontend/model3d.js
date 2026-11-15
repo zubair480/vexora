@@ -1,4 +1,4 @@
-// BeltGuard 3D scene: conveyor CV-102 in the mongomation look (three.js r160, see ../DESIGN.md "3D scene").
+// Vexora 3D scene: conveyor CV-102 in the mongomation look (three.js r160, see ../DESIGN.md "3D scene").
 // Daylit, procedural, Factory-IO style: ACES tone mapping, RoomEnvironment reflections, drafting-paper floor,
 // aluminium frame, safety-yellow guards, graphite ore. Parts rise in on load, then a gentle camera orbit.
 // Interface used by app.js (keep it stable):

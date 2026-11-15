@@ -1,4 +1,4 @@
-"""BeltGuard voice intents. Owner: S4 hav-brain.
+"""Vexora voice intents. Owner: S4 hav-brain.
 
     parse_intent(text, context) -> {"intent", "slots", "confidence", "clarify", "source", "text"}
     respond(intent, result, state) -> str     one short sentence for the laptop to speak ("" = say nothing)
@@ -16,7 +16,7 @@ Intents
     confirm_session  "yes that was the tool", "confirm"                   slots: tool_session_id
     reject_session   "no, that wasn't the tool"                           slots: tool_session_id
     job_complete     "idler replaced", "job done at station three"        slots: work_order_id, station_id
-                     -> the work order becomes awaiting_verification; BeltGuard never closes work
+                     -> the work order becomes awaiting_verification; Vexora never closes work
     isolation_claim  "conveyor isolated", "locked out"                    slots: station_id (optional)
                      -> log it as the technician's claim; an authorized person must verify it
     take_break       "taking a break"
@@ -118,7 +118,7 @@ _ANSWER_YES = re.compile(r"^(?:yes|yeah|yep|yup|correct|affirmative|that'?s righ
 
 
 def split_wake_word(text: str) -> tuple[bool, str]:
-    """(said the wake word "BeltGuard"?, the text without it). Same rule as inspection.strip_wake_word:
+    """(said the wake word "Vexora"?, the text without it). Same rule as inspection.strip_wake_word:
     at the start of the sentence (after optional "hey / ok / um"), never after "the"."""
     return inspection.strip_wake_word(text)
 
@@ -282,7 +282,7 @@ def _pick_work_order(t: str, ctx: dict, station_id: Optional[str]) -> tuple[Opti
 
 def parse_intent(text: str, context: Optional[dict] = None, source: str = "band") -> dict:
     """source "band" (default; also "sim", "mic"): the always-on mic. Commands need the wake word
-    ("BeltGuard, I'm taking the hammer drill"); without it only a clear defect report (named part AND
+    ("Vexora, I'm taking the hammer drill"); without it only a clear defect report (named part AND
     problem word) is heard, and everything else returns ignore=True (silent, no action).
     source "typed" / "user": words typed on purpose; no wake word needed.
 
@@ -309,7 +309,7 @@ def parse_intent(text: str, context: Optional[dict] = None, source: str = "band"
         out.update({"raw": raw, "addressed": False, "extract_source": "band"})
         return out
     if addressed and not _clean(rest):
-        out = _result("help", rest, 0.6)                      # just "BeltGuard?": tell them how to talk to it
+        out = _result("help", rest, 0.6)                      # just "Vexora?": tell them how to talk to it
     else:
         out = _parse(rest, context, strict=False)             # addressed on purpose (or typed): lenient
     out.update({"raw": raw, "addressed": addressed, "extract_source": "typed"})
@@ -497,7 +497,7 @@ def respond(intent, result: Optional[dict] = None, state: Optional[dict] = None)
 
     if name == "none" and parsed.get("addressed") and result.get("status") in (None, "ignored") \
             and result.get("reason") != "all clear":
-        return "Sorry, I didn't catch that. Say BeltGuard, help, to hear what I can do."
+        return "Sorry, I didn't catch that. Say Vexora, help, to hear what I can do."
 
     if name in ("report_defect", "none") and (name == "report_defect" or result.get("status")):
         status = result.get("status")
@@ -551,7 +551,7 @@ def respond(intent, result: Optional[dict] = None, state: Optional[dict] = None)
         return "Okay, not a tool. Nothing added to your exposure."
 
     if name == "job_complete":
-        return ("%s marked awaiting supervisor verification. BeltGuard never closes work on its own."
+        return ("%s marked awaiting supervisor verification. Vexora never closes work on its own."
                 % (result.get("work_order_id") or slots.get("work_order_id") or "Work order")).strip()
 
     if name == "isolation_claim":
@@ -561,9 +561,9 @@ def respond(intent, result: Optional[dict] = None, state: Optional[dict] = None)
         return "Break logged. Exposure only counts while a tool is running."
 
     if name == "help":
-        return ("Say BeltGuard first, then a command. For example: BeltGuard, I'm at station three. "
-                "BeltGuard, taking the hammer drill. BeltGuard, how long can I keep going. BeltGuard, done with the drill. "
-                "BeltGuard, job done. To report a defect, just say it, like: return idler seized.")
+        return ("Say Vexora first, then a command. For example: Vexora, I'm at station three. "
+                "Vexora, taking the hammer drill. Vexora, how long can I keep going. Vexora, done with the drill. "
+                "Vexora, job done. To report a defect, just say it, like: return idler seized.")
 
     if name in (None, "none"):
         return ""

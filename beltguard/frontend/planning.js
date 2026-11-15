@@ -1,6 +1,6 @@
-// BeltGuard planning page (the former supervisor page). Owner: S4 hav-brain. Design: DESIGN.md v2 (shadcn zinc, Geist).
+// Vexora planning page (the former supervisor page). Owner: S4 hav-brain. Design: DESIGN.md v2 (shadcn zinc, Geist).
 // Reads the shared backend (GET /api/state, WebSocket /ws) and posts planned repairs to
-// POST /api/repair/plan. Supervisor decisions are recorded in this browser only: BeltGuard
+// POST /api/repair/plan. Supervisor decisions are recorded in this browser only: Vexora
 // never approves work, reassigns people or changes methods by itself.
 "use strict";
 (function () {

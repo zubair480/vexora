@@ -18,16 +18,16 @@ FULL = {
     "said": {"text": "idler change needed", "ts": 1731625000.0, "source": "band-mic"},
     "job_steps": [{"title": "Isolate and lock out the drive", "status": "done"},
                   {"title": "Swap the idler", "status": "todo"}],
-    "isolation": "Isolation reported by technician at 16:41 (not verified by BeltGuard)",
+    "isolation": "Isolation reported by technician at 16:41 (not verified by Vexora)",
     "tool": {"id": "impact_wrench", "name": "Impact wrench"},
     "exposure": {"points": 123.4, "trigger_min": 12.5, "band": "action", "action": 100, "limit": 400},
     "parts": ["2x return idler roller"],
     "technician": "W-01", "technician_name": "Technician (band 07)", "band": "07",
     "created_ts": 1731625001.0,
 }
-HEADER = "BeltGuard work order WO-0007 · DRAFT"
+HEADER = "Vexora work order WO-0007 · DRAFT"
 SCREENING = "Screening estimate, not a certified HAV measurement."
-FOOTER = "Created by BeltGuard from voice. A person decides; BeltGuard never closes work."
+FOOTER = "Created by Vexora from voice. A person decides; Vexora never closes work."
 
 
 def _enc(s: str) -> bytes:
@@ -94,8 +94,8 @@ def test_full_sample_is_a_valid_one_page_pdf():
     _check_valid(pdf)
     assert _page_count(pdf) == 1
     assert b"\n%\xe2\xe3\xcf\xd3\n" in pdf[:20]
-    assert b"/Title (BeltGuard work order WO-0007)" in pdf
-    assert b"/Producer (BeltGuard)" in pdf
+    assert b"/Title (Vexora work order WO-0007)" in pdf
+    assert b"/Producer (Vexora)" in pdf
     assert pdf.count(b"/Encoding /WinAnsiEncoding") == 2
     _assert_on_page(pdf)
 
@@ -105,7 +105,7 @@ def test_full_sample_text_is_in_the_content_stream():
     for phrase in (HEADER, "Replace return idler at S3", "CV-102", "CV-102 · Overland conveyor CV-102",
                    "S3 · Return idlers", "idler change needed", "“idler change needed”",
                    "via band mic", "1.  Isolate and lock out the drive  [done]", "2.  Swap the idler  [todo]",
-                   "Isolation reported by technician at 16:41 (not verified by BeltGuard)", "Impact wrench",
+                   "Isolation reported by technician at 16:41 (not verified by Vexora)", "Impact wrench",
                    "123 of 400 · Above action value (100)", "12.5 min", SCREENING,
                    "•  2x return idler roller", "W-01 · Technician (band 07) · band 07", FOOTER):
         assert _enc(phrase) in pdf, phrase
@@ -181,10 +181,10 @@ def test_characters_outside_cp1252_fall_back():
 
 
 def test_pdf_filename():
-    assert wo_pdf.pdf_filename(FULL) == "BeltGuard-WO-0007.pdf"
-    assert wo_pdf.pdf_filename({}) == "BeltGuard-work-order.pdf"
-    assert wo_pdf.pdf_filename({"wo_id": None}) == "BeltGuard-work-order.pdf"
-    assert wo_pdf.pdf_filename({"wo_id": "WO 7/../x"}) == "BeltGuard-WO-7-..-x.pdf"
+    assert wo_pdf.pdf_filename(FULL) == "Vexora-WO-0007.pdf"
+    assert wo_pdf.pdf_filename({}) == "Vexora-work-order.pdf"
+    assert wo_pdf.pdf_filename({"wo_id": None}) == "Vexora-work-order.pdf"
+    assert wo_pdf.pdf_filename({"wo_id": "WO 7/../x"}) == "Vexora-WO-7-..-x.pdf"
 
 
 def test_width_tables_cover_printable_ascii():

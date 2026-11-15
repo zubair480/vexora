@@ -158,7 +158,8 @@ _DIGIT_ALT = "|".join(sorted(_DIGIT_WORDS, key=len, reverse=True))
 # "the belt guard is missing" names a conveyor part. Stripped before anything reads the words.
 _WAKE_RAW = re.compile(
     r"^\s*(?:(?:um+|uh+|er+|erm|so|okay|ok|hey|hi|hello|yo|right|alright)[\s,.!]+)*"
-    r"(?:belt|bell|bel|built)[\s\-]?(?:guard|gard)s?\b[\s,.:;!?\-]*", re.IGNORECASE)
+    r"(?:(?:belt|bell|bel|built)[\s\-]?(?:guard|gard)s?|vex[\s\-]?or+a?h?|vexer+a|vexo[\s\-]?ra)\b[\s,.:;!?\-]*",
+    re.IGNORECASE)   # "Vexora" is the product name since 17:35; "BeltGuard" still works
 
 
 def strip_wake_word(text: str) -> tuple[bool, str]:

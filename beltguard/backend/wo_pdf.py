@@ -1,7 +1,7 @@
-"""BeltGuard work order as a one-page PDF. Stdlib only.
+"""Vexora work order as a one-page PDF. Stdlib only.
 
     build_work_order_pdf(data: dict) -> bytes     never raises on missing / None keys
-    pdf_filename(data: dict) -> str               "BeltGuard-WO-0007.pdf"
+    pdf_filename(data: dict) -> str               "Vexora-WO-0007.pdf"
 
 A hand-written PDF 1.4: one US Letter page, Helvetica + Helvetica-Bold (WinAnsiEncoding) and one
 uncompressed content stream. Long values wrap with the Helvetica AFM widths; when the page would
@@ -66,7 +66,7 @@ INK, MUTED, RULE = "0.035 0.035 0.043", "0.443 0.443 0.478", "0.894 0.894 0.906"
 BODY, SMALL, LEAD = 9.5, 8.0, 12.5
 FOOTER_Y, BOTTOM = 40, 66  # only the footer goes below BOTTOM
 DASH, ELL, DOT = "—", "…", "·"
-FOOTER = "Created by BeltGuard from voice. A person decides; BeltGuard never closes work."
+FOOTER = "Created by Vexora from voice. A person decides; Vexora never closes work."
 SCREENING = "Screening estimate, not a certified HAV measurement."
 _SOURCES = {"band-mic": "band mic", "band_mic": "band mic", "typed": "typed"}
 _FALLBACK = {"≥": ">=", "≤": "<=", "→": "->", "←": "<-", "↔": "<->", "≈": "~",
@@ -340,7 +340,7 @@ def _assemble(content: bytes, title: str) -> bytes:
         b"<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>",
         b"<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold /Encoding /WinAnsiEncoding >>",
         b"<< /Length %d >>\nstream\n" % len(content) + content + b"\nendstream",
-        b"<< /Title (" + info_title + b") /Producer (BeltGuard) >>",
+        b"<< /Title (" + info_title + b") /Producer (Vexora) >>",
     ]
     out = bytearray(b"%PDF-1.4\n%\xe2\xe3\xcf\xd3\n")
     offsets = []
@@ -356,13 +356,13 @@ def _assemble(content: bytes, title: str) -> bytes:
 
 
 def build_work_order_pdf(data: dict) -> bytes:
-    """Render a BeltGuard work order dict as a one-page PDF (bytes). Every key is optional."""
+    """Render a Vexora work order dict as a one-page PDF (bytes). Every key is optional."""
     d = data if isinstance(data, dict) else {}
     wo, status, title = _clean(d.get("wo_id")), _clean(d.get("status")), _clean(d.get("title"))
     ops: list[bytes] = []
 
     y = PAGE_H - MARGIN - 13  # baseline of the 18 pt header
-    head = "BeltGuard work order" + (f" {wo}" if wo else "") + (f" {DOT} {status.upper()}" if status else "")
+    head = "Vexora work order" + (f" {wo}" if wo else "") + (f" {DOT} {status.upper()}" if status else "")
     ops.append(_text(MARGIN, y, _one(head, 18, CONTENT_W, bold=True), 18, INK, bold=True))
     gap = 17
     for ln in _wrap(title, 10.5, CONTENT_W, 2):
@@ -392,14 +392,14 @@ def build_work_order_pdf(data: dict) -> bytes:
 
     ops.append(_rule(FOOTER_Y + 12))
     ops.append(_text(MARGIN, FOOTER_Y, FOOTER, 7.5, MUTED))
-    return _assemble(b"\n".join(ops), "BeltGuard work order" + (f" {wo}" if wo else ""))
+    return _assemble(b"\n".join(ops), "Vexora work order" + (f" {wo}" if wo else ""))
 
 
 def pdf_filename(data) -> str:
-    """'WO-0007' -> 'BeltGuard-WO-0007.pdf' (safe characters only)."""
+    """'WO-0007' -> 'Vexora-WO-0007.pdf' (safe characters only)."""
     wo = _clean(data.get("wo_id")) if isinstance(data, dict) else ""
     safe = re.sub(r"[^A-Za-z0-9._-]+", "-", wo).strip("-.")
-    return f"BeltGuard-{safe}.pdf" if safe else "BeltGuard-work-order.pdf"
+    return f"Vexora-{safe}.pdf" if safe else "Vexora-work-order.pdf"
 
 
 def _demo() -> dict:
@@ -414,7 +414,7 @@ def _demo() -> dict:
         "job_steps": [{"title": "Isolate and lock out the drive", "status": "done"},
                       {"title": "Swap the idler", "status": "todo"}],
         "isolation": "Isolation reported by technician at " + time.strftime("%H:%M", time.localtime(now - 400))
-                     + " (not verified by BeltGuard)",
+                     + " (not verified by Vexora)",
         "tool": {"id": "impact_wrench", "name": "Impact wrench"},
         "exposure": {"points": 123.4, "trigger_min": 12.5, "band": "action", "action": 100, "limit": 400},
         "parts": ["2x return idler roller"],

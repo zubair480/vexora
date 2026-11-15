@@ -1,9 +1,9 @@
-// BeltGuard control room: one supervisor sees and hears the whole crew. Owner: S4 hav-brain. Design: DESIGN.md v2.
+// Vexora control room: one supervisor sees and hears the whole crew. Owner: S4 hav-brain. Design: DESIGN.md v2.
 // Data: GET /api/fleet (polled every 2 s while /openapi.json lists it) and WS {"type":"fleet"} every ~1 s (S2), plus the /ws
-// snapshot for the real band (W-01) and its "transcript" / "assistant" lines (what W-01 said, what BeltGuard answered).
+// snapshot for the real band (W-01) and its "transcript" / "assistant" lines (what W-01 said, what Vexora answered).
 // The crew story is fleet.story when S2 sends it; until then it is derived here from changes between updates and S2's alerts.
 // Nothing is invented: values the backend does not send show as "–", and simulated workers are labelled.
-// Only sentences BeltGuard answered are shown as "heard"; overheard chat never reaches this screen.
+// Only sentences Vexora answered are shown as "heard"; overheard chat never reaches this screen.
 // The supervisor's job here is compliance: see that everyone is within the exposure limits and export the shift report
 // for the regulator. Nothing on this screen asks anyone to approve or acknowledge anything; the crew story is read-only.
 
@@ -199,7 +199,7 @@ function deriveStory(workers) {
       if (w.heard && w.heard.said && (!p.heard || p.heard.said !== w.heard.said || p.heard.reply !== w.heard.reply)) {
         pushStory({ id: w.id + ":heard:" + (w.heard.ts || Math.round(t)) + ":" + w.heard.said.length, ts: w.heard.ts || t,
                     worker: who, icon: "mic", mic: true,
-                    text: who + ": “" + w.heard.said + "”" + (w.heard.reply ? "  BeltGuard: “" + w.heard.reply + "”" : "") });
+                    text: who + ": “" + w.heard.said + "”" + (w.heard.reply ? "  Vexora: “" + w.heard.reply + "”" : "") });
       }
     }
     prevW.set(w.id, { tool: w.tool, activity: w.activity, verdict: w.verdict, heard: w.heard, station_id: w.station_id });
@@ -327,8 +327,8 @@ function workerCard(w) {
     : '<div class="w-tool none"><span>No tool checked out</span></div>';
   const pct = Math.min(100, (w.points / SCALE) * 100);
   const heard = w.heard && w.heard.said
-    ? '<div class="heard" title="Last thing BeltGuard heard and answered"><span class="mic">' + ICON.mic + '</span><span class="said">“' +
-      esc(w.heard.said) + '”</span>' + (w.heard.reply ? '<span class="reply">BeltGuard: ' + esc(w.heard.reply) + "</span>" : "") + "</div>"
+    ? '<div class="heard" title="Last thing Vexora heard and answered"><span class="mic">' + ICON.mic + '</span><span class="said">“' +
+      esc(w.heard.said) + '”</span>' + (w.heard.reply ? '<span class="reply">Vexora: ' + esc(w.heard.reply) + "</span>" : "") + "</div>"
     : '<div class="heard none"><span class="mic">' + ICON.mic + '</span><span class="reply">Nothing heard yet</span></div>';
   return '<article class="worker' + (selected === w.id ? " selected" : "") + '" data-id="' + esc(w.id) + '" tabindex="0" role="button" aria-label="Focus ' + esc(w.name) + '">' +
     '<div class="w-top"><span class="avatar' + (busy ? " busy" : "") + '">' + esc(w.id.replace("W-0", "W")) + "</span>" +
@@ -474,7 +474,7 @@ function connect() {
       lastMotionAt = nowS();
       if (!fleet) schedule();
     } else if (m.type === "transcript" && m.final !== false && m.text) {
-      lastTranscript = { text: m.text, ts: nowS(), input: m.input };     // shown only once BeltGuard answers it
+      lastTranscript = { text: m.text, ts: nowS(), input: m.input };     // shown only once Vexora answers it
     } else if (m.type === "assistant" && m.text) {
       const said = lastTranscript && nowS() - lastTranscript.ts < 20 ? lastTranscript.text : null;
       if (said && said.length <= HEARD_MAX_CHARS) { heardW01 = { said, reply: m.text, ts: nowS() }; lastTranscript = null; schedule(); }
@@ -589,7 +589,7 @@ function buildReport() {
   return {
     rows, generated: nowS(), shift,
     head: [
-      ["BeltGuard shift compliance report"],
+      ["Vexora shift compliance report"],
       ["Screening estimate, not a certified HAV measurement"],
       ["Site", "CV-102 conveyor maintenance"],
       ["Shift start", shift ? dateTime(shift) : "not recorded"],
@@ -623,7 +623,7 @@ function showReport(r) {
   el("report").hidden = false;
   el("report-close").focus();
 }
-const reportName = (r) => { const d = new Date(r.generated * 1000); return "BeltGuard-shift-compliance-" + d.getFullYear() + "-" + two(d.getMonth() + 1) + "-" + two(d.getDate()) + "-" + two(d.getHours()) + two(d.getMinutes()) + ".csv"; };
+const reportName = (r) => { const d = new Date(r.generated * 1000); return "Vexora-shift-compliance-" + d.getFullYear() + "-" + two(d.getMonth() + 1) + "-" + two(d.getDate()) + "-" + two(d.getHours()) + two(d.getMinutes()) + ".csv"; };
 el("report-btn").addEventListener("click", () => { const r = buildReport(); downloadCsv(reportCsv(r), reportName(r)); showReport(r); });
 el("report-csv").addEventListener("click", () => { const r = buildReport(); downloadCsv(reportCsv(r), reportName(r)); });
 el("report-print").addEventListener("click", () => window.print());

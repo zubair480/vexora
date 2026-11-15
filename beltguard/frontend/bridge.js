@@ -29,7 +29,7 @@ function setState(s) {
     off.textContent = 'Disconnect';
     Object.assign(off.style, { marginLeft: '12px', border: '0', background: 'none', color: '#71717A', font: '500 13px Geist, system-ui, sans-serif', textDecoration: 'underline', cursor: 'pointer' });
     off.addEventListener('click', () => {
-      if (window.confirm('Disconnect band 07? It stops streaming to BeltGuard and the band goes to sleep until you double-tap it.')) disconnect().catch(() => {});
+      if (window.confirm('Disconnect band 07? It stops streaming to Vexora and the band goes to sleep until you double-tap it.')) disconnect().catch(() => {});
     });
     $('detail').after(off);
   }

@@ -192,7 +192,7 @@ def test_band_mic_gate():
     assert asked["status"] == "clarify" and asked["reason"] == "component_missing", asked
     assert rules("something is broken")["status"] == "clarify"    # typed stays lenient
     assert inspection.is_inspection_report("the bottom roller at three is chewing up the belt")
-    woke = inspection.extract_defect("BeltGuard, the belt is torn at station two", STATIONS, CONVEYOR, WORKER, force_rules=True)
+    woke = inspection.extract_defect("Vexora, the belt is torn at station two", STATIONS, CONVEYOR, WORKER, force_rules=True)
     assert woke["status"] == "ok" and woke["component"] == "Belt" and woke["station_id"] == "S2", woke   # not "Guard"
     assert rules("the belt guard is missing at station two")["component"] == "Guard"                     # a real part
     assert not inspection.is_inspection_report("what's the band number")

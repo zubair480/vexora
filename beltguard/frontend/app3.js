@@ -1,4 +1,4 @@
-// BeltGuard dashboard v3 (14:03 product focus): tool checkout → live vibration monitoring → exposure verdict.
+// Vexora dashboard v3 (14:03 product focus): tool checkout → live vibration monitoring → exposure verdict.
 // Live mode: WebSocket /ws + REST /api/*. No backend: a clearly labelled demo replay.
 // The band indicator in the header belongs to bandlink.js (S0); band pairing lives in the Band link tab (bridge.html).
 import { StripChart, Sparkline } from './charts.js?v=7';
@@ -31,7 +31,7 @@ const warned = new Set();
 function safe(fn) {
   try { return fn(); } catch (err) {
     const key = fn.name || String(fn).slice(0, 40);
-    if (!warned.has(key)) { warned.add(key); console.warn(`BeltGuard: ${key} skipped —`, err && err.message); }
+    if (!warned.has(key)) { warned.add(key); console.warn(`Vexora: ${key} skipped —`, err && err.message); }
     return undefined;
   }
 }
@@ -56,8 +56,8 @@ const LANES = [
   { id: 'work_order', label: 'Work orders' },
 ];
 const LEAD = {
-  tool: 'Unlock a tool, and BeltGuard times its vibration from your wrist band and tells you when to stop.',
-  inspection: 'Walk CV-102 station by station. Say what you see; BeltGuard validates it and drafts the work order.',
+  tool: 'Unlock a tool, and Vexora times its vibration from your wrist band and tells you when to stop.',
+  inspection: 'Walk CV-102 station by station. Say what you see; Vexora validates it and drafts the work order.',
 };
 
 function emptyState() {
@@ -447,7 +447,7 @@ function handleMessage(m) {
 }
 
 // ---------- conversation strip + spoken replies ----------
-// Lines: "You" = what the band mic heard (only when BeltGuard answered it), "BeltGuard" = the assistant's reply.
+// Lines: "You" = what the band mic heard (only when Vexora answered it), "Vexora" = the assistant's reply.
 const convo = new Map();            // key (transcript id) -> { ts, you, bg, fromAssistant }
 // S4's wake word went live at 14:42: nothing heard before it is shown (it was overheard chat), nor anything S2 marks ignored.
 const CONVO_SINCE = (() => { const d = new Date(); d.setHours(14, 42, 0, 0); return d.getTime() / 1000; })();
@@ -456,7 +456,7 @@ function convoFromEvent(e) {
   if ((Number(e.ts) || 0) < CONVO_SINCE || isIgnored(e)) return;
   const u = parseUtterance(e);
   const intent = e.refs && e.refs.intent;
-  if (u.voice && !u.cls && !intent) return;                         // conversation BeltGuard did not act on: never shown
+  if (u.voice && !u.cls && !intent) return;                         // conversation Vexora did not act on: never shown
   const key = (e.refs && e.refs.transcript_id) || e.id;
   const cur = convo.get(key) || {};
   const said = String(u.result || '').replace(/^question back:\s*/i, '');
@@ -478,7 +478,7 @@ function renderConvo() {
   const lines = [];
   for (const c of [...convo.values()].sort((a, b) => a.ts - b.ts)) {
     if (c.you) lines.push({ who: 'You', cls: 'you', text: `“${c.you}”` });
-    if (c.bg) lines.push({ who: 'BeltGuard', cls: 'bg', text: c.bg });
+    if (c.bg) lines.push({ who: 'Vexora', cls: 'bg', text: c.bg });
   }
   const last = lines.slice(-3);
   const box = $('#convo');
@@ -486,7 +486,7 @@ function renderConvo() {
   setHtml($('#convoList'), last.map((l) => `<li class="${l.cls}"><span class="who ${l.cls}">${l.who}</span><span class="line" title="${esc(l.text)}">${esc(l.text)}</span></li>`).join(''));
 }
 
-// ---------- LIVE panel: what the technician says · the job checklist · what BeltGuard did (S0, top priority) ----------
+// ---------- LIVE panel: what the technician says · the job checklist · what Vexora did (S0, top priority) ----------
 const tech = new Map();          // every final utterance: key → { key, ts, text, voice, result, intent, ignored, pending }
 const agentLive = new Map();     // agent actions pushed on /ws (merged with snapshot.agent_actions)
 const techKey = (id, text, ts) => (id ? `t:${id}` : `x:${String(text || '').slice(0, 50)}:${Math.round((Number(ts) || 0) / 20)}`);
@@ -510,7 +510,7 @@ function techFromEvent(e) {
   const cur = tech.get(key) || {};
   tech.set(key, { ...cur, key, ts: cur.ts || e.ts, text: cur.text || u.words, voice: u.voice, result: String(e.detail || ''), intent: e.refs && e.refs.intent, ignored: isIgnored(e), pending: false });
 }
-// History from /api/transcripts (every utterance this shift with what BeltGuard did), so a reload shows the whole conversation.
+// History from /api/transcripts (every utterance this shift with what Vexora did), so a reload shows the whole conversation.
 function techFromRow(row) {
   const ts = Number(row.ts) || 0;
   if (ts < Math.max(CONVO_SINCE, Number(app.state.shift_start) || 0)) return;
@@ -671,7 +671,7 @@ function renderTech() {
     const chips = techChips(l);
     const chat = !chips.length && !l.pending;
     return `<li class="tx-line${chat ? ' chat' : ''}"><span class="tm">${fmtHM(l.ts)}</span><span class="tx-words">${l.voice ? '' : 'Typed: '}“${esc(l.text)}”</span>${chips.map((c) => `<span class="chip ${c[0]}">${esc(c[1])}</span>`).join('')}</li>`;
-  }).join('') : '<li class="lp-empty">Every sentence the technician says appears here, with what BeltGuard did about it.</li>';
+  }).join('') : '<li class="lp-empty">Every sentence the technician says appears here, with what Vexora did about it.</li>';
   const interim = document.getElementById('bgInterim');   // bandlink.js: live words while the technician speaks
   setHtml(list, html);
   if (interim && list.lastElementChild !== interim) list.appendChild(interim);
@@ -702,7 +702,7 @@ function evidenceText(st) {
 const CHECK_SVG = '<svg width="9" height="9" viewBox="0 0 12 12" aria-hidden="true"><path d="M2.5 6.2 5 8.6l4.5-5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
 // ---------- live steps (S4 extracts the job's steps from speech: the list starts empty and grows) ----------
 // A step that appears slides in with a soft green glow (1.5 s); a step ticked done flashes green (0.9 s); a new
-// "BeltGuard did" row glows the same way. Effects are keyed by row and carry a negative --fx-delay, so a re-render
+// "Vexora did" row glows the same way. Effects are keyed by row and carry a negative --fx-delay, so a re-render
 // mid-effect continues it instead of restarting it. Nothing animates for what the first snapshot already had.
 const fxRows = new Map();                                  // 'j:<step>' | 'a:<action id>' → { kind, at }
 const jobSeen = new Map();                                 // step key → 'done' | 'progress' | 'left'
@@ -779,7 +779,7 @@ function renderJob() {
   const meta = $('#lpJobMeta');
   if (meta) meta.title = job && (job.title || job.name) ? String(job.title || job.name) : '';
   if (!steps.length) {
-    setHtml(list, '<li class="lp-empty">Speak your steps; BeltGuard writes them down as you go.</li>');
+    setHtml(list, '<li class="lp-empty">Speak your steps; Vexora writes them down as you go.</li>');
     setText(meta, '');
     return;
   }
@@ -815,7 +815,7 @@ function renderAgent() {
     return `<li class="ag-row${fx ? fx.cls : ''}"${fx ? fx.style : ''}><span class="ag-ico"><svg width="13" height="13" viewBox="0 0 16 16" aria-hidden="true">${AG_ICON[k] || AG_ICON.other}</svg></span>
       <span class="ag-body"><span class="ag-top"><span class="ag-title">${esc(label)}${pdf ? ` · <a class="ag-link" href="${esc(pdf)}" target="_blank" rel="noopener">Open</a>` : ''}</span>${st ? `<span class="badge ${st[0]}">${esc(st[1])}</span>` : ''}</span>
       <span class="ag-meta">${a.ts ? `${fmtHM(Number(a.ts))}` : ''}${detail ? ` · ${esc(detail)}` : ''}</span></span></li>`;
-  }).join('') : '<li class="lp-empty">Nothing yet. Work-order drafts, parts requests and notifications appear here as BeltGuard handles them.</li>');
+  }).join('') : '<li class="lp-empty">Nothing yet. Work-order drafts, parts requests and notifications appear here as Vexora handles them.</li>');
   if (anyFx) list.scrollTop = 0;                           // newest first: keep the new row in view
 }
 const liveVisible = () => (app.mode === 'tool' && app.step >= 3) || app.mode === 'inspection';
@@ -1151,7 +1151,7 @@ function renderMode() {
   $('#demoBanner').hidden = !app.demo;
   if (app.demo || app.live) { pill.hidden = true; return; }
   pill.hidden = false;
-  if (app.everLive) setBadge(pill, 'outline wait', 'Reconnecting to BeltGuard…');
+  if (app.everLive) setBadge(pill, 'outline wait', 'Reconnecting to Vexora…');
   else setBadge(pill, 'outline wait', 'Connecting…');
 }
 
@@ -1206,7 +1206,7 @@ function renderCrib() {
   setText($('#s1Title'), showCrib ? 'Pick a tool' : startOfShift ? 'Start of shift' : 'Ready for the next job');
   setText($('#s1Desc'), showCrib
     ? ((app.picking || (app.locking && outId)) ? `Locking the ${shortTool(toolById(app.picking || outId)).toLowerCase()} to you…` : 'Click a tool here or on the tool station in the 3D view. It locks to you straight away.')
-    : "Pick the tool you're about to use. BeltGuard times it from your wrist band.");
+    : "Pick the tool you're about to use. Vexora times it from your wrist band.");
   setText($('#s1Why'), startOfShift
     ? 'No vibration exposure yet today. Pick a tool when you are ready.'
     : `Today so far: ${fmtPts(totalPts())} points of the ${ex.action || 100}-point action value.`);
@@ -1269,7 +1269,7 @@ function renderAssigned() {
   const st = stationById(s.active_station || 'S1');
   setText($('#s2Next'), app.locking
     ? `Next: walking to ${st ? `station ${st.number}, ${st.name}` : 'the station'}.`
-    : `Next: start the ${shortTool(t).toLowerCase()}. BeltGuard times it from your wrist.`);
+    : `Next: start the ${shortTool(t).toLowerCase()}. Vexora times it from your wrist.`);
   setHtml($('#s2Action'), app.locking
     ? `<button class="btn outline" type="button" disabled>Walking to ${esc(st ? `station ${st.number}` : 'the station')}…</button>`
     : bandLive()
@@ -1369,7 +1369,7 @@ async function runAutoplay() {
     await autoWait(() => app.step === 3 && !app.locking, 25000);
     autoMark('at station 3');
     await sleep(3500); if (!autoOk()) return;
-    await autoSay("BeltGuard, I'm at station three"); autoMark('voice: at station three');
+    await autoSay("Vexora, I'm at station three"); autoMark('voice: at station three');
     await sleep(5500); if (!autoOk()) return;
     await post('/api/sim/scene', { scene: 'tool', seconds: 10 }, { quiet: true }); autoMark('drilling (simulated 10 s)');
     await autoWait(() => gate.on, 10000);
@@ -1382,7 +1382,7 @@ async function runAutoplay() {
     }
     autoMark('exposure verdict');
     await sleep(7500); if (!autoOk()) return;
-    await autoSay('BeltGuard, how long can I keep going?'); autoMark('voice: how long can I keep going?');
+    await autoSay('Vexora, how long can I keep going?'); autoMark('voice: how long can I keep going?');
     await sleep(9000); if (!autoOk()) return;
     const wo0 = len(app.state, 'work_orders');
     await autoSay('Return idler seized, needs replacement'); autoMark('voice: defect report');
@@ -1618,7 +1618,7 @@ function renderInspection() {
     ${steps.length ? `<details class="disclosure"><summary>Show the ${steps.length} repair steps</summary><ol class="steps">${steps.map((x) => `<li>${esc(x)}</li>`).join('')}</ol></details>` : ''}`);
 }
 
-// ---------- always-on band mic: listening status + the latest utterances with what BeltGuard did ----------
+// ---------- always-on band mic: listening status + the latest utterances with what Vexora did ----------
 function bandConnected() {
   const c = app.state.connection || {};
   const bl = app.bandlink || (window.BandLink && window.BandLink.status);
@@ -1646,7 +1646,7 @@ function parseUtterance(e) {
   const cls = /^defect/i.test(result) ? 'ok' : /^question back/i.test(result) ? 'ask' : '';
   return { words, voice, result, cls, ts: e.ts };
 }
-// The mic is always on, so most of what it hears is conversation. Show only what BeltGuard acted on (and anything typed);
+// The mic is always on, so most of what it hears is conversation. Show only what Vexora acted on (and anything typed);
 // other sentences are counted, never shown word for word.
 function renderVoiceLog() {
   const all = [...app.events.values()].filter((e) => e.kind === 'transcript' && e.ts >= CONVO_SINCE).sort((a, b) => b.ts - a.ts).map(parseUtterance);
@@ -1852,7 +1852,7 @@ async function post(path, body, { optional = false, conflictOk = false, quiet = 
     if (optional && (err.status === 404 || err.status === 405)) return { missing: true };
     if (conflictOk && err.status === 409) return { conflict: true, detail: err.message };
     if (quiet) return { error: true, status: err.status || 0, detail: err.message };
-    if (!err.status) toast('Reconnecting to BeltGuard…', 'That action was not sent. Try again in a moment.', 'warn');
+    if (!err.status) toast('Reconnecting to Vexora…', 'That action was not sent. Try again in a moment.', 'warn');
     else toast('Request failed', `${path}: ${err.message}`, 'alarm');
     setTimeout(() => { refreshState(); }, 400);              // after any failure the screen follows the server again
     return null;
@@ -1894,10 +1894,10 @@ async function unlockTool(tid) {
   stepNote('#s1Note', '');
   const w = (app.state.worker || {}).id || 'W-01';
   const r = await postRetry('/api/tool/checkout', { tool_id: tid, worker_id: w },   // the checkout endpoint only
-    () => stepNote('#s1Note', 'BeltGuard is reconnecting… trying again.'));
+    () => stepNote('#s1Note', 'Vexora is reconnecting… trying again.'));
   await refreshState();                                     // the assignment, if any, moves the flow to step 2
   if (outTool()) { stepNote('#s1Note', ''); return; }
-  if (r && r.error) stepNote('#s1Note', r.status >= 400 && r.status < 500 && r.detail ? `BeltGuard could not lock that tool: ${r.detail}.` : "BeltGuard didn't get that. Pick the tool again.");
+  if (r && r.error) stepNote('#s1Note', r.status >= 400 && r.status < 500 && r.detail ? `Vexora could not lock that tool: ${r.detail}.` : "Vexora didn't get that. Pick the tool again.");
 }
 
 async function returnTool() {
@@ -1906,11 +1906,11 @@ async function returnTool() {
   stepNote('#s5Note', '');
   const w = (app.state.worker || {}).id || 'W-01';
   const r = await postRetry('/api/tool/return', { tool_id: out && out.id, worker_id: w },
-    () => stepNote('#s5Note', 'BeltGuard is reconnecting… trying again.'));
+    () => stepNote('#s5Note', 'Vexora is reconnecting… trying again.'));
   // Only an actual null assignment means step 1: the fresh snapshot decides (its transition shows the summary toast).
   const fresh = await refreshState();
   if (!outTool()) { stepNote('#s5Note', ''); if (app.step !== 1) goStep(1); return; }
-  if (!r || r.error || !fresh) stepNote('#s5Note', "BeltGuard didn't get that. Try Return again.");
+  if (!r || r.error || !fresh) stepNote('#s5Note', "Vexora didn't get that. Try Return again.");
 }
 
 function selectStation(id) { if (id) api('/api/station', { station_id: id }); }

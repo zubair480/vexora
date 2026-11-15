@@ -1,6 +1,6 @@
 """Tests for backend/intents.py (S4 hav-brain).   python backend/test_intents.py
 
-Band mic (default source): commands need the wake word "BeltGuard"; without it only a clear defect
+Band mic (default source): commands need the wake word "Vexora"; without it only a clear defect
 report (named part + problem word) is heard and everything else is ignored. Typed input needs no wake word."""
 from __future__ import annotations
 
@@ -47,7 +47,7 @@ S2_CTX = {"stations": STATIONS, "tools": TOOLS, "active_station": "S5", "active_
 
 
 def w(text):
-    return "BeltGuard, " + text
+    return "Vexora, " + text
 
 
 def check(text, intent, ctx=CTX, clarify=False, source="band", wake=True, **slots):
@@ -61,19 +61,19 @@ def check(text, intent, ctx=CTX, clarify=False, source="band", wake=True, **slot
 
 
 def test_wake_word_variants():
-    variants = ["BeltGuard, ", "Belt guard, ", "belt-guard ", "Bell guard, ", "Belguard, ", "built guard ",
-                "Hey BeltGuard, ", "OK belt guard, ", "Um, BeltGuard, ", "Beltguard: "]
+    variants = ["Vexora, ", "Belt guard, ", "belt-guard ", "Bell guard, ", "Belguard, ", "built guard ",
+                "Hey Vexora, ", "OK belt guard, ", "Um, Vexora, ", "Beltguard: "]
     for prefix in variants:
         r = parse_intent(prefix + "I'm taking the hammer drill", CTX)
         assert r["intent"] == "tool_checkout" and r["slots"]["tool_id"] == "hammer_drill", (prefix, r)
         assert r["addressed"] is True and r["text"] == "I'm taking the hammer drill" and r["extract_source"] == "typed", r
-    assert split_wake_word("BeltGuard, return idler seized") == (True, "return idler seized")
+    assert split_wake_word("Vexora, return idler seized") == (True, "return idler seized")
     assert split_wake_word("the belt guard is missing at station two")[0] is False      # a conveyor part, not the wake word
-    assert parse_intent("BeltGuard", CTX)["intent"] == "help"
-    unknown = parse_intent("BeltGuard, you're awesome", CTX)
+    assert parse_intent("Vexora", CTX)["intent"] == "help"
+    unknown = parse_intent("Vexora, you're awesome", CTX)
     assert unknown["intent"] == "none" and unknown["ignore"] is False
     assert respond(unknown, None, CTX).startswith("Sorry, I didn't catch that")
-    assert "Say BeltGuard first" in respond(parse_intent("BeltGuard, what can I say", CTX), {}, CTX)
+    assert "Say Vexora first" in respond(parse_intent("Vexora, what can I say", CTX), {}, CTX)
 
 
 def test_no_wake_word_is_silent():
@@ -112,7 +112,7 @@ def test_typed_needs_no_wake_word():
     check("taking the hammer drill", "tool_checkout", source="typed", tool_id="hammer_drill")
     check("I'm at station three", "select_station", source="typed", station_id="S3")
     check("something is broken", "report_defect", source="typed")
-    assert parse_intent("BeltGuard, taking the drill", CTX, source="typed")["slots"]["tool_id"] == "drill"
+    assert parse_intent("Vexora, taking the drill", CTX, source="typed")["slots"]["tool_id"] == "drill"
 
 
 def test_select_station():
@@ -241,7 +241,7 @@ def test_respond():
     say = respond(parse_intent(w("taking the hammer drill"), CTX), {}, CTX)
     assert say.startswith("Hammer drill assigned to you. I'll time it from your band.") and "minutes" in say, say
     say = respond(parse_intent(w("idler replaced"), CTX), {}, CTX)
-    assert say == "WO-1 marked awaiting supervisor verification. BeltGuard never closes work on its own.", say
+    assert say == "WO-1 marked awaiting supervisor verification. Vexora never closes work on its own.", say
     assert "authorized person" in respond(parse_intent(w("conveyor isolated"), CTX), {}, CTX)
     assert respond(parse_intent(w("taking the hammer"), CTX), {}, CTX).startswith("Which one")
     ok = {"status": "ok", "defect": {"station_id": "S3", "component": "Return idler", "condition": "seized"},

@@ -1,6 +1,6 @@
 // voice.js — owned by S0. ALWAYS-ON voice: whenever band 07 is connected, its microphone streams to
 // Deepgram (the kit's own deepgramLink, copied unchanged into ./vendor/speech) and every finished
-// sentence goes to BeltGuard (/api/report), which records it and acts on it (defect + work-order
+// sentence goes to Vexora (/api/report), which records it and acts on it (defect + work-order
 // draft, or a clarifying question). It starts by itself, restarts after band or Deepgram drops, and
 // restarts the audio if it ever goes quiet. The key comes from beltguard/.env via /api/voice/config.
 import { deepgramLink } from './vendor/speech/deepgram.js';
@@ -17,7 +17,7 @@ const PROBLEMS = {
   refused: 'Deepgram refused the key.',
   closed: 'Deepgram connection closed; reconnecting…',
   reported: 'Deepgram reported a problem; reconnecting…',
-  'no-key': 'No Deepgram key found in BeltGuard config.',
+  'no-key': 'No Deepgram key found in Vexora config.',
   'no-socket': 'Could not reach Deepgram (internet?); retrying…',
 };
 
@@ -52,7 +52,7 @@ function setStatus(text, tone = 'idle') {
 
 function summarize(j, ok) {
   if (!ok) return (j && (j.detail || j.error)) || 'Server refused it';
-  if (j && j.response_text) return j.response_text;          // a voice action BeltGuard carried out (S2 + S4 intents)
+  if (j && j.response_text) return j.response_text;          // a voice action Vexora carried out (S2 + S4 intents)
   const res = (j && (j.result || j)) || {};
   const st = res.status || j.status;
   if (st === 'ok' || res.defect || j.defect) {
@@ -94,7 +94,7 @@ function showLive(text) {
   li.querySelector('.t').textContent = t;
 }
 
-// Instant job actions: as soon as the words-so-far contain a job step, send just that clause to BeltGuard,
+// Instant job actions: as soon as the words-so-far contain a job step, send just that clause to Vexora,
 // without waiting for Deepgram to close the sentence (background talk can keep it open for many seconds).
 // Each step group is sent at most once per 30 s; the later full sentence is a no-op on the server.
 const JOB_GROUPS = [
@@ -239,7 +239,7 @@ function mount() {
       </div>
       <button class="btn secondary" id="vToggle" type="button">Pause</button>
     </div>
-    <p class="hint">While band 07 is connected its microphone is always on. Deepgram turns speech into text, and BeltGuard records every finished sentence and acts on it: a defect report becomes a work-order draft, an unclear one gets a question back.</p>
+    <p class="hint">While band 07 is connected its microphone is always on. Deepgram turns speech into text, and Vexora records every finished sentence and acts on it: a defect report becomes a work-order draft, an unclear one gets a question back.</p>
     <div id="vInterim" class="interim"></div>
     <ol id="vLines" class="lines"></ol>`;
   const first = document.querySelector('main .card');

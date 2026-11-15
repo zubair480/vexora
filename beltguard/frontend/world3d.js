@@ -1,4 +1,4 @@
-// world3d.js · S9 "world-3d" · a believable piece of Earth around the BeltGuard site (three.js r160, all procedural).
+// world3d.js · S9 "world-3d" · a believable piece of Earth around the Vexora site (three.js r160, all procedural).
 //
 //   import { buildWorld } from './world3d.js';
 //   const world = buildWorld({ THREE, scene, renderer, camera, siteRadius: 26, center: new THREE.Vector3(0, 0, -1.5) });

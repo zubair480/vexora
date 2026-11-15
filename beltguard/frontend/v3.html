@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>BeltGuard · CV-102</title>
+<title>Vexora · CV-102</title>
 <link href="/vendor/fonts/geist.css" rel="stylesheet">
 <link rel="stylesheet" href="v3.css?v=16">
 <script type="importmap">
@@ -16,14 +16,14 @@
 <body>
 <header class="topbar">
   <div class="tb-left">
-    <a class="logo" href="./" aria-label="BeltGuard">
+    <a class="logo" href="./" aria-label="Vexora">
       <svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true">
         <rect width="24" height="24" rx="6" fill="#18181B"/>
         <circle cx="7.6" cy="12" r="2.7" fill="none" stroke="#FAFAFA" stroke-width="1.6"/>
         <circle cx="16.4" cy="12" r="2.7" fill="none" stroke="#FAFAFA" stroke-width="1.6"/>
         <path d="M7.6 9.3h8.8M7.6 14.7h8.8" stroke="#FAFAFA" stroke-width="1.6" stroke-linecap="round"/>
       </svg>
-      <span>BeltGuard</span>
+      <span>Vexora</span>
     </a>
     <span class="vsep" aria-hidden="true"></span>
     <span class="tb-asset" id="assetName">CV-102</span>
@@ -46,7 +46,7 @@
       <button class="tab" role="tab" type="button" aria-selected="true" data-action="mode" data-mode="tool">Tool checkout</button>
       <button class="tab" role="tab" type="button" aria-selected="false" data-action="mode" data-mode="inspection">Inspection</button>
     </div>
-    <p class="flow-lead" id="flowLead">Unlock a tool, and BeltGuard times its vibration from your wrist band and tells you when to stop.</p>
+    <p class="flow-lead" id="flowLead">Unlock a tool, and Vexora times its vibration from your wrist band and tells you when to stop.</p>
     <span class="auto-chip" id="autoChip" hidden></span>
   </div>
   <ol class="stepper" id="stepper"></ol>
@@ -58,7 +58,7 @@
     <div id="stage" class="stage"></div>
     <div id="stageFallback" class="stage-fallback" hidden>3D view unavailable. The rest of the dashboard still works.</div>
   </section>
-  <section class="card live-panel" id="livePanel" data-live-panel hidden aria-label="Live: what the technician says, the job, and what BeltGuard did">
+  <section class="card live-panel" id="livePanel" data-live-panel hidden aria-label="Live: what the technician says, the job, and what Vexora did">
     <div class="lp-col">
       <div class="lp-head"><span class="lp-title"><i class="live-dot" id="lpLiveDot" aria-hidden="true"></i>Technician</span><span class="lp-meta" id="lpTechMeta">Listening on band 07</span></div>
       <ul class="lp-list" id="lpTechList" aria-live="polite"></ul>
@@ -68,7 +68,7 @@
       <ul class="lp-list" id="lpJobList"></ul>
     </div>
     <div class="lp-col">
-      <div class="lp-head"><span class="lp-title">BeltGuard did</span><span class="lp-meta" id="lpAgentMeta"></span></div>
+      <div class="lp-head"><span class="lp-title">Vexora did</span><span class="lp-meta" id="lpAgentMeta"></span></div>
       <ul class="lp-list" id="lpAgentList" aria-live="polite"></ul>
     </div>
   </section>
@@ -81,7 +81,7 @@
       <div class="step centered" id="step-1">
         <span class="hero-ico" id="s1Ico" aria-hidden="true"><svg width="24" height="24" viewBox="0 0 24 24"><path d="M14.7 6.3a4 4 0 0 0-5.4 5.4L3.6 17.4a1.4 1.4 0 0 0 2 2l5.7-5.7a4 4 0 0 0 5.4-5.4l-2.4 2.4-2-.6-.6-2 2.4-2.4Z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></svg></span>
         <h2 class="step-title" id="s1Title">Start of shift</h2>
-        <p class="step-desc" id="s1Desc">Pick the tool you're about to use. BeltGuard times it from your wrist band.</p>
+        <p class="step-desc" id="s1Desc">Pick the tool you're about to use. Vexora times it from your wrist band.</p>
         <div class="crib" id="crib" role="radiogroup" aria-label="Tool crib" hidden></div>
         <div class="today-bar" id="s1TodayBar">
           <div class="tb-head"><span class="tb-label">Today</span><span class="tb-val" id="s1Today">0.00 pts</span></div>
@@ -113,7 +113,7 @@
           <div class="progress sm" role="progressbar" aria-valuemin="0" aria-valuemax="400" aria-label="Today's exposure points, 0 to 400"><i class="fill" id="s2Fill"></i><i class="tick act" style="left:25%"></i><i class="tick lim" style="left:100%"></i><i class="pos" id="s2Pos"></i></div>
           <div class="scale"><span style="left:0">0</span><span style="left:25%">100 action</span><span class="r" style="left:100%">400 limit</span></div>
         </div>
-        <p class="next-line" id="s2Next">Next: start the tool. BeltGuard times it from your wrist.</p>
+        <p class="next-line" id="s2Next">Next: start the tool. Vexora times it from your wrist.</p>
         <div class="step-actions" id="s2Action"></div>
         <p class="why sm" id="s2Why">Source of the magnitude is recorded with every session.</p>
       </div>
@@ -188,7 +188,7 @@
       <!-- Inspection (secondary tab) -->
       <div class="step" id="insp" hidden>
         <h2 class="step-title">Inspection</h2>
-        <p class="step-desc">Say the station, the part and what is wrong. BeltGuard checks the station and drafts a work order.</p>
+        <p class="step-desc">Say the station, the part and what is wrong. Vexora checks the station and drafts a work order.</p>
         <p class="listen" id="listen"><i class="ldot" aria-hidden="true"></i><span id="listenText">Listening on band 07</span></p>
         <ul class="voice-log" id="voiceLog" aria-label="Latest reports" aria-live="polite"></ul>
         <form id="reportForm" class="report-row" autocomplete="off">
@@ -202,7 +202,7 @@
 
     </div>
     <div class="pending-card" id="pendingCard" hidden role="status" aria-label="Tool session to confirm"><div id="pendingBody"></div></div>
-    <div class="convo" id="convo" hidden aria-label="Conversation with BeltGuard">
+    <div class="convo" id="convo" hidden aria-label="Conversation with Vexora">
       <ul id="convoList" aria-live="polite"></ul>
     </div>
     <div class="step-foot">
@@ -219,7 +219,7 @@
 <aside class="sheet" id="sheet" hidden role="dialog" aria-labelledby="sheetTitle">
   <div class="sheet-head">
     <div class="head-text"><h2 class="card-title" id="sheetTitle">Details</h2><p class="card-desc">Raw wrist signals, the shift timeline and every exposure record</p>
-      <label class="switch-row"><input type="checkbox" id="voiceToggle" checked> Speak BeltGuard's replies aloud</label></div>
+      <label class="switch-row"><input type="checkbox" id="voiceToggle" checked> Speak Vexora's replies aloud</label></div>
     <button class="btn ghost icon" type="button" data-action="close-sheet" aria-label="Close">
       <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><path d="M4 4l8 8M12 4l-8 8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
     </button>

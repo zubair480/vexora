@@ -545,10 +545,56 @@ def _install_band_alert_route(app) -> None:
     routes.insert(idx, Route("/api/band/alert", api_band_alert, methods=["POST"]))
 
 
+DEDUPE_BACK_MS = 2000.0      # t more than this far back = the band's clock restarted: accept and start over
+
+
+def _patch_ingest_dedupe() -> None:
+    """S0 (URGENT): every band-07 motion sample reached the backend twice (one page, one socket, same session),
+    which broke the detector and the charts. IngestBridge.feed now drops any sample whose band time t is <= the
+    last accepted t, unless t jumped back more than 2 s (clock restart). Only the live socket feeds at all
+    (app.py: `if S.bridge is ing`), so this covers duplicates inside one stream. Class-level patch on band.py,
+    applied from here because fleet.py hot-reloads; the original feed is kept so reloads never stack wrappers."""
+    bm = sys.modules.get("band")
+    cls = getattr(bm, "IngestBridge", None) if bm is not None else None
+    if cls is None:
+        return
+    orig = cls.__dict__.get("_bg_feed_orig") or cls.feed
+    cls._bg_feed_orig = orig
+
+    def feed(self, samples, rate=None, sensors=None):
+        last = getattr(self, "_dd_last_t", None)
+        kept, dropped = [], 0
+        for smp in samples or []:
+            try:
+                t = float(smp["t"])
+            except (KeyError, TypeError, ValueError):
+                continue                             # the original skips these too
+            if last is not None and last - DEDUPE_BACK_MS < t <= last:
+                dropped += 1                         # a duplicate (or stale) sample: never counted twice
+                continue
+            last = t
+            kept.append(smp)
+        self._dd_last_t = last
+        if dropped:
+            self._dd_dropped = getattr(self, "_dd_dropped", 0) + dropped
+            now = time.time()
+            if now - getattr(self, "_dd_logged", 0.0) >= 60.0:
+                print("[fleet] ingest dedupe: dropped %d duplicate samples so far on %s (band time <= last accepted)"
+                      % (self._dd_dropped, getattr(self, "session_id", "?")), flush=True)
+                self._dd_logged = now
+        return orig(self, kept, rate, sensors)       # [] still runs the rate handling
+    feed._bg_dedupe = True
+    cls.feed = feed
+
+
 class Fleet:
     def __init__(self, app) -> None:
         self.app = app
         if app is not None and hasattr(app, "store"):
+            try:
+                _patch_ingest_dedupe()
+            except Exception as e:
+                print("[fleet] ingest dedupe not installed:", repr(e), flush=True)
             _patch_confirm_window(app)
             if hasattr(type(app), "new_job_agent"):
                 _patch_job_on_reset(app)

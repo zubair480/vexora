@@ -304,7 +304,7 @@ function mountIndicator() {
 }
 
 // ---------- live transcript dock (dashboard) — shows what the technician says, live ----------
-// Every final sentence from band 07's mic (/ws {"type":"transcript"}) plus BeltGuard's replies
+// Every final sentence from band 07's mic (/ws {"type":"transcript"}) plus Vexora's replies
 // (/ws {"type":"assistant"}). Steps aside automatically once S8's Live panel ([data-live-panel]) exists.
 function mountTranscriptDock() {
   if (IS_BRIDGE || document.getElementById('bgTranscript')) return;
@@ -379,7 +379,7 @@ function mountTranscriptDock() {
     if (key) { if (seen.has(key)) return; seen.add(key); }
     const li = document.createElement('li');
     Object.assign(li.style, { display: 'grid', gridTemplateColumns: '64px 1fr', gap: '8px' });
-    const isBG = who === 'BeltGuard';
+    const isBG = who === 'Vexora';
     li.innerHTML = '<time style="font:11px \'Geist Mono\',ui-monospace,monospace;color:#A1A1AA;padding-top:2px"></time>'
       + '<div><span class="who" style="font-weight:600"></span> <span class="tx"></span> <span class="chip"></span></div>';
     li.querySelector('time').textContent = fmt(ts);
@@ -402,7 +402,7 @@ function mountTranscriptDock() {
   fetch('/api/transcripts?limit=6', { cache: 'no-store' }).then((r) => r.json()).then((j) => {
     (j.rows || []).slice().reverse().forEach((r) => {
       add('Technician', r.text, r.ts, chipFor(r), r.id);
-      if (r.response) add('BeltGuard', r.response, r.ts, null, r.id + ':r');
+      if (r.response) add('Vexora', r.response, r.ts, null, r.id + ':r');
     });
   }).catch(() => {});
   function open() {
@@ -413,7 +413,7 @@ function mountTranscriptDock() {
       try { m = JSON.parse(ev.data); } catch (e) { return; }
       if (document.querySelector('[data-live-panel]')) { dock.remove(); s.close(); return; }   // S8's panel took over
       if (m.type === 'transcript' && m.final !== false && m.text) add('Technician', m.text, m.ts, m.acted || null, m.transcript_id || m.id || ('t:' + m.ts + m.text.slice(0, 16)));
-      else if (m.type === 'assistant' && m.text) add('BeltGuard', m.text, m.ts, null, 'a:' + (m.ts || '') + m.text.slice(0, 16));
+      else if (m.type === 'assistant' && m.text) add('Vexora', m.text, m.ts, null, 'a:' + (m.ts || '') + m.text.slice(0, 16));
     };
     s.onclose = () => { if (document.getElementById('bgTranscript')) setTimeout(open, 2000); };
   }
