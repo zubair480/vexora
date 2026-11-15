@@ -1,4 +1,4 @@
-# BeltGuard
+# Vexora
 
 **From tool checkout to exposure verdict, timed by the Vexo band on the technician's wrist.**
 
@@ -9,11 +9,11 @@
 
 *Left: the technician dashboard on step 3, "Using the drill". It was captured on the test server with the developers' pretend band, so it shows the amber "Simulated band · testing" chip; on the real band the top bar reads "Band 07 · Live". Right: the supervisor control room. W-01 is the real band 07, and W-02 to W-05 are simulated bands, labelled as simulated on screen.*
 
-BeltGuard turns the power-tool part of a maintenance shift into a screening-level hand-arm vibration (HAV) record:
+Vexora turns the power-tool part of a maintenance shift into a screening-level hand-arm vibration (HAV) record:
 
 - The technician checks a tool out of the crib, by tap or by voice.
 - The Vexo band on their tool-hand wrist times every trigger pull.
-- BeltGuard tells them how long they can keep going before the HSE exposure action value and limit value.
+- Vexora tells them how long they can keep going before the HSE exposure action value and limit value.
 
 Voice with a wake word runs the rest of the shift, hands-free.
 
@@ -23,12 +23,12 @@ Built in one day at VexoHacks (Y Combinator, San Francisco, 14 November 2026) on
 
 A maintenance technician walks overland conveyor CV-102 with a Vexo band on the wrist of their tool hand.
 
-1. "**BeltGuard, I'm at station three.**" BeltGuard answers out loud: "Station 3, return idlers. Ready when you are."
-2. "**Return idler seized.**" A clear defect needs no wake word. BeltGuard logs it, checks the station in code and drafts a work order for review.
-3. "**BeltGuard, I'm taking the hammer drill.**" In the 3D view the technician walks to the tool wall and picks it up. The card reads "Hammer drill locked to Technician W-01", with about 25 minutes of trigger time left before the action value.
+1. "**Vexora, I'm at station three.**" Vexora answers out loud: "Station 3, return idlers. Ready when you are."
+2. "**Return idler seized.**" A clear defect needs no wake word. Vexora logs it, checks the station in code and drafts a work order for review.
+3. "**Vexora, I'm taking the hammer drill.**" In the 3D view the technician walks to the tool wall and picks it up. The card reads "Hammer drill locked to Technician W-01", with about 25 minutes of trigger time left before the action value.
 4. Every trigger pull counts. The band feels the tool start and stop at 416 samples a second, and points rise only while the tool runs.
-5. "**BeltGuard, how long can I keep going?**" gets a spoken answer in minutes. At 100 points the screen says "Action value reached: take a break or rotate" and the band flashes red. At 400 it says "Limit reached: stop using vibrating tools today".
-6. "**BeltGuard, done, returning the hammer drill.**" returns the tool with a summary. "**BeltGuard, idler replaced.**" sends the work order to a supervisor to verify. BeltGuard never closes work on its own.
+5. "**Vexora, how long can I keep going?**" gets a spoken answer in minutes. At 100 points the screen says "Action value reached: take a break or rotate" and the band flashes red. At 400 it says "Limit reached: stop using vibrating tools today".
+6. "**Vexora, done, returning the hammer drill.**" returns the tool with a summary. "**Vexora, idler replaced.**" sends the work order to a supervisor to verify. Vexora never closes work on its own.
 
 In the control room, the supervisor sees the whole crew on one screen: who has which tool, who is close to the action value, and every alert.
 
@@ -45,7 +45,7 @@ The products that exist add dedicated hardware:
 - a sensor glove (HAV-Sentry)
 - a separate wearable (spacebands)
 
-BeltGuard starts the exposure clock at the tool checkout and uses the band the technician already wears.
+Vexora starts the exposure clock at the tool checkout and uses the band the technician already wears.
 
 ## Features
 
@@ -54,7 +54,7 @@ The technician dashboard (`/`) walks through five steps, one at a time:
 
 | Step | What happens |
 |---|---|
-| **1 Pick tool** | **Start** walks the 3D worker to the tool wall. Pick from the crib, on screen or on the 3D wall, or say "BeltGuard, I'm taking the hammer drill". Each card shows the tool's magnitude and source: drill 5, hammer drill 11, impact wrench ½" 5, angle grinder 7, power jack 2.5 and breaker hammer 14 m/s², with more tools under **More tools**. |
+| **1 Pick tool** | **Start** walks the 3D worker to the tool wall. Pick from the crib, on screen or on the 3D wall, or say "Vexora, I'm taking the hammer drill". Each card shows the tool's magnitude and source: drill 5, hammer drill 11, impact wrench ½" 5, angle grinder 7, power jack 2.5 and breaker hammer 14 m/s², with more tools under **More tools**. |
 | **2 Locked to you** | "Hammer drill locked to Technician W-01", with the time, the magnitude, the points per hour and the minutes to the action value. Only this person's trigger time counts toward this checkout. |
 | **3 Using tool** | The live wrist signal and the detector state. **Trigger time** counts only while the band detects the tool running. Points show as "provisional" until the session is confirmed. |
 | **4 Exposure verdict** | One state: **Within the safe limit**, **Action value reached: take a break or rotate**, or **Limit reached: stop using vibrating tools today**. It comes with a 0–400 bar marked at 100 and 400, and the minutes left to each. |
@@ -63,9 +63,9 @@ The technician dashboard (`/`) walks through five steps, one at a time:
 The tool is always known from the checkout, never guessed from motion.
 
 ### 2. Voice, with a wake word
-The band's mic is always on while it's connected. Deepgram transcribes every sentence, and the laptop speaks BeltGuard's replies.
+The band's mic is always on while it's connected. Deepgram transcribes every sentence, and the laptop speaks Vexora's replies.
 
-- **Commands start with "BeltGuard"** (Deepgram's "Belt guard" and "Hey BeltGuard" also work):
+- **Commands start with "Vexora"** (Deepgram's "Belt guard" and "Hey Vexora" also work):
   - "I'm at station three"
   - "I'm taking the hammer drill"
   - "how long can I keep going?"
@@ -75,13 +75,13 @@ The band's mic is always on while it's connected. Deepgram transcribes every sen
   - "taking a break"
   - "yes" or "no" to answer a question
 - **A clear defect report needs no wake word.** A part plus a problem, such as "Return idler seized", becomes a defect and a work-order draft.
-- **Everything else is chat.** Every sentence is stored with what BeltGuard did with it (`GET /api/transcripts`). Chat is marked ignored and never acted on or answered.
+- **Everything else is chat.** Every sentence is stored with what Vexora did with it (`GET /api/transcripts`). Chat is marked ignored and never acted on or answered.
 - The intent parser is deterministic code (`backend/intents.py`) and needs no API key. If it can't pin down a station or a tool, it asks instead of guessing.
 
 ### 3. Band events
-- **Double-tap** confirms a session the band was unsure about. BeltGuard asks "Was that Hammer drill, 20 seconds? Say yes or no, or double-tap to confirm."
-- **Free-fall** raises a safety alert, "Possible drop or fall near S3 Return idlers: check on W-01", with a red banner on the dashboard. BeltGuard only reports it; a person must check.
-- **The LED flashes red for 4 seconds** when the day crosses 100 or 400 points. The band locks its LED while the mic is on, so BeltGuard pauses the audio, flashes, then resumes listening.
+- **Double-tap** confirms a session the band was unsure about. Vexora asks "Was that Hammer drill, 20 seconds? Say yes or no, or double-tap to confirm."
+- **Free-fall** raises a safety alert, "Possible drop or fall near S3 Return idlers: check on W-01", with a red banner on the dashboard. Vexora only reports it; a person must check.
+- **The LED flashes red for 4 seconds** when the day crosses 100 or 400 points. The band locks its LED while the mic is on, so Vexora pauses the audio, flashes, then resumes listening.
 
 ### 4. Supervisor control room (`/supervisor.html`)
 - Crew KPIs: on shift, tools out, closest to the action value, open alerts.
@@ -181,7 +181,7 @@ python -u backend/app.py          # or .\backend\run.ps1
 
 1. Open **http://127.0.0.1:8765/** in Chrome.
 2. **Connect the band:** click **Band link** in the top bar, then **Connect band 07**, and pick your band in Chrome's Bluetooth dialog. Keep that tab open. Voice starts by itself, and the Inspection tab says **Listening on band 07**. Over a USB cable, the backend finds the band by itself (USB is searched by default; add `--ble` to also search Bluetooth from Python).
-3. **Let it talk:** click once anywhere on the dashboard (Chrome only speaks after a click). The **Speak BeltGuard's replies aloud** switch is in **Details**.
+3. **Let it talk:** click once anywhere on the dashboard (Chrome only speaks after a click). The **Speak Vexora's replies aloud** switch is in **Details**.
 4. Open the control room at **http://127.0.0.1:8765/supervisor.html**.
 5. Start a clean shift with `POST /api/tool/return` (if a tool is out), then `POST /api/reset`.
 
@@ -194,7 +194,7 @@ python -u backend/app.py          # or .\backend\run.ps1
 | GET | `/api/state` | full snapshot: stations, tools, assignment, verdict, sessions, exposure, defects, work orders, timeline |
 | GET | `/api/health` | connection, link, rate, lost samples, loaded modules |
 | GET | `/api/fleet` | control-room crew (W-01 real, W-02..05 simulated) |
-| GET | `/api/transcripts` | every sentence heard and what BeltGuard did with it |
+| GET | `/api/transcripts` | every sentence heard and what Vexora did with it |
 | GET | `/api/samples` | the newest real band readings from SQLite |
 | POST | `/api/tool/checkout` `{"tool_id":"hammer_drill"}` | lock a tool to the technician |
 | POST | `/api/tool/return` | return it (closes any running session first) |
@@ -222,7 +222,7 @@ python qa/voice_e2e.py             # voice end to end on a temporary copy of the
 - **A screening estimate, not a certified HAV meter.** Points use the checked-out tool's reference magnitude times the trigger time the band detected. ISO 5349 measures vibration at the hand–tool interface. The band times trigger use; it never measures vibration at the hand, and the wrist accelerometer is never converted into an exposure value.
 - **The band never names the tool.** The checkout does. Sessions the band is unsure about stay "unresolved" until the technician confirms or rejects them, and a rejected session adds nothing.
 - **AI drafts, people decide.**
-  - BeltGuard never authorizes isolation, never closes or verifies a work order and never reassigns anyone.
+  - Vexora never authorizes isolation, never closes or verifies a work order and never reassigns anyone.
   - "Job done" only moves a work order to awaiting supervisor verification.
   - Isolation claims are logged for an authorized person to verify.
   - The fall alert only reports.

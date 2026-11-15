@@ -1,4 +1,4 @@
-# BeltGuard: the VexoHacks entry, ready to paste
+# Vexora: the VexoHacks entry, ready to paste
 
 Rewritten at 15:00 PT by S6 for the final product flow, and updated at 15:30 with the control room and the new tool-checkout screens. For **https://vexohacks.devpost.com/** (deadline 6:00 PM PT). The requirements are in `SUBMISSION_REQUIREMENTS.md`, the commit, push and submit steps are in `RELEASE_CHECKLIST.md`, and the live run sheet and video shot list are in `../demo/DEMO_SCRIPT.md`.
 
@@ -10,7 +10,7 @@ Nothing has been submitted. **Check every ⚠️ line just before you paste.** E
 
 | Devpost field | Paste this |
 |---|---|
-| **Project name** | BeltGuard |
+| **Project name** | Vexora |
 | **Elevator pitch** (174 chars) | A Vexo band times every power-tool trigger pull at the wrist, tells the technician how long they can keep going before the legal vibration limit, and runs the shift by voice. |
 | **Theme track** | **Ambient + Voice** (reason below) |
 | **Sponsor tracks** | None. Deepgram does our speech-to-text, but its track asks for Pipecat, which we don't use. We don't use Gemini, ElevenLabs or Stripe: the spoken replies come from the browser's built-in speech. The rules say a track has to be meaningfully addressed. ⚠️ Change this only if one of them really ends up in the build. |
@@ -20,8 +20,8 @@ Nothing has been submitted. **Check every ⚠️ line just before you paste.** E
 | **Team** | Zubair Zafar · Ali Amjad ⚠️ confirm both are added on Devpost |
 
 **Why Ambient + Voice:**
-- **Ambient:** BeltGuard understands the moment a power tool runs in the technician's hand. It times it, scores it and warns at the limit, and nobody has to open an app.
-- **Voice:** the whole shift runs hands-free on the band's always-on mic with the wake word "BeltGuard".
+- **Ambient:** Vexora understands the moment a power tool runs in the technician's hand. It times it, scores it and warns at the limit, and nobody has to open an app.
+- **Voice:** the whole shift runs hands-free on the band's always-on mic with the wake word "Vexora".
 - We don't claim Vision, because the band has no camera.
 
 ---
@@ -45,7 +45,7 @@ Meanwhile, sites already hand out power tools from a crib. We asked: what if the
 ### What it does
 A maintenance technician on overland conveyor CV-102 wears a Vexo band on the tool-hand wrist.
 
-1. **Pick a tool from the crib.** **Start** walks the 3D worker to the tool wall. The technician taps a card, clicks the tool on the 3D wall, or says *"BeltGuard, I'm taking the hammer drill."* Each tool shows its vibration magnitude and source:
+1. **Pick a tool from the crib.** **Start** walks the 3D worker to the tool wall. The technician taps a card, clicks the tool on the 3D wall, or says *"Vexora, I'm taking the hammer drill."* Each tool shows its vibration magnitude and source:
 
    | Tool | m/s² |
    |---|---|
@@ -63,20 +63,20 @@ A maintenance technician on overland conveyor CV-102 wears a Vexo band on the to
    - **"Action value reached: take a break or rotate"**
    - **"Limit reached: stop using vibrating tools today"**
 
-   When the day crosses 100 or 400 points, the band flashes red. BeltGuard also says "Exposure action value (100 pts) reached. Supervisor review required (screening estimate)."
-4. **Return with a summary.** "BeltGuard, done, returning the hammer drill" closes the checkout and reports the trigger time and points with that tool. Today's points stay on the technician's record.
+   When the day crosses 100 or 400 points, the band flashes red. Vexora also says "Exposure action value (100 pts) reached. Supervisor review required (screening estimate)."
+4. **Return with a summary.** "Vexora, done, returning the hammer drill" closes the checkout and reports the trigger time and points with that tool. Today's points stay on the technician's record.
 5. **The whole shift by voice.** The band's mic is always on and Deepgram transcribes it. Commands start with the wake word, and the laptop speaks the answers:
 
-   | Technician says | BeltGuard |
+   | Technician says | Vexora |
    |---|---|
-   | "BeltGuard, I'm at station three." | "Station 3, return idlers. Ready when you are." |
-   | "BeltGuard, how long can I keep going?" | "You're at 1.3 points, below the 100-point action value. About 24 minutes left with the hammer drill before 100." |
-   | "BeltGuard, idler replaced." | The work order goes to *awaiting supervisor verification*. BeltGuard never closes work itself. |
+   | "Vexora, I'm at station three." | "Station 3, return idlers. Ready when you are." |
+   | "Vexora, how long can I keep going?" | "You're at 1.3 points, below the 100-point action value. About 24 minutes left with the hammer drill before 100." |
+   | "Vexora, idler replaced." | The work order goes to *awaiting supervisor verification*. Vexora never closes work itself. |
 
-   - **A clear defect needs no wake word.** "Return idler seized" becomes a structured defect: OpenAI extracts it with a strict schema when a key is set (otherwise a rules extractor does), and **code, not the model, checks the station**. It also produces a work-order draft that says isolation must be verified by an authorized person. If the station isn't clear, BeltGuard asks instead of guessing.
-   - **Every sentence is recorded, and chat is ignored.** Team conversation is stored and marked ignored, and BeltGuard never acts on it or answers it.
+   - **A clear defect needs no wake word.** "Return idler seized" becomes a structured defect: OpenAI extracts it with a strict schema when a key is set (otherwise a rules extractor does), and **code, not the model, checks the station**. It also produces a work-order draft that says isolation must be verified by an authorized person. If the station isn't clear, Vexora asks instead of guessing.
+   - **Every sentence is recorded, and chat is ignored.** Team conversation is stored and marked ignored, and Vexora never acts on it or answers it.
 6. **Band features.**
-   - A **double-tap** confirms a session the band was unsure about. BeltGuard asks "Was that Hammer drill, 20 seconds? Say yes or no, or double-tap to confirm."
+   - A **double-tap** confirms a session the band was unsure about. Vexora asks "Was that Hammer drill, 20 seconds? Say yes or no, or double-tap to confirm."
    - **Free-fall** raises a drop or fall alert, "Possible drop or fall near S3 Return idlers: check on W-01", which a person must check.
    - The **LED flashes red** at 100 and 400 points.
 7. **Supervisor control room.** One screen for the whole crew:
@@ -116,8 +116,8 @@ A maintenance technician on overland conveyor CV-102 wears a Vexo band on the to
   - Replies are spoken with the browser's speech API.
 
 ### Challenges we ran into
-- **An always-on mic in a loud room.** Most of what the band hears is chat. So commands need the wake word, unaddressed speech only counts when it's a clear defect report (a part plus a problem), and a stray "yes" only counts in the 30 seconds after BeltGuard asks a question.
-- **The band locks its LED while the mic is on.** To flash red at 100/400, BeltGuard pauses the audio, blinks for 4 seconds, then resumes listening.
+- **An always-on mic in a loud room.** Most of what the band hears is chat. So commands need the wake word, unaddressed speech only counts when it's a clear defect report (a part plus a problem), and a stray "yes" only counts in the 30 seconds after Vexora asks a question.
+- **The band locks its LED while the mic is on.** To flash red at 100/400, Vexora pauses the audio, blinks for 4 seconds, then resumes listening.
 - **The band holds one Bluetooth link.** One backend owns it, and everything else reads from the backend.
 - **Real sample rates drift.** 416 Hz actually runs at 407–423 Hz, so every duration uses the band's clock, never sample counts.
 - **Keeping the AI safe around isolation and work orders.** The model drafts, code validates, and people decide.
@@ -167,4 +167,4 @@ A maintenance technician on overland conveyor CV-102 wears a Vexo band on the to
 ---
 
 ## Video
-Use the 60–90 s shot list in `demo/DEMO_SCRIPT.md`. It's a screen recording plus an over-the-shoulder phone shot of the band on the wrist, with the room audio so viewers hear BeltGuard answer. Record it at about 5:00–5:15 PM on the real band, with no simulator, and say in a caption that the phone stands in for the hammer drill. Upload it to YouTube as unlisted and paste the link above.
+Use the 60–90 s shot list in `demo/DEMO_SCRIPT.md`. It's a screen recording plus an over-the-shoulder phone shot of the band on the wrist, with the room audio so viewers hear Vexora answer. Record it at about 5:00–5:15 PM on the real band, with no simulator, and say in a caption that the phone stands in for the hammer drill. Upload it to YouTube as unlisted and paste the link above.
