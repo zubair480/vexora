@@ -114,6 +114,17 @@ def test_idle_is_idle():
     assert frac(st, T0 + 1, T0 + 10, {"idle"}) > 0.9, st
 
 
+
+# The live demo counts hard shaking as tool use (detector.DEFAULT_CONFIG["demo_shake_g"], Vexora 19:58). These tests
+# check the real detector, whose synthetic handling/walking signals must never be a tool, so the demo rule is off here.
+import pytest as _pytest  # noqa: E402
+
+
+@_pytest.fixture(autouse=True)
+def _no_demo_shake(monkeypatch):
+    import detector as _det
+    monkeypatch.setitem(_det.DEFAULT_CONFIG, "demo_shake_g", 0.0)
+
 def test_walking_is_walking():
     smp, _ = synth([("walk", 15)])
     _, ev, st = run(smp)

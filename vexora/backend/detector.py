@@ -112,6 +112,10 @@ DEFAULT_CONFIG: dict = {
     "max_backtrack_s": 0.75,
     "confirm_conf": 0.75,       # tool_stop "confirmed" at or above, else "unresolved"
     "debounce_windows": 2,
+    # DEMO (Vexora 19:58): hard shaking of the wrist counts as the tool running, so the exposure card climbs in
+    # step with the LED stages without a real power tool (same 0.15 g as the LED alert). Still needs 2 s sustained
+    # (min_tool_s); short swings, walking and drops do not count. Shown as "demo time" in the UI. 0 = off.
+    "demo_shake_g": 0.15,
     # per-rate overrides written by tools/analyze.py: {"50": {...}, "208": {...}}
     "by_rate": {},
 }
@@ -511,6 +515,9 @@ class ToolDetector:
         self._features, self._scores, self._fs, self._gyro_ok = f, sc, f["fs"], f["gyro_ok"]
         t_now = float(t[-1])
         s_tool = sc["tool"]
+        demo_on = float(cfg.get("demo_shake_g") or 0.0) > 0 and f["acc_rms"] >= float(cfg.get("demo_shake_g") or 0.0)
+        if demo_on:                                   # DEMO: hard shaking = tool running (see demo_shake_g)
+            s_tool = sc["tool"] = max(s_tool, 0.9)
         events: list = []
 
         hp = acc - _lowpass(acc, f["fs"], 0.1)
@@ -545,6 +552,8 @@ class ToolDetector:
                 la = _last_above(t, env, thr, sess["t_start"])
                 if la is not None and la > self._last_active_t:
                     self._last_active_t = la
+            if demo_on:
+                self._last_active_t = max(self._last_active_t, t_now)
             in_win = t >= t_now - cfg["window_s"]
             on_frac = float((env[in_win] >= thr).mean()) if in_win.any() else 0.0
             sess["windows"].append((t_now - cfg["window_s"], t_now, s_tool, on_frac))
@@ -555,7 +564,9 @@ class ToolDetector:
             # on a sharper envelope (0.06 s) so pulse edges are not smeared
             t_prev = sess.get("_t_prev", sess["t_start"])
             seg = (t > t_prev) & (t <= t_now)
-            if seg.any():
+            if seg.any() and demo_on:                 # DEMO: the whole hop counts while shaking hard
+                sess["active"] = sess.get("active", 0.0) + (t_now - t_prev)
+            elif seg.any():
                 hp2 = (hp[seg] ** 2).sum(axis=1)
                 env_fast = np.sqrt(_movavg(hp2, max(1, int(round(0.06 * f["fs"])))))
                 thr_on = max(base_thr, 0.5 * sess["env_ref"])
