@@ -676,3 +676,7 @@ body.live-on #voiceLog { display: none; }
 #lpJobList > li.fx-new::before, #lpJobList > li.fx-done::before { inset: 0; border-radius: 8px; }
 #lpJobList .js-ico { margin-top: 3px; }
 #lpJobList .js-ev { white-space: normal; overflow: visible; text-overflow: clip; overflow-wrap: anywhere; margin-top: 2px; }
+
+/* S8 17:1x: "Open" link on the work-order PDF row in BeltGuard did (S12) */
+.ag-link { font-weight: 500; color: var(--foreground); text-decoration: underline; text-underline-offset: 2px; white-space: nowrap; }
+.ag-link:hover { color: var(--zinc-600); }

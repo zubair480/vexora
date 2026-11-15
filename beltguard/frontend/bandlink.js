@@ -159,7 +159,15 @@ async function connectInner() {
     clearTimeout(dropTimer);
     if (d && d.failed) return finalDisconnect('Could not reconnect; click Connect');
     send({ type: 'connection', state: 'connected', transport: 'browser-ble', band: BAND });
-    send({ type: 'rate', rate, sensors: 'both' });
+    // A Bluetooth reconnect brings the band back with its defaults (50 Hz, no audio): re-apply our setup.
+    (async () => {
+      try { await band.setMotion({ accelRange: 16, gyroRange: 2000 }); } catch (e) { /* keep defaults */ }
+      try { await band.configure({ motion: 416, sensors: 'both', events: true }); rate = 416; } catch (e) {
+        try { await band.configure({ motion: 50, sensors: 'both', events: true }); rate = 50; } catch (e2) { /* keep */ }
+      }
+      send({ type: 'rate', rate, sensors: 'both' });
+      if (window.BeltGuardVoice) setTimeout(() => window.BeltGuardVoice.ensure(), 800);   // mic back on
+    })();
     emit('connected', 'Band 07 connected over Bluetooth');
   });
   startStreaming();

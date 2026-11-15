@@ -480,6 +480,7 @@ function connect() {
       if (said && said.length <= HEARD_MAX_CHARS) { heardW01 = { said, reply: m.text, ts: nowS() }; lastTranscript = null; schedule(); }
     } else if (m.type === "connection" && state) { state.connection = Object.assign({}, state.connection, m); schedule(); }
     else if (m.type === "verdict" && state) { state.verdict = m.verdict; state.assignment = m.assignment; schedule(); }
+    else if (m.type === "work_order_pdf") onWorkOrderPdf(m);
   };
   ws.onclose = () => { wsLive = false; renderConn(); setTimeout(connect, Math.min(10000, 500 * Math.pow(2, retry++))); };
   ws.onerror = () => { /* onclose follows */ };
@@ -501,6 +502,61 @@ el("workers").addEventListener("keydown", (e) => {
   const card = e.target.closest(".worker");
   if (card && !card.classList.contains("placeholder")) { e.preventDefault(); focus(card.getAttribute("data-id")); }
 });
+// ---------------------------------------------------------------- work orders (S12: what the crew reports becomes a WO + PDF)
+// Load: GET /api/work_orders/recent?limit=8 -> {rows:[{id, ts, title, station_id, station_name, priority, status, worker_id, pdf_url}]}
+// Live: WS {"type":"work_order_pdf", id, url, title, station_id, priority, ts, worker_id, text}. Newest first, at most 5 rows.
+const woRows = new Map();             // id -> row
+const woFresh = new Map();            // id -> when it arrived live (for the glow)
+const safeUrl = (u) => (typeof u === "string" && /^(\/(?!\/)|https?:\/\/)/.test(u) ? u : null);
+function woFrom(r) {
+  const id = String((r && (r.id || r.work_order_id)) || "");
+  if (!id) return null;
+  return { id, ts: num(r.ts) || nowS(), title: r.title || "", station: r.station_name || r.station_id || "",
+           priority: r.priority || "", worker: r.worker_id || "W-01",
+           url: safeUrl(r.pdf_url || r.url) || "/api/work_orders/" + encodeURIComponent(id) + "/pdf" };
+}
+function renderWorkOrders() {
+  const list = el("wo-list");
+  if (!list) return;
+  const rows = [...woRows.values()].sort((a, b) => b.ts - a.ts).slice(0, 5);
+  if (!rows.length) { list.innerHTML = '<li class="empty">No work orders this shift</li>'; return; }
+  const t = Date.now();
+  list.innerHTML = rows.map((w) => {
+    const fresh = woFresh.has(w.id) && t - woFresh.get(w.id) < 2400;
+    const sub = [w.title, w.station, w.priority ? w.priority + " priority" : "", hhmm(w.ts)].filter(Boolean).join(" · ");
+    return '<li class="wo-row' + (fresh ? " new" : "") + '"><div class="wo-main"><span>New work order <b class="mono">' + esc(w.id) +
+      "</b> from " + esc(w.worker) + '</span><span class="muted">·</span><a href="' + esc(w.url) + '" target="_blank" rel="noopener">Open PDF</a></div>' +
+      '<div class="wo-sub" title="' + esc(sub) + '">' + esc(sub) + "</div></li>";
+  }).join("");
+}
+let toastTimer = 0;
+function toast(text) {
+  const node = el("toast");
+  if (!node) return;
+  node.textContent = text;
+  node.hidden = false;
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => { node.hidden = true; }, 5000);
+}
+function onWorkOrderPdf(m) {
+  const w = woFrom(m);
+  if (!w) return;
+  const isNew = !woRows.has(w.id);
+  woRows.set(w.id, Object.assign({}, woRows.get(w.id) || {}, w));
+  if (isNew) { woFresh.set(w.id, Date.now()); toast(m.text || "New work order " + w.id + " from " + w.worker); }
+  renderWorkOrders();
+}
+async function loadWorkOrders() {
+  try {
+    const res = await fetch("/api/work_orders/recent?limit=8", { cache: "no-store" });
+    if (!res.ok) return;                                    // not served yet: the WS rows still arrive
+    const d = await res.json();
+    let added = false;
+    (Array.isArray(d && d.rows) ? d.rows : []).forEach((r) => { const w = woFrom(r); if (w && !woRows.has(w.id)) { woRows.set(w.id, w); added = true; } });
+    if (added) renderWorkOrders();
+  } catch (e) { /* offline: keep what we have */ }
+}
+
 // ---------------------------------------------------------------- shift compliance report (CSV + print view)
 const two = (n) => String(n).padStart(2, "0");
 const dateTime = (ts) => { const d = new Date(ts * 1000); return d.getFullYear() + "-" + two(d.getMonth() + 1) + "-" + two(d.getDate()) + " " + two(d.getHours()) + ":" + two(d.getMinutes()); };
@@ -575,6 +631,7 @@ el("report-close").addEventListener("click", () => { el("report").hidden = true;
 el("report").addEventListener("click", (e) => { if (e.target === el("report")) el("report").hidden = true; });
 document.addEventListener("keydown", (e) => { if (e.key === "Escape" && !el("report").hidden) el("report").hidden = true; });
 window.BeltGuardReport = { build: buildReport, csv: (r) => reportCsv(r || buildReport()), show: (r) => showReport(r || buildReport()) };   // for QA
+window.BeltGuardWO = { add: onWorkOrderPdf, rows: () => [...woRows.values()] };   // for QA
 
 // ---------------------------------------------------------------- 3D site (S7's module; feature-detected)
 import("./model3d.js?v=" + Date.now()).then((m) => {
@@ -594,4 +651,6 @@ setInterval(pollFleet, 2000);
 setInterval(() => { if (!fleet || Date.now() - fleetFromWS > 3000) schedule(); }, 3000);
 loadState();
 pollFleet();
+loadWorkOrders();
+setInterval(loadWorkOrders, 30000);
 connect();

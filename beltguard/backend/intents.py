@@ -509,6 +509,8 @@ def respond(intent, result: Optional[dict] = None, state: Optional[dict] = None)
             defect = result.get("defect") or result
             wo = result.get("work_order") or {}
             part = " ".join(x for x in [(defect.get("condition") or ""), (defect.get("component") or "").lower()] if x)
+            if (defect.get("condition") or "").lower().startswith("needs "):     # "idler needs replacement"
+                part = "%s %s" % ((defect.get("component") or "the part").lower(), defect["condition"].lower())
             line = "Logged %s at %s. Work order %s drafted for review." % (
                 part or "the defect", _station_words(state, defect.get("station_id")), wo.get("id") or "")
             return line.replace("order  drafted", "order drafted")

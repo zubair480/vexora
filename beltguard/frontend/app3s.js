@@ -552,7 +552,7 @@ function onAgentAction(m) {
 const KIND_LABEL = {
   isolation: 'Isolation logged', job_done: 'Job done', signoff: 'Job done', missing_evidence: 'Missing evidence',
   work_order: 'Work order drafted', parts_request: 'Parts request drafted', supervisor_notified: 'Supervisor notified',
-  rotation: 'Rotation suggested', verification: 'Done',
+  rotation: 'Rotation suggested', verification: 'Done', work_order_pdf: 'Work order PDF sent to supervisor',
 };
 function agentLabel(a) {
   if (a.title) { const t = noApproval(a.title); if (t) return t; }
@@ -564,7 +564,7 @@ function agentLabel(a) {
   return KIND_LABEL[k] || cap(k.replace(/_/g, ' ')) || 'Action';
 }
 function agentKind(a) {
-  const exact = { work_order: 'wo', parts_request: 'parts', isolation: 'job', job_done: 'verify', signoff: 'verify', missing_evidence: 'other', exposure: 'notify' }[String(a.kind || '').toLowerCase()];
+  const exact = { work_order: 'wo', work_order_pdf: 'wo', parts_request: 'parts', isolation: 'job', job_done: 'verify', signoff: 'verify', missing_evidence: 'other', exposure: 'notify' }[String(a.kind || '').toLowerCase()];
   if (exact) return exact;
   const k = `${a.kind || a.type || ''} ${a.title || ''}`.toLowerCase();
   if (/part/.test(k)) return 'parts';
@@ -715,6 +715,8 @@ const isApprovalStep = (st) => String(st.id || '').toLowerCase() === 'signoff' |
 const jobSteps = (job) => (job && Array.isArray(job.steps) ? job.steps : []).filter((st) => st && !isApprovalStep(st));
 const stepKey = (st, i) => String(st.id ?? st.key ?? st.step_id ?? (stepTitle(st) || `#${i}`)).toLowerCase();
 const agentId = (a) => String(a.id ?? `${a.ts}-${a.kind}-${a.title}`);
+// Links from backend data: only same-origin paths (prefixed for a remote backend) or http(s) URLs.
+const pdfHref = (u) => (typeof u !== 'string' ? null : /^\/(?!\/)/.test(u) ? `${HTTP_BASE}${u}` : /^https?:\/\//.test(u) ? u : null);
 function fxMark(key, kind) {
   const cur = fxRows.get(key);
   const at = performance.now();
@@ -809,8 +811,9 @@ function renderAgent() {
     const detail = noApproval([a.detail, a.summary, a.text].find((x) => x && x !== label) || '');
     const fx = fxFor(`a:${agentId(a)}`);
     if (fx) anyFx = true;
+    const pdf = pdfHref(a.pdf_url || (String(a.kind || '').toLowerCase() === 'work_order_pdf' ? a.url : null));   // S12: the WO PDF the supervisor received
     return `<li class="ag-row${fx ? fx.cls : ''}"${fx ? fx.style : ''}><span class="ag-ico"><svg width="13" height="13" viewBox="0 0 16 16" aria-hidden="true">${AG_ICON[k] || AG_ICON.other}</svg></span>
-      <span class="ag-body"><span class="ag-top"><span class="ag-title">${esc(label)}</span>${st ? `<span class="badge ${st[0]}">${esc(st[1])}</span>` : ''}</span>
+      <span class="ag-body"><span class="ag-top"><span class="ag-title">${esc(label)}${pdf ? ` · <a class="ag-link" href="${esc(pdf)}" target="_blank" rel="noopener">Open</a>` : ''}</span>${st ? `<span class="badge ${st[0]}">${esc(st[1])}</span>` : ''}</span>
       <span class="ag-meta">${a.ts ? `${fmtHM(Number(a.ts))}` : ''}${detail ? ` · ${esc(detail)}` : ''}</span></span></li>`;
   }).join('') : '<li class="lp-empty">Nothing yet. Work-order drafts, parts requests and notifications appear here as BeltGuard handles them.</li>');
   if (anyFx) list.scrollTop = 0;                           // newest first: keep the new row in view

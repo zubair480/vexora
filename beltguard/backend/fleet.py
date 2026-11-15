@@ -562,6 +562,11 @@ class Fleet:
                 _install_band_alert_route(app)
             except Exception as e:
                 print("[fleet] band alert route not installed:", repr(e), flush=True)
+            try:
+                import importlib, wo_live
+                importlib.reload(wo_live).install(app)
+            except Exception as e:
+                print("[fleet] work order PDF route not installed:", repr(e), flush=True)
         self.alerts = collections.deque(maxlen=60)
         self.story = collections.deque(maxlen=120)
         self._stations = None

@@ -713,7 +713,9 @@ def extract_defect(transcript: str, stations: list[dict], conveyor: dict, worker
     tool, est_min, tool_basis = _suggest_tool(component, condition, action, ai_fields, tools)
     est_points = round(exposure.points(tool["vibration_m_s2"], est_min / 60.0), 2) if tool else None
     code, label, when = _PRIORITY.get(severity, _PRIORITY["medium"])
-    title = "%s %s %s — %s %s %s" % (_VERB[action], condition.lower(), component.lower(), asset, station["id"], station["name"])
+    # "Replace idler", not "Replace needs replacement idler"
+    what = component.lower() if condition.lower().startswith("needs ") else "%s %s" % (condition.lower(), component.lower())
+    title = "%s %s — %s %s %s" % (_VERB[action], what, asset, station["id"], station["name"])
     summary = (ai_fields or {}).get("summary") or "%s %s at %s %s %s." % (condition.capitalize(), component.lower(), asset,
                                                                             station["id"], station["name"])
     work_order = {

@@ -47,7 +47,8 @@
      least 140px, so nothing ever pushes the page into scrolling at 1440x900 or 1280x800. */
   .room { height:calc(100vh - 56px); min-height:600px; display:grid; grid-template-rows:auto minmax(0,60vh) minmax(140px,1fr) auto; gap:12px; padding:12px 24px 10px; }
   .split { display:grid; grid-template-columns:minmax(0,2fr) minmax(0,1fr); gap:16px; min-height:0; }
-  .split > .card, .story-card { min-height:0; overflow:hidden; }
+  .split > .card, .lower > .card { min-height:0; overflow:hidden; }
+  .lower { display:grid; grid-template-columns:minmax(0,2fr) minmax(0,1fr); gap:16px; min-height:0; }   /* crew story under the 3D, work orders under the crew */
   .crew { --spark-w:76px; }
   .crew .card-header .card-title { flex:none; }
   .crew .card-header .legend { white-space:nowrap; overflow:hidden; text-overflow:ellipsis; min-width:0; }
@@ -177,6 +178,20 @@
   @media (prefers-reduced-motion: reduce) { .avatar.busy::after { animation:none; } }
   .foot { font-size:12px; color:var(--muted-foreground); }
 
+  /* work orders BeltGuard drafted from what the crew said (S12): newest first, PDF opens in a new tab */
+  .wo-list { list-style:none; margin:0; padding:0; overflow:auto; flex:1; min-height:0; }
+  .wo-row { padding:8px 16px; border-bottom:1px solid var(--border); font-size:13px; }
+  .wo-row:last-child { border-bottom:0; }
+  .wo-main { display:flex; gap:6px; align-items:baseline; min-width:0; white-space:nowrap; }
+  .wo-main > span:first-child { overflow:hidden; text-overflow:ellipsis; min-width:0; }
+  .wo-main a { color:var(--foreground); font-weight:500; text-decoration:underline; text-underline-offset:2px; flex:none; }
+  .wo-sub { font-size:12px; color:var(--muted-foreground); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .wo-row.new { animation:woGlow 2.4s ease-out both; }
+  @keyframes woGlow { 0%, 35% { background:#ECFDF5; box-shadow:inset 2px 0 0 var(--success); } 100% { background:transparent; box-shadow:inset 2px 0 0 transparent; } }
+  .toast { position:fixed; right:24px; top:68px; z-index:40; max-width:360px; background:var(--primary); color:var(--primary-foreground); border-radius:8px; padding:10px 14px; font-size:13px; box-shadow:0 6px 20px rgb(0 0 0 / .18); }
+  .toast[hidden] { display:none; }
+  @media (prefers-reduced-motion: reduce) { .wo-row.new { animation:none; background:#ECFDF5; } }
+
   /* shift compliance report: on-screen sheet that prints cleanly (only the report is printed) */
   .report-backdrop { position:fixed; inset:0; z-index:50; background:rgb(9 9 11 / .45); display:grid; place-items:center; padding:24px; }
   .report-backdrop[hidden] { display:none; }
@@ -212,7 +227,9 @@
     .split { grid-template-columns:minmax(0,1fr); }
     .site { height:440px; }
     .crew { max-height:520px; --spark-w:112px; }
+    .lower { grid-template-columns:minmax(0,1fr); }
     .story-card { height:320px; }
+    .wo-card { height:240px; }
     .kpis { grid-template-columns:repeat(2, minmax(0,1fr)); }
   }
   @media (max-width:640px) {
@@ -257,13 +274,21 @@
     </div>
   </section>
 
-  <div class="card story-card">
-    <div class="card-header"><h2 class="card-title">Crew story</h2><span class="card-desc">What happened, newest first · read-only</span></div>
-    <ul class="story" id="story"><li class="empty">Waiting for the crew.</li></ul>
-  </div>
+  <section class="lower">
+    <div class="card story-card">
+      <div class="card-header"><h2 class="card-title">Crew story</h2><span class="card-desc">What happened, newest first · read-only</span></div>
+      <ul class="story" id="story"><li class="empty">Waiting for the crew.</li></ul>
+    </div>
+    <div class="card wo-card">
+      <div class="card-header"><h2 class="card-title">Work orders</h2><span class="card-desc">Drafted from what the crew reported</span></div>
+      <ul class="wo-list" id="wo-list"><li class="empty">No work orders this shift</li></ul>
+    </div>
+  </section>
 
   <p class="foot" hidden><span id="fleet-label"></span></p>
 </main>
+
+<div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
 
 <div class="report-backdrop" id="report" hidden>
   <section class="card report" role="dialog" aria-modal="true" aria-labelledby="report-title">
@@ -277,6 +302,6 @@
   </section>
 </div>
 
-<script type="module" src="supervisor.js?v=22"></script>
+<script type="module" src="supervisor.js?v=23"></script>
 </body>
 </html>

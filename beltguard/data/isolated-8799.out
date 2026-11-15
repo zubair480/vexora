@@ -23,3 +23,7 @@ ISOLATED BeltGuard on http://127.0.0.1:8799  (DB copy C:\Users\zubai\AppData\Loc
 [band] detector: using S3 detector.py at 416.0 Hz
 [band] detector: using S3 detector.py at 50.0 Hz
 [app] loaded intents.py
+[app] loaded inspection.py
+[app] loaded intents.py
+[app] loaded inspection.py
+[app] loaded intents.py
