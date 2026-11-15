@@ -172,6 +172,8 @@ def strip_wake_word(text: str) -> tuple[bool, str]:
 def _norm(text: str) -> str:
     t = (text or "").lower().replace("’", "'").replace("–", "-").replace("—", " ")
     t = re.sub(r"[^a-z0-9#'\- ]+", " ", t)
+    # Deepgram mishears "idler" on the band mic ("Adler change needed at station 3", 17:4x): read them as idler
+    t = re.sub(r"(?<![a-z])(?:adler|aidler|eidler|idlar|idol|idoler)(s?)(?![a-z])", r"idler\1", t)
     return re.sub(r"\s+", " ", t).strip()
 
 
