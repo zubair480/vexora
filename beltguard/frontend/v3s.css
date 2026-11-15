@@ -669,3 +669,10 @@ body.live-on #voiceLog { display: none; }
   100% { transform: scale(1); }
 }
 @media (prefers-reduced-motion: reduce) { .lp-list > li.fx-new, .js-row.fx-done .js-ico { animation: none; } }
+
+/* S0 16:50 (user): job rows get real padding, the glow sits inside the row, evidence is shown in full */
+#lpJobList > li.js-row { padding: 7px 10px; margin: 3px 0; gap: 10px; border-radius: 8px; border-bottom: 0; }
+#lpJobList > li.js-row.progress { background: var(--zinc-50); box-shadow: inset 0 0 0 1px var(--zinc-200); }
+#lpJobList > li.fx-new::before, #lpJobList > li.fx-done::before { inset: 0; border-radius: 8px; }
+#lpJobList .js-ico { margin-top: 3px; }
+#lpJobList .js-ev { white-space: normal; overflow: visible; text-overflow: clip; overflow-wrap: anywhere; margin-top: 2px; }

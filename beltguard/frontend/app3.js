@@ -463,7 +463,7 @@ function convoFromEvent(e) {
   convo.set(key, { ts: cur.ts || e.ts, you: u.words, bg: cur.fromAssistant ? cur.bg : said, fromAssistant: !!cur.fromAssistant, voice: u.voice });
 }
 function onAssistant(m) {
-  const text = String(m.text || '').trim();
+  const text = noApproval(String(m.text || '').trim());
   if (!text) return;
   const tid = m.refs && m.refs.transcript_id;
   const key = tid || `a:${text}:${Math.round((Number(m.ts) || nowS()) / 5)}`;
@@ -555,7 +555,7 @@ const KIND_LABEL = {
   rotation: 'Rotation suggested', verification: 'Done',
 };
 function agentLabel(a) {
-  if (a.title) return a.title;
+  if (a.title) { const t = noApproval(a.title); if (t) return t; }
   const k = String(a.kind || '').toLowerCase();
   const t = String(a.text || '');
   if (k === 'exposure') return /notified/i.test(t) ? 'Supervisor notified' : /review|action value/i.test(t) ? 'Action value reached' : 'Exposure check';
@@ -709,7 +709,7 @@ const jobSeen = new Map();                                 // step key → 'done
 let jobPrimed = false;
 let agentsPrimed = false;
 const stepTitle = (st) => String(st.label || st.title || st.text || st.name || '');
-const NO_APPROVAL_RE = /\s*(?:[:;,\u00b7\u2014-]\s*)?(?:supervisor review required|needs (?:supervisor )?review|confirm or reject|awaiting (?:supervisor )?(?:verification|sign-?off|approval))\.?/gi;
+const NO_APPROVAL_RE = /\s*(?:[:;,\u00b7\u2014-]\s*)?(?:supervisor review required|needs (?:supervisor )?review|confirm or reject|awaiting (?:supervisor )?(?:verification|sign-?off|approval)|(?:isolation )?must be verified by an authori[sz]ed person|an authori[sz]ed person (?:must )?verif(?:y|ies)(?: (?:it|the isolation|isolation))?)\.?/gi;
 function noApproval(t) { return String(t || '').replace(NO_APPROVAL_RE, '').replace(/^\s*[\u00b7:;,\u2014-]\s*/, '').replace(/\s{2,}/g, ' ').trim(); }
 const isApprovalStep = (st) => String(st.id || '').toLowerCase() === 'signoff' || /sign-?off|supervisor (?:verification|approval)/i.test(stepTitle(st));
 const jobSteps = (job) => (job && Array.isArray(job.steps) ? job.steps : []).filter((st) => st && !isApprovalStep(st));
@@ -1123,19 +1123,11 @@ function renderStepper() {
 }
 
 // ---------- rendering ----------
-// An ended session the band was unsure about: a confirm/reject card on whatever step is showing (the step never changes).
+// Tool time is confirmed automatically now (S0 16:5x, user direction: no approvals anywhere), so the technician never
+// sees a confirm/reject card; an unsure session resolves on its own within a few seconds.
 function renderPending() {
-  const s = app.state;
-  const ended = (x) => (Number(x.ts) || 0) + (Number(x.observed_s ?? x.trigger_s) || 0);
-  const u = latest((s.tool_sessions || []).filter((x) => x && x.status === 'unresolved' && realSession(x) && nowS() - ended(x) < 600));
   const card = $('#pendingCard');
-  if (!u) { card.hidden = true; return; }
-  const tl = toolById(u.tool_id) || ckTool();
-  setHtml($('#pendingBody'), `<div class="pc-text"><b>Confirm ${fmtDur(u.trigger_s)} of tool use?</b>
-    <span>${esc(tl ? shortTool(tl) : 'Tool')} at ${fmtHM(Number(u.ts) || nowS())} · the band was ${Math.round((u.confidence || 0) * 100)}% sure. Double-tap the band to confirm.</span></div>
-    <div class="pc-btns"><button class="btn primary sm" type="button" data-action="confirm" data-id="${esc(u.id)}" data-trigger="${esc(u.trigger_s ?? '')}">Confirm</button>
-    <button class="btn outline sm" type="button" data-action="reject" data-id="${esc(u.id)}">Reject</button></div>`);
-  card.hidden = false;
+  if (card) card.hidden = true;
 }
 
 function renderAll() {
@@ -1535,7 +1527,7 @@ function sessionRows(sessions, recs) {
     const r = byId.get(x.id);
     const sec = x.status === 'active' ? (gate.sid === x.id ? gate.sec : 0) : Number((r && r.trigger_s) ?? x.trigger_s) || 0;
     const pts = r ? r.points : livePts(sec);
-    const word = x.status === 'active' ? (gate.on && gate.sid === x.id ? 'running, provisional' : 'provisional') : x.status === 'unresolved' ? 'to confirm' : '';
+    const word = x.status === 'active' ? (gate.on && gate.sid === x.id ? 'running, provisional' : 'provisional') : x.status === 'unresolved' ? 'confirming' : '';
     return `<li><span class="mono">${fmtHM(Number(x.ts) || nowS())}</span><span>${fmtDur(sec)}${word ? ` · ${word}` : ''}</span><span class="num">+${fmtPts(pts)} pts</span></li>`;
   }).join('');
 }
@@ -1617,7 +1609,7 @@ function renderInspection() {
   setHtml($('#inspWo'), `<div class="sum-head"><span class="sum-label">Latest work order · ${esc(wo.id)} · ${esc(STATUS_WORD[wo.status] || cap(wo.status || 'draft'))}</span>${wo.priority ? `<span class="badge outline">${esc(wo.priority)}</span>` : ''}</div>
     <div class="sum-title">${esc(title)}</div>
     ${defectLine ? `<div class="sum-meta">${esc(defectLine)}</div>` : ''}
-    <div class="sum-meta">${esc(tool ? tool.name : 'Tool to be chosen')}${wo.est_trigger_min != null ? ` · ${esc(wo.est_trigger_min)} min trigger time` : ''} · isolation must be verified by an authorized person</div>
+    <div class="sum-meta">${esc(tool ? tool.name : 'Tool to be chosen')}${wo.est_trigger_min != null ? ` · ${esc(wo.est_trigger_min)} min trigger time` : ''}</div>
     ${rec ? `<p class="sum-rec">Projected ${fmtPts(rec.projected_points)} points today after this job (+${fmtPts(rec.added_points)}): ${Number(rec.projected_points) >= 400 ? 'over the limit value' : Number(rec.projected_points) >= 100 ? 'above the action value' : 'within the action value'}.</p>` : ''}
     <div class="row-btns"><button class="btn outline sm" type="button" data-action="plan-wo" data-id="${esc(wo.id)}">${rec ? 'Re-check exposure' : 'Check exposure for this job'}</button></div>
     ${steps.length ? `<details class="disclosure"><summary>Show the ${steps.length} repair steps</summary><ol class="steps">${steps.map((x) => `<li>${esc(x)}</li>`).join('')}</ol></details>` : ''}`);
@@ -1684,9 +1676,7 @@ function renderRecords() {
   const sessions = s.tool_sessions || [];
   for (const u of sessions.filter((x) => x && x.status === 'unresolved')) {
     const tl = toolById(u.tool_id);
-    rows.push(`<div class="confirm-row"><div>Unresolved: ${esc(tl ? tl.name : 'no tool selected')}, <span class="num">${fmtDur(u.trigger_s)}</span> · confidence ${Math.round((u.confidence || 0) * 100)}%</div>
-      <div class="row-btns"><button class="btn primary sm" type="button" data-action="confirm" data-id="${esc(u.id)}" data-trigger="${esc(u.trigger_s ?? '')}">Confirm</button>
-      <button class="btn outline sm" type="button" data-action="reject" data-id="${esc(u.id)}">Reject</button></div></div>`);
+    rows.push(`<div class="confirm-row"><div>Confirming automatically: ${esc(tl ? tl.name : 'no tool selected')}, <span class="num">${fmtDur(u.trigger_s)}</span> · confidence ${Math.round((u.confidence || 0) * 100)}%</div></div>`);
   }
   const active = sessions.find((x) => x && x.status === 'active');
   if (active) {

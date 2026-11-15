@@ -14,7 +14,6 @@ import asyncio
 import collections
 import math
 import random
-import sys
 import time
 
 TIME_SCALE = 30.0                      # simulated seconds per real second (SIMULATED workers only)
@@ -424,217 +423,68 @@ def _patch_job_on_reset(app) -> None:
     except Exception as e:
         print("[fleet] job-on-reset patch failed:", repr(e), flush=True)
 
-# ---- Sustained vibration (S0 / user request; hot-fix: fleet.py reloads, app.py does not) ----------------------
-SUSTAIN_START_S = 10.0       # continuous movement above idle before a provisional session opens
-SUSTAIN_GAP_S = 1.5          # a dip shorter than this does not break "continuous" (before the session opens)
-SUSTAIN_QUIET_S = 3.0        # movement stopped this long -> the provisional session closes
-SUSTAIN_ACC_G = 0.05         # wrist acc RMS (gravity removed) at/above this = moving: 2x the detector's idle level
-                             # (detector idle_acc_g = 0.025 g). The real detector's thresholds are NOT changed.
-SUSTAIN_LABEL = "provisional: the band saw sustained movement, not a confirmed tool signature"
-SUSTAIN_AMBER = "#ffb000"
+
+def _drop_sustained_patches(app) -> None:
+    """The provisional sustained-session hot-fix (16:47) is withdrawn: S0's detector.py now promotes sustained
+    motion to tool_active, so the normal session path counts it. Remove its instance patches if still installed."""
+    for name in ("confirm_session", "band_event", "assignment_view"):
+        fn = app.__dict__.get(name)
+        if fn is not None and "_patch_sustained" in getattr(getattr(fn, "__func__", None), "__qualname__", ""):
+            app.__dict__.pop(name, None)
+    st = app.__dict__.pop("_sustained", None)
+    if st and st.get("sid") and app.active_session_id == st.get("sid"):
+        app.active_session_id = None                 # never leave a counter running with nothing to close it
 
 
-def _sus_state(app) -> dict:
-    return app.__dict__.setdefault("_sustained", {"run_start": None, "last_move": None, "sid": None, "det": None,
-                                                  "det_ts": 0.0, "hold": False, "sids": [], "tap_hint": False})
-
-
-def _short(tool) -> str:
-    return (tool.get("name") or tool.get("id") or "tool").split(" (")[0].lower() if tool else "tool"
-
-
-def _sus_src(app) -> str:
-    return "band" if getattr(getattr(app, "bridge", None), "src", "band") == "band" else "sim"
-
-
-def _sus_moving(app, st: dict, now: float) -> bool:
-    det = getattr(app, "detector", None) or {}
-    if det is not st.get("det"):                 # each live activity snapshot (every 0.25 s) is a new dict
-        st["det"], st["det_ts"] = det, now
-    if now - float(st.get("det_ts") or 0) > 1.5:  # no fresh readings: the band is not moving as far as we know
-        return False
-    if (getattr(app, "connection", None) or {}).get("state") not in ("connected", "simulated"):
-        return False
-    acc = (det.get("features") or {}).get("acc_rms")
-    return isinstance(acc, (int, float)) and acc >= SUSTAIN_ACC_G and det.get("state") not in ("idle", "walking")
-
-
-def _band_amber(app) -> None:
-    b = getattr(app, "bridge", None)
-    try:
-        bm = sys.modules.get("band")
-        if bm is not None and isinstance(b, bm.IngestBridge) and b.band is not None:
-            b.send_cmd({"type": "command", "cmd": "alert", "colour": SUSTAIN_AMBER, "pattern": "blink", "seconds": 3,
-                        "reason": "sustained vibration"})
-        elif b is not None and b.band is not None:  # Python link: pause audio, flash, resume
-            app.led_key = None
-            asyncio.get_running_loop().create_task(asyncio.to_thread(b.alert, SUSTAIN_AMBER, 3.0))
-    except Exception as e:
-        print("[fleet] sustained band alert failed:", repr(e), flush=True)
-
-
-async def _sus_open(app, st: dict) -> None:
-    a = app.open_assignment()
-    tool = app.tool(a["tool_id"]) if a else None
-    if not tool or app.active_session_id or time.time() < float(getattr(app, "suppress_starts_until", 0) or 0):
-        st.update(run_start=None, last_move=None)
-        return
-    import db as dbmod
-    src, start = _sus_src(app), float(st["run_start"])
-    secs = time.time() - start
-    wo = app.open_work_order(app.active_station)
-    row = app.store.insert("tool_sessions", src, worker_id=dbmod.WORKER["id"], conveyor_id=dbmod.CONVEYOR["id"],
-                           station_id=app.active_station, work_order_id=wo["id"] if wo else None,
-                           tool_id=tool["id"], t_start=None, wall_start=start, confidence=0.0, status="unresolved")
-    sid = row["id"]
-    app.active_session_id = sid
-    st.update(sid=sid, tap_hint=False)
-    st["sids"] = (st.get("sids") or [])[-40:] + [sid]
-    short = _short(tool)
-    title = "Sustained vibration %.0f s on the %s: counting as provisional. Confirm or reject." % (secs, short)
-    detail = ("%s. Trigger time counts from when the movement began; provisional points use the %s's HSE "
-              "magnitude %.1f m/s² (screening estimate) and join the day total only if confirmed. Double-tap or say "
-              "yes to confirm, no to reject." % (SUSTAIN_LABEL[0].upper() + SUSTAIN_LABEL[1:], short,
-                                                 float(tool.get("vibration_m_s2") or 0)))
-    await app.event("tool", "sustained_vibration", title, detail=detail, station_id=app.active_station,
-                    refs={"tool_session_id": sid}, source=src)
-    act = {"id": "ACT-SV-%s" % sid, "ts": time.time(), "kind": "needs_review", "text": title, "title": title,
-           "detail": SUSTAIN_LABEL, "status": "needs_review", "refs": {"tool_session_id": sid}, "source": src}
-    agent = getattr(app, "job_agent", None)
-    if agent is not None and isinstance(getattr(agent, "actions", None), list):
-        agent.actions.insert(0, act)             # so it stays in snapshot()["agent_actions"] too
-    await app.hub.broadcast({"type": "agent_action", "source": "rules", "action": act})
-    app.awaiting_confirmation_until = time.time() + 30.0      # a bare yes/no counts now
-    await app.assistant("Sustained vibration on the %s. Counting it as provisional. Double-tap or say yes to confirm, "
-                        "no to reject." % short, "sustained_vibration", "system",
-                        refs={"tool_session_id": sid, "provisional": True, "label": SUSTAIN_LABEL})
-    _band_amber(app)
-    await app.update_led()
-    app.changed()
-
-
-async def _sus_close(app, st: dict, why: str, ask: bool = True) -> None:
-    sid, end = st.get("sid"), float(st.get("last_move") or time.time())
-    st.update(sid=None, run_start=None, last_move=None)
-    if not sid:
-        return
-    if app.active_session_id == sid:
-        app.active_session_id = None
-    app.ignore_stop = True                       # a later detector stop for this stretch must not open a second row
-    row = app.store.get("tool_sessions", sid)
-    if not row or row.get("status") != "unresolved" or row.get("wall_end"):
-        return
-    end = max(end, float(row.get("wall_start") or end))
-    trig = max(0.0, end - float(row.get("wall_start") or end))
-    tool = app.tool(row.get("tool_id"))
-    row = app.store.update("tool_sessions", sid, wall_end=end, trigger_s=trig, status="unresolved")
-    if ask:
-        await app.event("tool", "tool_unresolved", "Provisional vibration %.0f s on the %s (%s): confirm or reject"
-                        % (trig, _short(tool), why),
-                        detail="%s. Points join the day total only if confirmed." % (SUSTAIN_LABEL[0].upper()
-                                                                                    + SUSTAIN_LABEL[1:]),
-                        station_id=row.get("station_id"), refs={"tool_session_id": sid}, source=_sus_src(app))
-        await app.ask_confirmation(row, tool, trig)
-    await app.update_led()
-    if getattr(app, "rate_pending", False):
-        await app.apply_rate()
-    asyncio.get_running_loop().create_task(app.job_tool(row))
-    app.changed()
-
-
-async def _sus_step(app, st: dict) -> None:
-    now = time.time()
-    moving = _sus_moving(app, st, now)
-    sid = st.get("sid")
-    if sid:
-        if app.active_session_id != sid:         # ended elsewhere: tool return, detector stop, reset
-            st.update(sid=None, run_start=None, last_move=None)
-            return
-        if moving:
-            st["last_move"] = now
-        elif now - float(st.get("last_move") or now) > SUSTAIN_QUIET_S:
-            await _sus_close(app, st, "movement stopped")
-        return
-    if app.active_session_id:                    # a real detector session is running: it owns this stretch
-        st.update(run_start=None, last_move=None)
-        return
-    if moving:
-        if st.get("hold"):                       # rejected mid-movement: wait for quiet before counting again
-            st["last_move"] = now
-            return
-        if st.get("run_start") is None or now - float(st.get("last_move") or 0) > SUSTAIN_GAP_S:
-            st["run_start"] = now
-        st["last_move"] = now
-        if now - float(st["run_start"]) >= SUSTAIN_START_S:
-            await _sus_open(app, st)
-    else:
-        quiet_for = now - float(st.get("last_move") or 0)
-        if st.get("hold") and quiet_for > SUSTAIN_QUIET_S:
-            st["hold"] = False
-        if st.get("run_start") is not None and quiet_for > SUSTAIN_GAP_S:
-            st.update(run_start=None)
-
-
-async def _sustained_monitor(app) -> None:
-    st = _sus_state(app)
-    while True:
-        await asyncio.sleep(0.25)
-        try:
-            await _sus_step(app, st)
-        except asyncio.CancelledError:
-            raise
-        except Exception as e:
-            print("[fleet] sustained step failed:", repr(e), flush=True)
-
-
-def _patch_sustained(app) -> None:
-    """Confirm/reject while the movement is still going closes the provisional session first (trigger time up to
-    now); a double-tap while the band is still moving is not taken as a confirmation (a shake can register as a
-    tap); the live counter carries the provisional label."""
+def _patch_auto_confirm(app) -> None:
+    """User direction (S0, 16:48): no approval steps. A W-01 detector session with a tool checked out is counted
+    automatically when it ends (band-detected trigger time x the locked tool's HSE magnitude: screening estimate).
+    No confirm/reject prompt. Without a tool there is no magnitude to count with: it stays unresolved, silently."""
     import types
     cls = type(app)
-    orig_confirm, orig_band, orig_view = cls.confirm_session, cls.band_event, cls.assignment_view
+    orig_det = cls.on_detector
 
-    async def confirm_session(self, sid, data):
-        st = _sus_state(self)
-        if sid and st.get("sid") == sid:
-            ok = bool((data or {}).get("confirmed", True))
-            st["last_move"] = time.time()
-            await _sus_close(self, st, "confirmed" if ok else "rejected", ask=False)
-            if not ok:
-                st["hold"] = True
-        return await orig_confirm(self, sid, data)
+    async def on_detector(self, ev, src):
+        if isinstance(ev, dict) and ev.get("kind") == "tool_stop" and ev.get("status") != "confirmed":
+            sid = self.active_session_id
+            row = self.store.get("tool_sessions", sid) if sid else None
+            if self.tool((row or {}).get("tool_id") or self.active_tool_id) is not None:
+                ev = dict(ev, status="confirmed")    # counted automatically: tool locked + band evidence
+        return await orig_det(self, ev, src)
 
-    async def band_event(self, kind, src):
-        st = _sus_state(self)
-        if kind == "double-tap" and st.get("sid") and self.active_session_id == st.get("sid"):
-            if not st.get("tap_hint"):
-                st["tap_hint"] = True
-                await self.event("tool", "double_tap", "Double-tap not taken while the band is still moving",
-                                 detail="A shake can register as a tap. Stop, then double-tap, or say yes or no.",
-                                 refs={"tool_session_id": st.get("sid")}, source=src)
-                await self.assistant("The band is still moving, so I didn't take that double-tap. Stop, then "
-                                     "double-tap, or say yes or no.", "sustained_vibration", "system",
-                                     refs={"tool_session_id": st.get("sid")})
-            return
-        return await orig_band(self, kind, src)
+    async def end_active_session(self, why: str):
+        sid = self.active_session_id
+        if not sid:
+            return None
+        self.active_session_id = None
+        self.ignore_stop = True                      # the detector's own stop for it comes later: ignore
+        row = self.store.get("tool_sessions", sid)
+        if not row:
+            return None
+        now = time.time()
+        trig = max(0.0, now - float(row.get("wall_start") or now))
+        tool = self.tool(row.get("tool_id") or self.active_tool_id)
+        status = "confirmed" if tool else "unresolved"
+        row = self.store.update("tool_sessions", sid, wall_end=now, trigger_s=trig, status=status,
+                                tool_id=tool["id"] if tool else None)
+        await self.event("tool", "tool_stop" if tool else "tool_unresolved",
+                         ("Tool use %.0f s ended by %s" % (trig, why)) if tool else
+                         ("Tool activity %.0f s ended by %s: no tool checked out, not counted" % (trig, why)),
+                         station_id=row.get("station_id"), refs={"tool_session_id": sid}, source="user")
+        if tool:
+            await self.add_exposure(row, tool, trig, "band")
+        await self.update_led()
+        asyncio.get_running_loop().create_task(self.job_tool(row))
+        return row
 
-    def assignment_view(self, records=None):
-        assignment, verdict = orig_view(self, records)
-        sid = _sus_state(self).get("sid")
-        if sid and self.active_session_id == sid:
-            live = (assignment or {}).get("active_session")
-            if isinstance(live, dict):
-                live.update(provisional=True, kind="sustained_motion", label=SUSTAIN_LABEL)
-            if isinstance(verdict, dict):
-                verdict.update(provisional_label=SUSTAIN_LABEL, provisional_session_id=sid)
-        return assignment, verdict
+    async def ask_confirmation(self, row, tool, trig):
+        return None                                  # no approval prompts (user direction)
     try:
-        app.confirm_session = types.MethodType(confirm_session, app)
-        app.band_event = types.MethodType(band_event, app)
-        app.assignment_view = types.MethodType(assignment_view, app)
+        app.on_detector = types.MethodType(on_detector, app)
+        app.end_active_session = types.MethodType(end_active_session, app)
+        app.ask_confirmation = types.MethodType(ask_confirmation, app)
     except Exception as e:
-        print("[fleet] sustained patch failed:", repr(e), flush=True)
+        print("[fleet] auto-confirm patch failed:", repr(e), flush=True)
 
 
 class Fleet:
@@ -644,8 +494,12 @@ class Fleet:
             _patch_confirm_window(app)
             if hasattr(type(app), "new_job_agent"):
                 _patch_job_on_reset(app)
-            if all(hasattr(type(app), m) for m in ("confirm_session", "band_event", "assignment_view")):
-                _patch_sustained(app)
+            try:
+                _drop_sustained_patches(app)
+            except Exception as e:
+                print("[fleet] dropping sustained patches failed:", repr(e), flush=True)
+            if all(hasattr(type(app), m) for m in ("on_detector", "end_active_session", "ask_confirmation")):
+                _patch_auto_confirm(app)
         self.alerts = collections.deque(maxlen=60)
         self.story = collections.deque(maxlen=120)
         self._stations = None
@@ -695,8 +549,7 @@ class Fleet:
 
     STORY_KINDS = {"tool_checkout": "checkout", "tool_return": "return", "tool_start": "start", "station": "arrive",
                    "transcript": "voice", "threshold": "alert", "safety": "fall", "tool_confirmed": "confirm",
-                   "double_tap": "confirm", "tool_unresolved": "confirm", "sustained_vibration": "alert", "break": "break",
-                   "agent_action": "agent"}
+                   "double_tap": "confirm", "tool_unresolved": "confirm", "break": "break", "agent_action": "agent"}
     CHAT_DETAILS = ("", "Chat: no action", "Not a defect report: no action")
 
     def _w01_story(self, ss: float) -> list:
@@ -758,10 +611,10 @@ class Fleet:
 
     def _w01_alerts(self) -> None:
         rows = self.app.store.query("SELECT ts, kind, title FROM shift_events WHERE ts > ? AND kind IN "
-                                    "('threshold', 'safety', 'tool_unresolved', 'sustained_vibration') ORDER BY ts", (self.seen_event_ts,))
+                                    "('threshold', 'safety', 'tool_unresolved') ORDER BY ts", (self.seen_event_ts,))
         for r in rows:
             self.seen_event_ts = max(self.seen_event_ts, float(r["ts"]))
-            kind = {"safety": "fall", "tool_unresolved": "confirm", "sustained_vibration": "confirm"}.get(r["kind"])
+            kind = {"safety": "fall", "tool_unresolved": "confirm"}.get(r["kind"])
             if r["kind"] == "threshold":
                 kind = "limit" if "400" in (r["title"] or "") else "action"
             self.alerts.appendleft({"ts": r["ts"], "worker_id": "W-01", "kind": kind, "text": r["title"],
@@ -782,15 +635,6 @@ class Fleet:
                 "ts": time.time()}
 
     async def run(self) -> None:
-        mon = asyncio.get_running_loop().create_task(_sustained_monitor(self.app)) \
-            if self.app is not None and hasattr(self.app, "store") else None
-        try:
-            await self._run()
-        finally:
-            if mon is not None:
-                mon.cancel()
-
-    async def _run(self) -> None:
         last = time.monotonic()
         while True:
             await asyncio.sleep(1.0)

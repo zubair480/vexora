@@ -51,7 +51,7 @@ const toolsSeen = new Map();          // worker id -> tool names seen this shift
 let lastMotionAt = 0;                 // when the real band's last motion batch arrived (W-01's "last reading")
 
 // No approvals anywhere: strip request-for-approval phrases that older backend texts may still carry.
-const NO_APPROVAL = /\s*(?:[:;,\u00b7\u2014-]\s*)?(?:supervisor review required|needs (?:supervisor )?review|confirm or reject|awaiting (?:supervisor )?(?:verification|sign-?off|approval))\.?/gi;
+const NO_APPROVAL = /\s*(?:[:;,\u00b7\u2014-]\s*)?(?:supervisor review required|needs (?:supervisor )?review|confirm or reject|awaiting (?:supervisor )?(?:verification|sign-?off|approval)|(?:isolation )?must be verified by an authori[sz]ed person|an authori[sz]ed person (?:must )?verif(?:y|ies)(?: (?:it|the isolation|isolation))?)\.?/gi;
 const clean = (t) => String(t || "").replace(NO_APPROVAL, "").replace(/^\s*[\u00b7:;,\u2014-]\s*/, "").replace(/\s{2,}/g, " ").trim();
 const statusOf = (p) => (p >= 400 ? "limit" : p >= 100 ? "action" : "within");
 const STATUS_WORD = { within: "within", action: "action", limit: "over limit" };
