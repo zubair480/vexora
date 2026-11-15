@@ -187,9 +187,29 @@ async function connectInner() {
   return status;
 }
 
+// Only ONE Band link page may hold band 07: two pages stream every reading twice (seen 17:19).
+const presence = IS_BRIDGE && typeof BroadcastChannel !== 'undefined' ? new BroadcastChannel('beltguard-bridge') : null;
+let otherBridgeLive = false;
+if (presence) {
+  presence.onmessage = (e) => {
+    if (e.data === 'who' && status.state === 'connected') presence.postMessage('me');
+    if (e.data === 'me') otherBridgeLive = true;
+  };
+}
+async function anotherBridgeHoldsBand() {
+  if (!presence) return false;
+  otherBridgeLive = false;
+  presence.postMessage('who');
+  await new Promise((r) => setTimeout(r, 400));
+  return otherBridgeLive;
+}
 async function connect() {
   if (!IS_BRIDGE) { openBridge(); return status; }
   if (busy || status.state === 'connected') return status;
+  if (await anotherBridgeHoldsBand()) {
+    emit('error', 'Band 07 is already connected in another Band link tab. Use that tab, or close it first.');
+    return status;
+  }
   if (band) { await band.disconnect().catch(() => {}); band = null; }
   busy = true;
   try { return await connectInner(); } finally { busy = false; }
