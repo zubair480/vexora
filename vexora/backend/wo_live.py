@@ -74,7 +74,7 @@ def gather(S, wo: dict) -> dict:
 
     tr = _rows(S, "SELECT * FROM transcripts WHERE work_order_id = ? ORDER BY ts LIMIT 1", (wo_id,))
     tr = tr[0] if tr else {}
-    said_text = tr.get("text") or defect.get("transcript")
+    said_text = _key_sentences(tr.get("text") or defect.get("transcript"))
     voice = (tr.get("input") == "voice") if tr else (wo.get("source") in ("band", "band-mic"))
     said = {"text": said_text, "ts": tr.get("ts") or defect.get("ts") or wo.get("ts"),
             "source": "band-mic" if voice else "typed"} if said_text else None
@@ -260,6 +260,25 @@ async def watch(S, key) -> None:
             raise
         except Exception as e:
             _log("watch tick failed:", repr(e))
+
+
+def _key_sentences(text):
+    """The sentences about the fault, not the chatter around them (Deepgram can merge a minute of talk into one
+    'sentence'). Keeps the sentences that are a defect report or name a part or station; else the last two."""
+    import re
+    if not text:
+        return text
+    parts = [p.strip() for p in re.split(r"(?<=[.!?])\s+", str(text)) if p.strip()]
+    if len(parts) <= 2:
+        return str(text).strip()
+    try:
+        import inspection
+        is_report = lambda p: inspection.is_inspection_report(p, allow_trigger=False)
+    except Exception:
+        is_report = lambda p: False
+    keep = [p for p in parts if is_report(p) or re.search(
+        r"(?i)station|idler|roller|bearing|pulley|guard|belt|skirt|scraper|seized|ceased|worn|cracked|broken|leak", p)]
+    return " ".join((keep or parts)[-3:])
 
 
 def install(S) -> dict:
