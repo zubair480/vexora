@@ -1,0 +1,458 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>BeltGuard — Work order</title>
+<style>
+  :root {
+    --bg: #F7F6F2;
+    --card: #FFFFFF;
+    --ink: #16202A;
+    --muted: #667085;
+    --line: #E7E4DC;
+    --green: #5FB46B;
+    --green-ink: #2C6B37;
+    --green-bg: #EAF6EC;
+    --amber: #F2A93B;
+    --amber-ink: #85560B;
+    --amber-bg: #FDF3E0;
+    --red: #E56565;
+    --red-ink: #9E2B2B;
+    --red-bg: #FCECEC;
+    --gold: #D9901A;
+    --gold-dark: #B87610;
+    --shadow: 0 1px 2px rgba(22, 32, 42, .04), 0 8px 24px rgba(22, 32, 42, .06);
+    --radius: 14px;
+  }
+  * { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--ink);
+    font: 15px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  }
+  .wrap { max-width: 1120px; margin: 0 auto; padding: 28px 24px 56px; }
+  header { display: flex; align-items: center; gap: 12px; margin-bottom: 22px; }
+  .mark {
+    width: 34px; height: 34px; border-radius: 10px; background: var(--gold); flex: none;
+    display: grid; place-items: center; color: #fff; font-weight: 700; font-size: 16px;
+  }
+  h1 { font-size: 22px; line-height: 1.2; margin: 0; font-weight: 650; letter-spacing: -.01em; }
+  h2 { font-size: 13px; margin: 0 0 14px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: .06em; }
+  .grid { display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 6fr); gap: 20px; align-items: start; }
+  .col { display: grid; gap: 20px; min-width: 0; }
+  .card { background: var(--card); border-radius: var(--radius); box-shadow: var(--shadow); padding: 22px; min-width: 0; }
+
+  form { display: grid; grid-template-columns: 1fr 1fr; gap: 14px 14px; }
+  .field { display: grid; gap: 5px; min-width: 0; }
+  .field.full { grid-column: 1 / -1; }
+  label { font-size: 12.5px; font-weight: 600; color: var(--muted); }
+  .req { color: var(--red-ink); }
+  input, select {
+    width: 100%; min-width: 0; height: 40px; padding: 0 11px;
+    font: inherit; color: var(--ink); background: #fff;
+    border: 1px solid var(--line); border-radius: 9px;
+  }
+  input::placeholder { color: #A3AAB5; }
+  input:focus-visible, select:focus-visible { outline: 2px solid var(--gold); outline-offset: 1px; border-color: var(--gold); }
+  .actions { grid-column: 1 / -1; display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-top: 4px; }
+  .primary {
+    height: 44px; padding: 0 26px; border: 0; border-radius: 10px;
+    background: var(--gold); color: #fff; font: inherit; font-weight: 650; font-size: 15.5px; cursor: pointer;
+  }
+  .primary:hover:not(:disabled) { background: var(--gold-dark); }
+  .primary:focus-visible { outline: 3px solid var(--ink); outline-offset: 3px; }
+  .primary:disabled { background: #E3DFD5; color: #8B8F97; cursor: not-allowed; }
+  .hint { font-size: 12.5px; color: var(--muted); }
+
+  .banner {
+    background: var(--red-bg); color: var(--red-ink); border: 1px solid #F3C4C4; border-radius: 10px;
+    padding: 12px 14px; font-size: 14px; overflow-wrap: anywhere; white-space: pre-wrap;
+  }
+  .banner strong { display: block; margin-bottom: 2px; }
+
+  .pill {
+    display: inline-flex; align-items: center; gap: 6px; height: 24px; padding: 0 10px;
+    border-radius: 999px; font-size: 12px; font-weight: 650; letter-spacing: .03em; white-space: nowrap;
+  }
+  .pill::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: currentColor; }
+  .pill.green { background: var(--green-bg); color: var(--green-ink); }
+  .pill.red { background: var(--red-bg); color: var(--red-ink); }
+  .pill.amber { background: var(--amber-bg); color: var(--amber-ink); }
+  .pill.sample { background: #fff; color: var(--amber-ink); border: 1px dashed var(--amber); }
+  .pill.sample::before { display: none; }
+
+  .res-head { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 16px; }
+  .res-id { font-size: 19px; font-weight: 650; letter-spacing: -.01em; overflow-wrap: anywhere; }
+  dl.meta { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px 16px; margin: 0 0 20px; }
+  dl.meta div { min-width: 0; }
+  dt { font-size: 12px; font-weight: 600; color: var(--muted); }
+  dd { margin: 2px 0 0; overflow-wrap: anywhere; }
+
+  ol.steps { list-style: none; margin: 0; padding: 0; }
+  ol.steps li { display: grid; grid-template-columns: 26px minmax(0, 1fr); gap: 12px; padding-bottom: 16px; position: relative; }
+  ol.steps li:last-child { padding-bottom: 0; }
+  ol.steps li:not(:last-child)::before {
+    content: ""; position: absolute; left: 12.5px; top: 28px; bottom: 2px; width: 1px; background: var(--line);
+  }
+  .icon {
+    width: 26px; height: 26px; border-radius: 50%; display: grid; place-items: center;
+    font-size: 14px; font-weight: 700; line-height: 1; color: #fff; background: var(--green);
+  }
+  .step-name { font-weight: 600; text-transform: capitalize; }
+  .step-detail { color: var(--muted); font-size: 14px; overflow-wrap: anywhere; }
+  li.blocked .icon { background: var(--red); }
+  li.blocked .step-name, li.blocked .step-detail { color: var(--red-ink); }
+  .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+  .cal { margin-top: 20px; padding-top: 18px; border-top: 1px solid var(--line); }
+  .cal-links { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
+  .btn-link {
+    display: inline-flex; align-items: center; height: 38px; padding: 0 16px; border-radius: 9px;
+    border: 1px solid var(--ink); color: var(--ink); font-weight: 600; font-size: 14px; text-decoration: none; background: #fff;
+  }
+  .btn-link:hover { background: var(--ink); color: #fff; }
+  .text-link { color: var(--gold-dark); font-weight: 600; font-size: 14px; }
+  a:focus-visible { outline: 3px solid var(--gold); outline-offset: 2px; border-radius: 6px; }
+  .note { margin: 10px 0 0; font-size: 12.5px; color: var(--muted); }
+
+  .table-scroll { overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; font-size: 14px; }
+  th { text-align: left; font-size: 12px; font-weight: 600; color: var(--muted); padding: 0 12px 8px 0; white-space: nowrap; }
+  td { padding: 10px 12px 10px 0; border-top: 1px solid var(--line); vertical-align: middle; }
+  td.id { font-weight: 600; white-space: nowrap; }
+  td.when { white-space: nowrap; color: var(--muted); }
+  th:last-child, td:last-child { padding-right: 0; }
+  .empty { color: var(--muted); margin: 0; }
+  [hidden] { display: none !important; }
+
+  @media (max-width: 860px) {
+    .grid { grid-template-columns: minmax(0, 1fr); }
+  }
+  @media (max-width: 520px) {
+    .wrap { padding: 20px 16px 40px; }
+    .card { padding: 18px 16px; }
+    form { grid-template-columns: minmax(0, 1fr); }
+    dl.meta { grid-template-columns: minmax(0, 1fr); }
+    .primary { width: 100%; }
+    h1 { font-size: 20px; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="mark" aria-hidden="true">B</div>
+    <h1>BeltGuard — Work order</h1>
+  </header>
+
+  <div class="grid">
+    <div class="col">
+      <section class="card" aria-labelledby="form-title">
+        <h2 id="form-title">Request</h2>
+        <form id="wo-form" novalidate>
+          <div class="field full">
+            <label for="approved_by">Approved by <span class="req" aria-hidden="true">*</span></label>
+            <input id="approved_by" name="approved_by" type="text" placeholder="Your name" required autocomplete="name" aria-describedby="approve-hint">
+          </div>
+          <div class="field">
+            <label for="conveyor_id">Conveyor</label>
+            <input id="conveyor_id" name="conveyor_id" type="text" value="CV-102" autocomplete="off">
+          </div>
+          <div class="field">
+            <label for="station_id">Station</label>
+            <input id="station_id" name="station_id" type="text" value="S3" autocomplete="off">
+          </div>
+          <div class="field full">
+            <label for="asset_id">Asset</label>
+            <input id="asset_id" name="asset_id" type="text" value="RETURN-IDLER-14" autocomplete="off">
+          </div>
+          <div class="field full">
+            <label for="problem">Problem</label>
+            <input id="problem" name="problem" type="text" value="Return idler bearing seized (reported by worker, unverified)" autocomplete="off">
+          </div>
+          <div class="field full">
+            <label for="task">Task</label>
+            <input id="task" name="task" type="text" value="Replace return idler and bearing" autocomplete="off">
+          </div>
+          <div class="field">
+            <label for="priority">Priority</label>
+            <select id="priority" name="priority">
+              <option value="low">Low</option>
+              <option value="medium">Medium</option>
+              <option value="high" selected>High</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="repair_minutes">Repair minutes</label>
+            <input id="repair_minutes" name="repair_minutes" type="number" min="5" max="720" step="1" value="60" inputmode="numeric">
+          </div>
+          <div class="field full">
+            <label for="technician">Technician</label>
+            <input id="technician" name="technician" type="text" value="Unassigned" autocomplete="off">
+          </div>
+          <div class="actions">
+            <button id="run-btn" class="primary" type="submit" disabled>Work order</button>
+            <span id="approve-hint" class="hint">Enter your name to approve.</span>
+          </div>
+        </form>
+      </section>
+    </div>
+
+    <div class="col">
+      <div id="error" class="banner" role="alert" hidden></div>
+
+      <section id="result" class="card" aria-labelledby="result-title" aria-live="polite" hidden>
+        <h2 id="result-title">Result</h2>
+        <div id="result-body"></div>
+      </section>
+
+      <section class="card" aria-labelledby="recent-title">
+        <h2 id="recent-title">Recent work orders</h2>
+        <div id="recent"><p class="empty">Loading…</p></div>
+      </section>
+    </div>
+  </div>
+</div>
+
+<script>
+(function () {
+  "use strict";
+  var API = "/api/workorder";
+  var form = document.getElementById("wo-form");
+  var btn = document.getElementById("run-btn");
+  var approved = document.getElementById("approved_by");
+  var hint = document.getElementById("approve-hint");
+  var errorBox = document.getElementById("error");
+  var resultCard = document.getElementById("result");
+  var resultBody = document.getElementById("result-body");
+  var recent = document.getElementById("recent");
+  var running = false;
+
+  function el(tag, cls, text) {
+    var node = document.createElement(tag);
+    if (cls) node.className = cls;
+    if (text !== undefined && text !== null) node.textContent = String(text);
+    return node;
+  }
+  function clear(node) { while (node.firstChild) node.removeChild(node.firstChild); }
+
+  function syncButton() {
+    var ok = approved.value.trim().length > 0;
+    btn.disabled = running || !ok;
+    hint.textContent = ok ? "" : "Enter your name to approve.";
+  }
+
+  function showError(title, text) {
+    clear(errorBox);
+    errorBox.appendChild(el("strong", null, title));
+    errorBox.appendChild(document.createTextNode(text));
+    errorBox.hidden = false;
+  }
+  function hideError() { errorBox.hidden = true; clear(errorBox); }
+
+  function pill(status) {
+    var s = String(status || "UNKNOWN");
+    var cls = s === "VERIFIED" ? "green" : s === "BLOCKED" ? "red" : "amber";
+    return el("span", "pill " + cls, s);
+  }
+
+  function localTime(iso) {
+    if (!iso) return null;
+    var d = new Date(iso);
+    if (isNaN(d.getTime())) return String(iso);
+    return d.toLocaleString(undefined, { weekday: "short", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
+  }
+  function localClock(iso) {
+    var d = new Date(iso);
+    if (isNaN(d.getTime())) return String(iso);
+    return d.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" });
+  }
+  function windowText(start, end) {
+    if (!start) return "Not scheduled";
+    var a = new Date(start), b = end ? new Date(end) : null;
+    if (!b || isNaN(a.getTime()) || isNaN(b.getTime())) return localTime(start) + (end ? " to " + localTime(end) : "");
+    var sameDay = a.toDateString() === b.toDateString();
+    return localTime(start) + " to " + (sameDay ? localClock(end) : localTime(end));
+  }
+
+  // Response text for a failed request: FastAPI puts the reason in `detail`.
+  function errorText(status, statusText, body) {
+    var msg = body;
+    try {
+      var parsed = JSON.parse(body);
+      if (parsed && parsed.detail !== undefined) {
+        msg = typeof parsed.detail === "string" ? parsed.detail : JSON.stringify(parsed.detail);
+      }
+    } catch (e) { /* not JSON: keep the raw text */ }
+    var head = "HTTP " + status + (statusText ? " " + statusText : "");
+    return msg ? head + ": " + msg : head;
+  }
+
+  async function request(url, options) {
+    var response = await fetch(url, options);
+    var body = await response.text();
+    if (!response.ok) throw new Error(errorText(response.status, response.statusText, body));
+    try { return JSON.parse(body); }
+    catch (e) { throw new Error("The server did not return JSON: " + body.slice(0, 300)); }
+  }
+
+  function metaItem(dl, term, value) {
+    var box = el("div");
+    box.appendChild(el("dt", null, term));
+    box.appendChild(el("dd", null, value));
+    dl.appendChild(box);
+  }
+
+  function renderResult(rec) {
+    clear(resultBody);
+    var req = rec.request || {};
+
+    var head = el("div", "res-head");
+    head.appendChild(el("span", "res-id", rec.id || "No id returned"));
+    head.appendChild(pill(rec.status));
+    if (rec.sample === true) head.appendChild(el("span", "pill sample", "Sample data"));
+    resultBody.appendChild(head);
+
+    var dl = el("dl", "meta");
+    metaItem(dl, "Created in", rec.system || "Not created");
+    metaItem(dl, "Repair window", windowText(rec.window_start, rec.window_end));
+    metaItem(dl, "Technician", req.technician || "Not set");
+    if (rec.ref && rec.ref !== rec.id) metaItem(dl, "Reference", rec.ref);
+    if (rec.status === "BLOCKED" && rec.reached) metaItem(dl, "Reached", rec.reached);
+    resultBody.appendChild(dl);
+
+    var steps = Array.isArray(rec.steps) ? rec.steps : [];
+    if (steps.length) {
+      var ol = el("ol", "steps");
+      steps.forEach(function (step) {
+        var blocked = step.status === "blocked";
+        var li = el("li", blocked ? "blocked" : "done");
+        var icon = el("span", "icon", blocked ? "✕" : "✓");
+        icon.setAttribute("aria-hidden", "true");
+        li.appendChild(icon);
+        var text = el("div");
+        var name = el("div", "step-name", String(step.name || "step").replace(/_/g, " "));
+        name.appendChild(el("span", "sr", blocked ? " (blocked)" : " (done)"));
+        text.appendChild(name);
+        text.appendChild(el("div", "step-detail", step.detail || ""));
+        li.appendChild(text);
+        ol.appendChild(li);
+      });
+      resultBody.appendChild(ol);
+    } else {
+      resultBody.appendChild(el("p", "empty", "The server returned no steps."));
+    }
+
+    var cal = rec.calendar || {};
+    var google = typeof cal.google_link === "string" && /^https:\/\//i.test(cal.google_link) ? cal.google_link : null;
+    var ics = typeof cal.ics_path === "string" && /^\/(?!\/)/.test(cal.ics_path) ? cal.ics_path : null;
+    if (google || ics) {
+      var box = el("div", "cal");
+      var links = el("div", "cal-links");
+      if (google) {
+        var a = el("a", "btn-link", "Add to Google Calendar");
+        a.href = google; a.target = "_blank"; a.rel = "noopener noreferrer";
+        links.appendChild(a);
+      }
+      if (ics) {
+        var d = el("a", "text-link", "Download .ics");
+        d.href = ics;
+        links.appendChild(d);
+      }
+      box.appendChild(links);
+      box.appendChild(el("p", "note", "Not added automatically: open one of these to put it on a calendar."));
+      resultBody.appendChild(box);
+    }
+    resultCard.hidden = false;
+  }
+
+  function renderRecent(rows) {
+    clear(recent);
+    if (!Array.isArray(rows) || rows.length === 0) {
+      recent.appendChild(el("p", "empty", "No work orders yet"));
+      return;
+    }
+    var scroll = el("div", "table-scroll");
+    var table = el("table");
+    var thead = el("thead"), hr = el("tr");
+    ["ID", "Status", "Asset", "Window start"].forEach(function (h) {
+      var th = el("th", null, h); th.scope = "col"; hr.appendChild(th);
+    });
+    thead.appendChild(hr); table.appendChild(thead);
+    var tbody = el("tbody");
+    rows.slice(0, 8).forEach(function (row) {
+      var tr = el("tr");
+      tr.appendChild(el("td", "id", row.id || ""));
+      var st = el("td"); st.appendChild(pill(row.status)); tr.appendChild(st);
+      tr.appendChild(el("td", null, (row.request && row.request.asset_id) || "—"));
+      tr.appendChild(el("td", "when", localTime(row.window_start) || "—"));
+      tbody.appendChild(tr);
+    });
+    table.appendChild(tbody); scroll.appendChild(table); recent.appendChild(scroll);
+  }
+
+  async function loadRecent() {
+    try {
+      renderRecent(await request(API, { headers: { "Accept": "application/json" } }));
+    } catch (err) {
+      clear(recent);
+      var box = el("div", "banner");
+      box.appendChild(el("strong", null, "Could not load recent work orders"));
+      box.appendChild(document.createTextNode(err && err.message ? err.message : String(err)));
+      recent.appendChild(box);
+    }
+  }
+
+  function payload() {
+    var body = {};
+    ["approved_by", "conveyor_id", "station_id", "asset_id", "problem", "task", "priority", "technician"].forEach(function (key) {
+      var value = form.elements[key].value.trim();
+      if (value) body[key] = value;
+    });
+    var minutes = form.elements.repair_minutes.value.trim();
+    if (minutes !== "") body.repair_minutes = Number(minutes);
+    return body;
+  }
+
+  form.addEventListener("submit", async function (event) {
+    event.preventDefault();
+    if (running || !approved.value.trim()) return;
+    var body = payload();
+    if ("repair_minutes" in body && !Number.isInteger(body.repair_minutes)) {
+      showError("Check the form", "Repair minutes must be a whole number.");
+      return;
+    }
+    running = true;
+    btn.textContent = "Running…";
+    syncButton();
+    hideError();
+    try {
+      var rec = await request(API + "/run", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "Accept": "application/json" },
+        body: JSON.stringify(body)
+      });
+      if (!rec || typeof rec !== "object" || Array.isArray(rec)) throw new Error("The server returned an unexpected response.");
+      renderResult(rec);
+    } catch (err) {
+      resultCard.hidden = true;
+      clear(resultBody);
+      showError("Work order did not run", err && err.message ? err.message : String(err));
+    } finally {
+      running = false;
+      btn.textContent = "Work order";
+      syncButton();
+      loadRecent();
+    }
+  });
+
+  approved.addEventListener("input", syncButton);
+  syncButton();
+  loadRecent();
+})();
+</script>
+</body>
+</html>
