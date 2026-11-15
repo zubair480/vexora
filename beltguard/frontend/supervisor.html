@@ -84,6 +84,10 @@
   .badge.warning { background:rgba(245,158,11,.16); color:#B45309; }
   .badge.destructive { background:var(--destructive); color:#FFFFFF; }
   .badge.tool { background:rgba(249,115,22,.12); color:#C2410C; }
+  .badge.danger { background:rgba(239,68,68,.12); color:#B91C1C; }
+  /* compliance status, calm colours: within < 100 pts, action 100-400, over limit 400+ */
+  .st-within { color:#047857; font-weight:500; } .st-action { color:#B45309; font-weight:500; } .st-limit { color:#B91C1C; font-weight:500; }
+  .kpi-value.st-within { color:#047857; font-weight:500; } .kpi-value.st-action, .kpi-value.st-limit { color:var(--foreground); font-weight:500; }
   .dot { width:6px; height:6px; border-radius:50%; background:currentColor; }
 
   /* buttons */
@@ -91,6 +95,8 @@
          font:500 13px var(--sans); cursor:pointer; white-space:nowrap; text-decoration:none; display:inline-flex; align-items:center; }
   .btn:hover { background:var(--muted); }
   .btn.ghost { border-color:transparent; }
+  .btn.primary { background:var(--primary); color:var(--primary-foreground); border-color:var(--primary); }
+  .btn.primary:hover { background:#27272A; }
   .btn:focus-visible, .worker:focus-visible, a:focus-visible { outline:2px solid var(--ring); outline-offset:2px; }
 
   /* crew */
@@ -171,6 +177,28 @@
   @media (prefers-reduced-motion: reduce) { .avatar.busy::after { animation:none; } }
   .foot { font-size:12px; color:var(--muted-foreground); }
 
+  /* shift compliance report: on-screen sheet that prints cleanly (only the report is printed) */
+  .report-backdrop { position:fixed; inset:0; z-index:50; background:rgb(9 9 11 / .45); display:grid; place-items:center; padding:24px; }
+  .report-backdrop[hidden] { display:none; }
+  .report { width:min(1100px, 100%); max-height:calc(100vh - 48px); overflow:auto; padding:20px 24px; gap:10px; }
+  .report-head { display:flex; justify-content:space-between; align-items:flex-start; gap:16px; }
+  .report-sub, .report-foot { font-size:12px; color:var(--muted-foreground); margin-top:2px; }
+  .report-actions { display:flex; gap:8px; flex:none; }
+  .report-note { font-size:13px; font-weight:500; }
+  .report-table { width:100%; border-collapse:collapse; font-size:13px; }
+  .report-table th { text-align:left; font-weight:500; font-size:12px; color:var(--muted-foreground); border-bottom:1px solid var(--border); padding:6px 8px; white-space:nowrap; }
+  .report-table td { border-bottom:1px solid var(--border); padding:7px 8px; vertical-align:top; }
+  .report-table td.num { text-align:right; font-family:var(--mono); font-variant-numeric:tabular-nums; }
+  .rs { display:inline-block; padding:1px 8px; border-radius:6px; font-size:12px; font-weight:600; white-space:nowrap; }
+  .rs.within { background:rgba(16,185,129,.12); color:#047857; } .rs.action { background:rgba(245,158,11,.16); color:#B45309; } .rs.limit { background:rgba(239,68,68,.12); color:#B91C1C; }
+  @media print {
+    body > *:not(#report) { display:none !important; }
+    .report-backdrop { position:static; background:none; padding:0; display:block; }
+    .report { box-shadow:none; border:0; max-height:none; overflow:visible; width:100%; padding:0; }
+    .report-actions { display:none; }
+    .rs { border:1px solid currentColor; }
+  }
+
   @media (max-width:1360px) { .crew { --spark-w:64px; } .crew .w-chips { max-width:54%; } }
   @media (max-height:840px) and (min-width:1101px) {   /* 1280x800 and similar: give the 3D the room */
     .room { gap:10px; padding:10px 24px 8px; }
@@ -204,6 +232,7 @@
     <span class="vsep hide-sm"></span>
     <span class="badge outline" id="conn">Connecting</span>
     <span class="mono hide-sm" id="clock"></span>
+    <button class="btn primary" type="button" id="report-btn" title="Download the shift compliance report (CSV) and open a print view">Shift compliance report</button>
     <a class="btn ghost" href="/planning.html">Planning</a>
     <a class="btn ghost" href="/">Dashboard</a>
   </div>
@@ -211,10 +240,10 @@
 
 <main class="room">
   <section class="kpis" aria-label="Crew summary">
-    <div class="card kpi"><p class="kpi-label">On shift</p><p class="kpi-value" id="k-shift">–</p><p class="kpi-sub" id="k-shift-sub">&nbsp;</p></div>
+    <div class="card kpi"><p class="kpi-label">Within limits</p><p class="kpi-value" id="k-shift">–</p><p class="kpi-sub" id="k-shift-sub">&nbsp;</p></div>
     <div class="card kpi"><p class="kpi-label">Tools out</p><p class="kpi-value" id="k-tools">–</p><p class="kpi-sub" id="k-tools-sub">&nbsp;</p></div>
     <div class="card kpi"><p class="kpi-label">Closest to the action value</p><p class="kpi-name" id="k-close">–</p><p class="kpi-sub" id="k-close-sub">&nbsp;</p></div>
-    <div class="card kpi"><p class="kpi-label">Open alerts</p><p class="kpi-value" id="k-alerts">0</p><p class="kpi-sub" id="k-alerts-sub">&nbsp;</p></div>
+    <div class="card kpi"><p class="kpi-label">Alerts this shift</p><p class="kpi-value" id="k-alerts">0</p><p class="kpi-sub" id="k-alerts-sub">&nbsp;</p></div>
   </section>
 
   <section class="split">
@@ -229,13 +258,25 @@
   </section>
 
   <div class="card story-card">
-    <div class="card-header"><h2 class="card-title">Crew story</h2><span class="card-desc">What happened, newest first · acknowledging only marks it here</span></div>
+    <div class="card-header"><h2 class="card-title">Crew story</h2><span class="card-desc">What happened, newest first · read-only</span></div>
     <ul class="story" id="story"><li class="empty">Waiting for the crew.</li></ul>
   </div>
 
   <p class="foot">Screening estimates — not certified HAV measurements. Band temperature is the device, not skin. Simulated bands are labelled. <span id="fleet-label"></span></p>
 </main>
 
-<script type="module" src="supervisor.js"></script>
+<div class="report-backdrop" id="report" hidden>
+  <section class="card report" role="dialog" aria-modal="true" aria-labelledby="report-title">
+    <div class="report-head">
+      <div><h2 class="card-title" id="report-title">Shift compliance report · CV-102</h2><p class="report-sub" id="report-sub"></p></div>
+      <div class="report-actions"><button class="btn" type="button" id="report-csv">Download CSV</button><button class="btn" type="button" id="report-print">Print</button><button class="btn ghost" type="button" id="report-close">Close</button></div>
+    </div>
+    <p class="report-note">Screening estimate, not a certified HAV measurement.</p>
+    <table class="report-table" id="report-table"></table>
+    <p class="report-foot" id="report-foot"></p>
+  </section>
+</div>
+
+<script type="module" src="supervisor.js?v=21"></script>
 </body>
 </html>

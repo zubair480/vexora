@@ -550,15 +550,15 @@ function onAgentAction(m) {
   if (agentLive.size > 200) agentLive.delete(agentLive.keys().next().value);
 }
 const KIND_LABEL = {
-  isolation: 'Isolation logged', job_done: 'Awaiting sign-off', signoff: 'Signed off', missing_evidence: 'Missing evidence',
+  isolation: 'Isolation logged', job_done: 'Job done', signoff: 'Job done', missing_evidence: 'Missing evidence',
   work_order: 'Work order drafted', parts_request: 'Parts request drafted', supervisor_notified: 'Supervisor notified',
-  rotation: 'Rotation suggested', verification: 'Awaiting verification',
+  rotation: 'Rotation suggested', verification: 'Done',
 };
 function agentLabel(a) {
   if (a.title) return a.title;
   const k = String(a.kind || '').toLowerCase();
   const t = String(a.text || '');
-  if (k === 'exposure') return /notified/i.test(t) ? 'Supervisor notified' : /review|action value/i.test(t) ? 'Supervisor review' : 'Exposure check';
+  if (k === 'exposure') return /notified/i.test(t) ? 'Supervisor notified' : /review|action value/i.test(t) ? 'Action value reached' : 'Exposure check';
   if (k === 'work_order') { const m = t.match(/WO-\d+/); return m ? `${m[0]} drafted` : KIND_LABEL.work_order; }
   if (k === 'parts_request') { const m = t.match(/PR-\d+/); return m ? `${m[0]} parts request` : KIND_LABEL.parts_request; }
   return KIND_LABEL[k] || cap(k.replace(/_/g, ' ')) || 'Action';
@@ -586,7 +586,7 @@ const AG_ICON = {
 };
 function agentStatus(a) {
   const s = String(a.status || '').toLowerCase();
-  if (/review|approv|needs|pending_review/.test(s)) return ['warning', 'needs review'];
+  if (/review|approv|needs|pending|awaiting|verif/.test(s)) return ['outline live', 'done'];   // no approvals: leftovers read as done
   if (/done|complete|sent|confirmed|ok\b/.test(s)) return ['outline live', 'done'];
   if (/draft/.test(s)) return ['secondary', 'draft'];
   return s ? ['secondary', s.replace(/_/g, ' ')] : null;
@@ -601,7 +601,7 @@ function actionShort(a) {
   if (k === 'parts') return 'parts request drafted';
   if (k === 'notify') return 'supervisor notified';
   if (k === 'rotation') return 'rotation suggested';
-  if (k === 'verify') return 'awaiting verification';
+  if (k === 'verify') return 'done';
   return String(a.title || a.kind || 'done').toLowerCase();
 }
 const INTENT_CHIP = {
@@ -636,12 +636,12 @@ function actedChips(acted, reply) {
     const part = raw.trim();
     if (!part) continue;
     let m = part.match(/^Step:\s*(.+)$/i);
-    if (m) { add('', /sign-?off/i.test(m[1]) ? 'Awaiting sign-off' : `✓ ${shortStep(m[1])}`); continue; }
+    if (m) { add('', /sign-?off/i.test(m[1]) ? '✓ Job done' : `✓ ${shortStep(m[1])}`); continue; }
     if ((m = part.match(/\b(WO-\d+)\b/)) && /draft/i.test(part)) { add('', `→ ${m[1]} drafted`); continue; }
     if ((m = part.match(/\b(PR-\d+)\b/))) { add('', `→ ${m[1]} parts request`); continue; }
     if (/^Asked:/i.test(part)) { add('ask', '→ asked back'); continue; }
     if (/isolation logged/i.test(part)) { if (!out.some((c) => /Isolat/i.test(c[1]))) add('', '✓ Isolation logged'); continue; }
-    if (/awaiting supervisor verification|marked complete/i.test(part)) { add('', 'Awaiting sign-off'); continue; }
+    if (/awaiting supervisor verification|marked complete/i.test(part)) { add('', '✓ Job done'); continue; }
     if (/supervisor notified/i.test(part)) { add('', '→ Supervisor notified'); continue; }
     if (reply && String(reply).slice(0, 90) === part) continue;
     if (part.length <= 28) add('', `→ ${part}`);
@@ -709,6 +709,10 @@ const jobSeen = new Map();                                 // step key → 'done
 let jobPrimed = false;
 let agentsPrimed = false;
 const stepTitle = (st) => String(st.label || st.title || st.text || st.name || '');
+const NO_APPROVAL_RE = /\s*(?:[:;,\u00b7\u2014-]\s*)?(?:supervisor review required|needs (?:supervisor )?review|confirm or reject|awaiting (?:supervisor )?(?:verification|sign-?off|approval))\.?/gi;
+function noApproval(t) { return String(t || '').replace(NO_APPROVAL_RE, '').replace(/^\s*[\u00b7:;,\u2014-]\s*/, '').replace(/\s{2,}/g, ' ').trim(); }
+const isApprovalStep = (st) => String(st.id || '').toLowerCase() === 'signoff' || /sign-?off|supervisor (?:verification|approval)/i.test(stepTitle(st));
+const jobSteps = (job) => (job && Array.isArray(job.steps) ? job.steps : []).filter((st) => st && !isApprovalStep(st));
 const stepKey = (st, i) => String(st.id ?? st.key ?? st.step_id ?? (stepTitle(st) || `#${i}`)).toLowerCase();
 const agentId = (a) => String(a.id ?? `${a.ts}-${a.kind}-${a.title}`);
 function fxMark(key, kind) {
@@ -732,7 +736,7 @@ app.isolated = false;
 function applyConveyor() { if (app.isolated) modelCall('setConveyorRunning', false, { reason: 'isolated by W-01' }); }
 function noteJob() {
   const job = jobOf();
-  const steps = job && Array.isArray(job.steps) ? job.steps : [];
+  const steps = jobSteps(job);
   const keys = new Set();
   let flip = null;
   steps.forEach((st, i) => {
@@ -768,7 +772,7 @@ function noteAgents(prev) {
 }
 function renderJob() {
   const job = jobOf();
-  const steps = job && Array.isArray(job.steps) ? job.steps : [];
+  const steps = jobSteps(job);
   const list = $('#lpJobList');
   const meta = $('#lpJobMeta');
   if (meta) meta.title = job && (job.title || job.name) ? String(job.title || job.name) : '';
@@ -802,7 +806,7 @@ function renderAgent() {
     const st = agentStatus(a);
     const k = agentKind(a);
     const label = agentLabel(a);
-    const detail = [a.detail, a.summary, a.text].find((x) => x && x !== label) || '';
+    const detail = noApproval([a.detail, a.summary, a.text].find((x) => x && x !== label) || '');
     const fx = fxFor(`a:${agentId(a)}`);
     if (fx) anyFx = true;
     return `<li class="ag-row${fx ? fx.cls : ''}"${fx ? fx.style : ''}><span class="ag-ico"><svg width="13" height="13" viewBox="0 0 16 16" aria-hidden="true">${AG_ICON[k] || AG_ICON.other}</svg></span>
@@ -1484,7 +1488,7 @@ function verdict(total) {
   const level = sv && sv.state
     ? ({ within: 'ok', action: 'action', limit: 'limit' }[sv.state] || 'ok')
     : total >= limit ? 'limit' : total >= action ? 'action' : 'ok';
-  const head = sv && sv.headline ? sv.headline : null;
+  const head = sv && sv.headline ? noApproval(sv.headline) : null;
   if (level === 'limit') return { level, title: 'Limit reached: stop using vibrating tools today', sub: head || `Today's estimate is ${fmtPts(total)} points, at or over the ${limit}-point exposure limit value.` };
   if (level === 'action') return { level, title: 'Action value reached: take a break or rotate', sub: head || `Today's estimate is ${fmtPts(total)} points, over the ${action}-point exposure action value.` };
   return { level, title: 'Within the safe limit', sub: head || `Below the ${action}-point exposure action value.` };
@@ -1586,7 +1590,7 @@ function renderStations() {
   setHtml($('#stationList'), rows);
 }
 
-const STATUS_WORD = { draft: 'Draft', planned: 'Planned', in_progress: 'In progress', awaiting_verification: 'Awaiting verification' };
+const STATUS_WORD = { draft: 'Draft', planned: 'Planned', in_progress: 'In progress', awaiting_verification: 'Complete' };
 // One card for the newest result: the work order and the defect it came from.
 function renderInspection() {
   const s = app.state;
@@ -1614,7 +1618,7 @@ function renderInspection() {
     <div class="sum-title">${esc(title)}</div>
     ${defectLine ? `<div class="sum-meta">${esc(defectLine)}</div>` : ''}
     <div class="sum-meta">${esc(tool ? tool.name : 'Tool to be chosen')}${wo.est_trigger_min != null ? ` · ${esc(wo.est_trigger_min)} min trigger time` : ''} · isolation must be verified by an authorized person</div>
-    ${rec ? `<p class="sum-rec">Projected ${fmtPts(rec.projected_points)} points today after this job (+${fmtPts(rec.added_points)}). Supervisor review required.</p>` : ''}
+    ${rec ? `<p class="sum-rec">Projected ${fmtPts(rec.projected_points)} points today after this job (+${fmtPts(rec.added_points)}): ${Number(rec.projected_points) >= 400 ? 'over the limit value' : Number(rec.projected_points) >= 100 ? 'above the action value' : 'within the action value'}.</p>` : ''}
     <div class="row-btns"><button class="btn outline sm" type="button" data-action="plan-wo" data-id="${esc(wo.id)}">${rec ? 'Re-check exposure' : 'Check exposure for this job'}</button></div>
     ${steps.length ? `<details class="disclosure"><summary>Show the ${steps.length} repair steps</summary><ol class="steps">${steps.map((x) => `<li>${esc(x)}</li>`).join('')}</ol></details>` : ''}`);
 }

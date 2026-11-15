@@ -4,10 +4,10 @@
 // The crew story is fleet.story when S2 sends it; until then it is derived here from changes between updates and S2's alerts.
 // Nothing is invented: values the backend does not send show as "–", and simulated workers are labelled.
 // Only sentences BeltGuard answered are shown as "heard"; overheard chat never reaches this screen.
-// Acknowledging an alert is UI-only (kept in this browser).
+// The supervisor's job here is compliance: see that everyone is within the exposure limits and export the shift report
+// for the regulator. Nothing on this screen asks anyone to approve or acknowledge anything; the crew story is read-only.
 
 const SCALE = 400;                    // crew bars run 0-400 points; ticks at 100 (action) and 400 (limit)
-const ACK_KEY = "beltguard.controlroom.acked.v1";
 const EXPECTED = ["W-01", "W-02", "W-03", "W-04", "W-05"];
 
 const el = (id) => document.getElementById(id);
@@ -47,14 +47,14 @@ const prevW = new Map();              // worker id -> what we saw last update (f
 let story = [];                       // derived story items, newest first
 let heardW01 = null;                  // {said, reply, ts}: W-01's last answered sentence
 let lastTranscript = null;            // {text, ts}
-let acked = loadAcked();
+const toolsSeen = new Map();          // worker id -> tool names seen this shift (for the compliance report)
+let lastMotionAt = 0;                 // when the real band's last motion batch arrived (W-01's "last reading")
 
-function loadAcked() {
-  try { return new Set(JSON.parse(localStorage.getItem(ACK_KEY) || "[]")); } catch (e) { return new Set(); }
-}
-function saveAcked() {
-  try { localStorage.setItem(ACK_KEY, JSON.stringify([...acked].slice(-300))); } catch (e) { /* memory only */ }
-}
+// No approvals anywhere: strip request-for-approval phrases that older backend texts may still carry.
+const NO_APPROVAL = /\s*(?:[:;,\u00b7\u2014-]\s*)?(?:supervisor review required|needs (?:supervisor )?review|confirm or reject|awaiting (?:supervisor )?(?:verification|sign-?off|approval))\.?/gi;
+const clean = (t) => String(t || "").replace(NO_APPROVAL, "").replace(/^\s*[\u00b7:;,\u2014-]\s*/, "").replace(/\s{2,}/g, " ").trim();
+const statusOf = (p) => (p >= 400 ? "limit" : p >= 100 ? "action" : "within");
+const STATUS_WORD = { within: "within", action: "action", limit: "over limit" };
 
 // ---------------------------------------------------------------- normalise
 function verdictOf(points, s) {
@@ -121,7 +121,8 @@ function normWorker(w, i) {
 function normFleet(payload) {
   const list = Array.isArray(payload) ? payload : payload && (payload.workers || payload.fleet || payload.crew) || [];
   return { workers: list.map(normWorker), alerts: Array.isArray(payload && payload.alerts) ? payload.alerts : null,
-           story: Array.isArray(payload && payload.story) ? payload.story : null, label: (payload && payload.label) || null };
+           story: Array.isArray(payload && payload.story) ? payload.story : null, label: (payload && payload.label) || null,
+           ts: num(payload && payload.ts) };
 }
 
 function workerFromState(s) {
@@ -222,7 +223,7 @@ function alertItems(workers) {
       backend.add(key);
       const ts = num(a.ts) || 0;
       const row = { id: a.id || key + ":" + Math.round(ts), ts, worker: names.get(a.worker_id) || a.worker_id || "",
-                    kind, alert: true, text: a.title || a.text || a.message || "", count: 1 };
+                    kind, alert: true, text: clean(a.title || a.text || a.message || ""), count: 1 };
       const prev = newest.get(key);
       if (!prev) newest.set(key, row);
       else if (ts > prev.ts) { row.count = prev.count + 1; newest.set(key, row); }
@@ -239,9 +240,9 @@ function alertItems(workers) {
   };
   workers.filter((w) => !w.placeholder).forEach((w) => {
     if (w.points >= 400) add(w, "limit", w.name + " reached the 400-point limit value: stop vibrating-tool work");
-    else if (w.points >= 100) add(w, "action", w.name + " reached the 100-point action value: supervisor review required");
+    else if (w.points >= 100) add(w, "action", w.name + " reached the 100-point action value");
     if (w.fall) add(w, "fall", "Possible fall: " + w.name + ". Check on them now");
-    if (w.unresolved) add(w, "uncertain", w.name + ": uncertain tool activity, confirm or reject");
+    if (w.unresolved) add(w, "uncertain", w.name + ": uncertain tool activity, not counted yet");
   });
   return out;
 }
@@ -250,7 +251,7 @@ function storyItems(workers) {
   const alerts = alertItems(workers);
   let base;
   if (fleet && fleet.story) {
-    // alert / fall / confirm lines come in fleet.alerts too, as acknowledgeable rows: don't show them twice
+    // alert / fall / confirm lines come in fleet.alerts too (coloured rows): don't show them twice
     base = fleet.story.filter((s) => !/^(alert|fall|confirm)$/.test(String(s.kind || "")))
       .filter((s) => !(/voice|heard/.test(String(s.kind || "")) && String(s.text || "").length > HEARD_MAX_CHARS + 120))   // privacy guard
       .map((s, i) => {
@@ -260,7 +261,7 @@ function storyItems(workers) {
         : /run|start|tool_active/.test(kind) ? "tool" : /lock|checkout|assign/.test(kind) ? "lock"
         : /alert|action|limit/.test(kind) ? "alert" : "check";
       return { id: s.id || "story:" + (s.ts || i) + ":" + (s.worker_id || ""), ts: num(s.ts) || 0,
-               worker: s.worker_name || s.worker || s.worker_id || "", icon, mic: icon === "mic", text: s.text || s.title || "" };
+               worker: s.worker_name || s.worker || s.worker_id || "", icon, mic: icon === "mic", text: clean(s.text || s.title || "") };
     });
   } else base = story;
   return alerts.concat(base).sort((a, b) => (b.ts || 0) - (a.ts || 0)).slice(0, 60);
@@ -285,21 +286,27 @@ function renderConn() {
 function renderKpis(workers, items) {
   const real = workers.filter((w) => !w.placeholder);
   const waiting = workers.length - real.length;
-  el("k-shift").innerHTML = esc(real.length) + (waiting ? '<span class="unit">of ' + workers.length + "</span>" : "");
-  el("k-shift-sub").textContent = waiting ? waiting + " waiting for the crew feed"
-    : real.filter((w) => w.simulated).length + " on simulated bands · " + real.filter((w) => w.activity === "tool_active").length + " using a tool";
+  const n = { within: 0, action: 0, limit: 0 };
+  real.forEach((w) => { n[statusOf(w.points)] += 1; });
+  el("k-shift").innerHTML = esc(n.within) + '<span class="unit">of ' + esc(workers.length) + "</span>";
+  el("k-shift").className = "kpi-value " + (n.limit ? "st-limit" : n.action ? "st-action" : "st-within");
+  const parts = [];
+  if (n.action) parts.push('<span class="st-action">' + n.action + " at action (100–400)</span>");
+  if (n.limit) parts.push('<span class="st-limit">' + n.limit + " over limit (400+)</span>");
+  if (waiting) parts.push(esc(waiting) + " waiting for the crew feed");
+  el("k-shift-sub").innerHTML = parts.length ? parts.join(" · ") : '<span class="st-within">Everyone under 100 points</span>';
   const out = real.filter((w) => w.tool);
   el("k-tools").textContent = String(out.length);
   el("k-tools-sub").textContent = out.length ? out.map((w) => w.tool.name).join(", ") : "None checked out";
   const top = real.slice().sort((a, b) => b.points - a.points)[0];
   el("k-close").textContent = top ? top.name : "–";
   el("k-close-sub").textContent = top ? fmtPts(top.points) + " pts · " + (top.points >= 100 ? "over the action value" : Math.max(0, Math.round(100 - top.points)) + " pts to go") : " ";
-  const open = items.filter((a) => a.alert && !acked.has(a.id));
-  el("k-alerts").textContent = String(open.length);
-  el("k-alerts-sub").textContent = open.length ? open[0].text : "All clear";
+  const alerts = items.filter((a) => a.alert);
+  el("k-alerts").textContent = String(alerts.length);
+  el("k-alerts-sub").textContent = alerts.length ? alerts[0].text : "None this shift";
 }
 
-const VERDICT = { within: ["success", "Below action"], action: ["warning", "Action value"], limit: ["destructive", "Limit reached"] };
+const VERDICT = { within: ["success", "Within limits"], action: ["warning", "Action"], limit: ["danger", "Over limit"] };
 
 function workerCard(w) {
   if (w.placeholder) {
@@ -307,7 +314,7 @@ function workerCard(w) {
       esc(w.id.replace("W-0", "W")) + '</span><div class="w-id"><div class="w-name">' + esc(w.id) +
       '</div><div class="w-sub">Waiting for the crew feed</div></div></div></article>';
   }
-  const v = VERDICT[w.verdict] || VERDICT.within;
+  const v = VERDICT[statusOf(w.points)] || VERDICT.within;
   const busy = w.activity === "tool_active";
   const bandChip = w.simulated ? badge("secondary", "Simulated band", "Simulated worker, not a real wearer")
     : badge(w.live ? "success" : "outline", "Band " + String(w.band_number ?? 7).padStart(2, "0") + (w.live ? " · Live" : " · Not connected"));
@@ -329,7 +336,7 @@ function workerCard(w) {
       '<div class="w-chips">' + bandChip +
         '<span class="dev" title="Band battery">' + ICON.battery + (w.battery === null ? "–" : Math.round(w.battery) + "%") + "</span>" +
         '<span class="dev" title="Band device temperature (not skin)">' + ICON.temp + (w.temp_c === null ? "–" : w.temp_c.toFixed(0) + " °C") + "</span>" +
-        badge(v[0], v[1], w.headline || "") + "</div></div>" +
+        badge(v[0], v[1], clean(w.headline || "")) + "</div></div>" +
     '<div class="w-mid">' + toolLine +
       '<canvas class="spark" width="224" height="52" data-spark="' + esc(w.id) + '" title="Wrist motion, last ~30 s"></canvas>' +
       '<div class="bar-wrap" title="Points today on a 0–400 scale · ticks at 100 (action) and 400 (limit)"><div class="bar"><i class="zone"></i>' +
@@ -366,23 +373,26 @@ function drawSparks(workers) {
 function renderStory(items) {
   const list = el("story");
   if (!items.length) { list.innerHTML = '<li class="empty">Nothing yet. Events appear here as the crew works.</li>'; return; }
-  const open = items.filter((a) => a.alert && !acked.has(a.id));
-  const rest = items.filter((a) => !(a.alert && !acked.has(a.id)));
-  list.innerHTML = open.concat(rest).map((s) => {
+  list.innerHTML = items.map((s) => {
     const look = s.alert ? (ALERT_LOOK[s.kind] || ["amber", "alert"]) : null;
-    const isAcked = s.alert && acked.has(s.id);
-    const cls = "s-item" + (look ? " " + look[0] : "") + (s.mic ? " mic" : "") + (isAcked ? " acked" : "");
+    const cls = "s-item" + (look ? " " + look[0] : "") + (s.mic ? " mic" : "");
     const icon = ICON[look ? look[1] : s.icon] || ICON.check;
     const meta = [hhmmss(s.ts), s.worker, s.count > 1 ? s.count + " times" : ""].filter(Boolean).join(" · ");
-    const action = s.alert ? (isAcked ? '<span class="s-meta">Acknowledged</span>'
-      : '<button class="btn" type="button" data-ack="' + esc(s.id) + '">Acknowledge</button>') : "";
     return '<li class="' + cls + '"><span class="s-icon">' + icon + '</span><div style="min-width:0"><div class="s-text" title="' +
-      esc(s.text) + '">' + esc(s.text) + '</div><div class="s-meta">' + esc(meta) + "</div></div>" + action + "</li>";
+      esc(s.text) + '">' + esc(s.text) + '</div><div class="s-meta">' + esc(meta) + "</div></div></li>";
   }).join("");
 }
 
+function noteTools(workers) {
+  workers.forEach((w) => {
+    if (w.placeholder || !w.tool || !w.tool.name) return;
+    if (!toolsSeen.has(w.id)) toolsSeen.set(w.id, new Set());
+    toolsSeen.get(w.id).add(w.tool.name);
+  });
+}
 function render() {
   const workers = crew();
+  noteTools(workers);
   deriveStory(workers);
   const items = storyItems(workers);
   renderConn();
@@ -461,6 +471,7 @@ function connect() {
     else if (m.type === "fleet") { fleet = normFleet(m.fleet || m.state || m); fleetFromWS = Date.now(); fleetMissing = false; schedule(); }
     else if (m.type === "motion") {
       pushSpark((state && state.worker && state.worker.id) || "W-01", motionRms(m));
+      lastMotionAt = nowS();
       if (!fleet) schedule();
     } else if (m.type === "transcript" && m.final !== false && m.text) {
       lastTranscript = { text: m.text, ts: nowS(), input: m.input };     // shown only once BeltGuard answers it
@@ -490,13 +501,80 @@ el("workers").addEventListener("keydown", (e) => {
   const card = e.target.closest(".worker");
   if (card && !card.classList.contains("placeholder")) { e.preventDefault(); focus(card.getAttribute("data-id")); }
 });
-el("story").addEventListener("click", (e) => {
-  const b = e.target.closest("[data-ack]");
-  if (!b) return;
-  acked.add(b.getAttribute("data-ack"));
-  saveAcked();
-  schedule();
-});
+// ---------------------------------------------------------------- shift compliance report (CSV + print view)
+const two = (n) => String(n).padStart(2, "0");
+const dateTime = (ts) => { const d = new Date(ts * 1000); return d.getFullYear() + "-" + two(d.getMonth() + 1) + "-" + two(d.getDate()) + " " + two(d.getHours()) + ":" + two(d.getMinutes()); };
+const csvCell = (v) => { const t = String(v == null ? "" : v); return /[",\n;]/.test(t) ? '"' + t.replace(/"/g, '""') + '"' : t; };
+function toolsUsed(w) {
+  const names = new Set(toolsSeen.get(w.id) || []);
+  if (w.tool && w.tool.name) names.add(w.tool.name);
+  if (w.id === "W-01" && state && state.exposure) {
+    Object.values(state.exposure.by_tool || {}).forEach((t) => { if (t && (t.name || t.tool_name)) names.add(t.name || t.tool_name); });
+    (state.exposure.records || []).forEach((r) => { const n = r && (r.tool_name || (r.tool && r.tool.name)); if (n) names.add(n); });
+  }
+  return [...names];
+}
+function lastReading(w) {
+  if (!w.simulated && lastMotionAt) return lastMotionAt;
+  if (w.live && fleet && fleet.ts) return fleet.ts;
+  return (w.last_event && w.last_event.ts) || null;
+}
+function buildReport() {
+  const workers = crew().filter((w) => !w.placeholder).sort((a, b) => a.id.localeCompare(b.id));
+  const rows = workers.map((w) => {
+    const last = lastReading(w);
+    const st = statusOf(w.points);
+    return { id: w.id, name: w.name, band: w.simulated ? "SIMULATED" : "Band " + two(w.band_number ?? 7) + " (real)",
+             tools: toolsUsed(w).join("; ") || "none", trigger: w.trigger_s === null ? "" : (w.trigger_s / 60).toFixed(1),
+             points: (w.points || 0).toFixed(1), status: STATUS_WORD[st], st, last: last ? hhmmss(last) : "–" };
+  });
+  const shift = num(state && state.shift_start);
+  const within = rows.filter((r) => r.st === "within").length;
+  return {
+    rows, generated: nowS(), shift,
+    head: [
+      ["BeltGuard shift compliance report"],
+      ["Screening estimate, not a certified HAV measurement"],
+      ["Site", "CV-102 conveyor maintenance"],
+      ["Shift start", shift ? dateTime(shift) : "not recorded"],
+      ["Generated", dateTime(nowS())],
+      ["Within limits", within + " of " + rows.length + " (under 100 points)"],
+      ["Thresholds", "Action value 100 points (A(8) 2.5 m/s²); limit value 400 points (A(8) 5.0 m/s²)"],
+    ].concat(fleet && fleet.label ? [["Note", fleet.label]] : []),
+  };
+}
+const REPORT_COLS = ["Worker ID", "Name", "Band", "Tools used", "Trigger time (min)", "Points today", "Status", "Last reading"];
+function reportCsv(r) {
+  const lines = r.head.map((row) => row.map(csvCell).join(","));
+  lines.push("", REPORT_COLS.map(csvCell).join(","));
+  r.rows.forEach((x) => lines.push([x.id, x.name, x.band, x.tools, x.trigger, x.points, x.status, x.last].map(csvCell).join(",")));
+  return lines.join("\r\n") + "\r\n";
+}
+function downloadCsv(text, name) {
+  const blob = new Blob(["\uFEFF" + text], { type: "text/csv;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url; a.download = name; document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 2000);
+}
+function showReport(r) {
+  el("report-sub").textContent = r.head.slice(3, 6).map((row) => row.join(": ")).join(" · ");
+  el("report-table").innerHTML = "<thead><tr>" + REPORT_COLS.map((c) => "<th>" + esc(c) + "</th>").join("") + "</tr></thead><tbody>" +
+    r.rows.map((x) => "<tr><td class=\"mono\">" + esc(x.id) + "</td><td>" + esc(x.name) + "</td><td>" + esc(x.band) + "</td><td>" + esc(x.tools) +
+      "</td><td class=\"num\">" + esc(x.trigger) + "</td><td class=\"num\">" + esc(x.points) + "</td><td><span class=\"rs " + x.st + "\">" +
+      esc(x.status) + "</span></td><td class=\"mono\">" + esc(x.last) + "</td></tr>").join("") + "</tbody>";
+  el("report-foot").textContent = r.head.slice(6).map((row) => row.join(": ")).join(" · ");
+  el("report").hidden = false;
+  el("report-close").focus();
+}
+const reportName = (r) => { const d = new Date(r.generated * 1000); return "BeltGuard-shift-compliance-" + d.getFullYear() + "-" + two(d.getMonth() + 1) + "-" + two(d.getDate()) + "-" + two(d.getHours()) + two(d.getMinutes()) + ".csv"; };
+el("report-btn").addEventListener("click", () => { const r = buildReport(); downloadCsv(reportCsv(r), reportName(r)); showReport(r); });
+el("report-csv").addEventListener("click", () => { const r = buildReport(); downloadCsv(reportCsv(r), reportName(r)); });
+el("report-print").addEventListener("click", () => window.print());
+el("report-close").addEventListener("click", () => { el("report").hidden = true; });
+el("report").addEventListener("click", (e) => { if (e.target === el("report")) el("report").hidden = true; });
+document.addEventListener("keydown", (e) => { if (e.key === "Escape" && !el("report").hidden) el("report").hidden = true; });
+window.BeltGuardReport = { build: buildReport, csv: (r) => reportCsv(r || buildReport()), show: (r) => showReport(r || buildReport()) };   // for QA
 
 // ---------------------------------------------------------------- 3D site (S7's module; feature-detected)
 import("./model3d.js?v=" + Date.now()).then((m) => {
