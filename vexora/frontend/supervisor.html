@@ -239,6 +239,15 @@
     .w-mid { grid-template-columns:minmax(0,1fr) 64px; }
     .w-mid canvas.spark, .w-mid .bar-wrap { display:none; }
   }
+  /* S0 18:27 (user): the bottom panel is one card at full width, switched by Activity | Work orders in the top bar */
+  .seg { display:inline-flex; gap:2px; padding:2px; border:1px solid var(--border); border-radius:10px; background:#F4F4F5; }
+  .seg-btn { height:32px; padding:0 12px; border-radius:8px; }
+  .seg-btn[aria-selected="true"] { background:#FFFFFF; color:#09090B; box-shadow:0 1px 2px rgb(0 0 0 / .1); }
+  .seg-count { margin-left:6px; min-width:18px; height:18px; padding:0 5px; border-radius:9px; background:#18181B; color:#FFFFFF;
+               font:600 11px 'Geist Mono', ui-monospace, monospace; display:inline-grid; place-items:center; }
+  .seg-count[hidden] { display:none; }
+  .lower { grid-template-columns:minmax(0,1fr) !important; }
+  body[data-panel="activity"] .wo-card, body[data-panel="workorders"] .story-card { display:none; }
 </style>
 </head>
 <body>
@@ -249,6 +258,10 @@
     <span class="vsep hide-sm"></span>
     <span class="badge outline" id="conn">Connecting</span>
     <span class="mono hide-sm" id="clock"></span>
+    <div class="seg" role="tablist" aria-label="Bottom panel">
+      <button class="btn ghost seg-btn" type="button" role="tab" data-panel="activity" aria-selected="true">Activity</button>
+      <button class="btn ghost seg-btn" type="button" role="tab" data-panel="workorders" aria-selected="false">Work orders<span class="seg-count" id="wo-count" hidden></span></button>
+    </div>
     <button class="btn primary" type="button" id="report-btn" title="Download the shift compliance report (CSV) and open a print view">Shift compliance report</button>
     <a class="btn ghost" href="/planning.html">Planning</a>
     <a class="btn ghost" href="/">Dashboard</a>
@@ -276,7 +289,7 @@
 
   <section class="lower">
     <div class="card story-card">
-      <div class="card-header"><h2 class="card-title">Crew story</h2><span class="card-desc">What happened, newest first · read-only</span></div>
+      <div class="card-header"><h2 class="card-title">Crew activity</h2><span class="card-desc">What happened, newest first · read-only</span></div>
       <ul class="story" id="story"><li class="empty">Waiting for the crew.</li></ul>
     </div>
     <div class="card wo-card">
@@ -303,5 +316,29 @@
 </div>
 
 <script type="module" src="supervisor.js?v=23"></script>
+<script>
+  // Activity | Work orders switch for the bottom panel (S0 18:27, user request). The choice is remembered.
+  (function () {
+    var KEY = "vexora.controlroom.panel";
+    var count = document.getElementById("wo-count");
+    function show(panel) {
+      document.body.dataset.panel = panel;
+      document.querySelectorAll(".seg-btn").forEach(function (b) { b.setAttribute("aria-selected", String(b.dataset.panel === panel)); });
+      try { localStorage.setItem(KEY, panel); } catch (e) { /* storage blocked */ }
+    }
+    document.querySelectorAll(".seg-btn").forEach(function (b) { b.addEventListener("click", function () { show(b.dataset.panel); }); });
+    var start = "activity";
+    try { start = localStorage.getItem(KEY) || "activity"; } catch (e) { /* storage blocked */ }
+    show(start === "workorders" ? "workorders" : "activity");
+    function updateCount() {                         // number of work orders this shift, on the tab
+      var n = document.querySelectorAll("#wo-list .wo-row").length;
+      count.textContent = String(n);
+      count.hidden = n === 0;
+    }
+    var list = document.getElementById("wo-list");
+    if (list) new MutationObserver(updateCount).observe(list, { childList: true });
+    updateCount();
+  })();
+</script>
 </body>
 </html>
