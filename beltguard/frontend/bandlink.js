@@ -431,9 +431,18 @@ function mountLiveWords() {
 // Honest label on screen: 6 s of sustained vibration is a DEMO stand-in for the daily limit.
 function mountExposureAlert() {
   if (IS_BRIDGE || typeof BroadcastChannel === 'undefined' || !/^\/(index\.html)?$/.test(location.pathname)) return;
-  const SUSTAIN_S = 6, SEG_S = 0.5, RMS_G = 0.15, MIN_HZ = 3, NEED = 0.85, COOLDOWN_MS = 30000;
+  // Staged (user, 17:04): 5 s -> amber LED + banner, 7 s -> orange LED + banner, 10 s -> red LED + "Exposure exceeded".
+  const SEG_S = 0.5, RMS_G = 0.15, MIN_HZ = 3, KEEP_S = 13;
+  const STAGES = [
+    { at: 5, colour: '#F59E0B', pattern: 'solid', led: 3, beeps: 1, bg: '#FFFBEB', line: '#FCD34D', ink: '#78350F', dot: '#F59E0B',
+      title: 'Vibration building up', text: '5 s of constant tool vibration on band 07. Band LED: amber.' },
+    { at: 7, colour: '#F97316', pattern: 'blink', led: 3, beeps: 2, bg: '#FFF7ED', line: '#FDBA74', ink: '#7C2D12', dot: '#F97316',
+      title: 'Approaching the exposure limit', text: '7 s of constant vibration. Band LED: orange. Ease off soon.' },
+    { at: 10, colour: '#EF4444', pattern: 'blink', led: 6, beeps: 3, bg: '#FEF2F2', line: '#FCA5A5', ink: '#7F1D1D', dot: '#DC2626',
+      title: 'Exposure exceeded', text: '10 s of constant vibration. Band LED: red. Stop using the tool and rotate the task.', say: true },
+  ];
   const ch = new BroadcastChannel('beltguard-motion');
-  let buf = [], lastFire = 0, banner = null, hideTimer = null;
+  let buf = [], stage = 0, banner = null, hideTimer = null, stillSince = null;
   function segOk(seg) {                                  // strong (RMS of |a| change) AND fast (zero crossings)
     if (seg.length < 8) return false;
     const m = seg.reduce((s, x) => s + x[1], 0) / seg.length;
@@ -442,23 +451,43 @@ function mountExposureAlert() {
     const dur = (seg[seg.length - 1][0] - seg[0][0]) || SEG_S;
     return Math.sqrt(ss / seg.length) >= RMS_G && zc / 2 / dur >= MIN_HZ;
   }
-  function check() {
-    const tEnd = buf.length ? buf[buf.length - 1][0] : 0;
-    if (!buf.length || tEnd - buf[0][0] < SUSTAIN_S - 0.05) return;
-    let ok = 0, n = 0, i = 0;
-    for (let s = tEnd - SUSTAIN_S; s < tEnd - 1e-6; s += SEG_S) {
-      while (i < buf.length && buf[i][0] < s) i++;
-      const seg = [];
-      for (let k = i; k < buf.length && buf[k][0] < s + SEG_S; k++) seg.push(buf[k]);
-      n++;
-      if (segOk(seg)) ok++;
+  function runLength() {          // seconds of constant fast movement ending now (one half-second dip tolerated)
+    if (!buf.length) return 0;
+    const tEnd = buf[buf.length - 1][0];
+    const buckets = [];
+    for (let i = buf.length - 1; i >= 0; i--) {
+      const k = Math.floor((tEnd - buf[i][0]) / SEG_S);
+      if (k >= Math.ceil(KEEP_S / SEG_S)) break;
+      (buckets[k] = buckets[k] || []).unshift(buf[i]);
     }
-    if (n && ok / n >= NEED && Date.now() - lastFire > COOLDOWN_MS) { lastFire = Date.now(); fire(); }
+    let run = 0, pending = 0, missed = false;
+    for (let k = 0; k < buckets.length; k++) {
+      if (segOk(buckets[k] || [])) { run += SEG_S + pending; pending = 0; continue; }
+      if (k === 0 || missed) break;                    // the newest half-second must be moving
+      missed = true; pending = SEG_S;
+    }
+    return run;
   }
-  function beep() {
+  function sendLed(st) {          // band LED via the backend -> Band link tab (pauses the mic, shows the colour, resumes)
+    fetch('/api/band/alert', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ colour: st.colour, pattern: st.pattern, seconds: st.led }) }).catch(() => {});
+  }
+  function check() {
+    const run = runLength();
+    if (run < 1) {                                     // movement stopped: after 2 s, start again from stage 0
+      stillSince = stillSince || Date.now();
+      if (stage && Date.now() - stillSince > 2000) stage = 0;
+      return;
+    }
+    stillSince = null;
+    let reached = stage;
+    while (reached < STAGES.length && run >= STAGES[reached].at) reached++;
+    if (reached > stage) { stage = reached; fire(STAGES[stage - 1]); }
+  }
+  function beep(n) {
     try {
       const ac = new (window.AudioContext || window.webkitAudioContext)();
-      [0, 0.28, 0.56].forEach((at) => {
+      [0, 0.28, 0.56].slice(0, n || 1).forEach((at) => {
         const o = ac.createOscillator(), g = ac.createGain();
         o.frequency.value = 880; o.connect(g); g.connect(ac.destination);
         g.gain.setValueAtTime(0.0001, ac.currentTime + at);
@@ -468,38 +497,43 @@ function mountExposureAlert() {
       });
     } catch (e) { /* audio blocked */ }
   }
-  function fire() {
+  function fire(st) {
+    sendLed(st);
     if (banner) banner.remove();
     banner = document.createElement('div');
     banner.id = 'bgExposureAlert';
     banner.setAttribute('role', 'alert');
     Object.assign(banner.style, {
       position: 'fixed', left: '50%', top: '84px', transform: 'translateX(-50%)', zIndex: '60',
-      width: 'min(560px, calc(100vw - 32px))', background: '#FEF2F2', border: '1px solid #FCA5A5', borderRadius: '12px',
+      width: 'min(560px, calc(100vw - 32px))', background: st.bg, border: '1px solid ' + st.line, borderRadius: '12px',
       boxShadow: '0 12px 32px rgb(0 0 0 / .16)', padding: '16px 18px', display: 'flex', gap: '14px', alignItems: 'flex-start',
-      font: '14px/1.45 Geist, system-ui, sans-serif', color: '#7F1D1D',
+      font: '14px/1.45 Geist, system-ui, sans-serif', color: st.ink,
     });
-    banner.innerHTML = '<div style="width:36px;height:36px;border-radius:50%;background:#DC2626;color:#fff;display:grid;'
-      + 'place-items:center;font:700 18px Geist,system-ui,sans-serif;flex:none">!</div>'
-      + '<div style="flex:1;min-width:0"><div style="font-size:19px;font-weight:700;color:#991B1B">Exposure exceeded</div>'
-      + '<div style="margin-top:2px">Constant tool vibration on band 07 for 6 s. Stop using the tool and rotate the task.</div>'
-      + '<div style="margin-top:6px;font-size:12px;color:#B91C1C">Demo threshold: 6 s of sustained vibration stands in for the '
-      + 'daily limit (400 points). Screening estimate.</div></div>'
-      + '<button type="button" style="border:0;background:none;color:#991B1B;font:600 13px Geist,system-ui,sans-serif;'
+    banner.innerHTML = '<div style="width:36px;height:36px;border-radius:50%;background:' + st.dot + ';color:#fff;display:grid;'
+      + 'place-items:center;font:700 15px Geist,system-ui,sans-serif;flex:none">' + st.at + 's</div>'
+      + '<div style="flex:1;min-width:0"><div style="font-size:19px;font-weight:700">' + st.title + '</div>'
+      + '<div style="margin-top:2px">' + st.text + '</div>'
+      + '<div style="margin-top:6px;font-size:12px;opacity:.8">Demo thresholds: 5 / 7 / 10 s of constant vibration stand in for '
+      + 'the action value and the daily limit. Screening estimate.</div></div>'
+      + '<button type="button" style="border:0;background:none;color:inherit;font:600 13px Geist,system-ui,sans-serif;'
       + 'cursor:pointer;padding:4px">Dismiss</button>';
     banner.querySelector('button').addEventListener('click', () => { banner.remove(); banner = null; });
     document.body.appendChild(banner);
-    beep();
-    try {
-      window.speechSynthesis.cancel();
-      window.speechSynthesis.speak(new SpeechSynthesisUtterance('Exposure exceeded. Stop using the tool.'));
-    } catch (e) { /* no speech */ }
+    beep(st.beeps);
+    if (st.say) {
+      try {
+        window.speechSynthesis.cancel();
+        window.speechSynthesis.speak(new SpeechSynthesisUtterance('Exposure exceeded. Stop using the tool.'));
+      } catch (e) { /* no speech */ }
+    }
     try {
       const m = window.__bg3d || window.BeltGuard3D;
-      if (m && typeof m.showBubble === 'function') m.showBubble('W-01', 'Exposure exceeded', { kind: 'alert', ms: 8000 });
+      if (m && typeof m.showBubble === 'function') {
+        m.showBubble('W-01', st.title, { kind: st.say ? 'alert' : 'warn', ms: 6000 });
+      }
     } catch (e) { /* 3D not ready */ }
     clearTimeout(hideTimer);
-    hideTimer = setTimeout(() => { if (banner) { banner.remove(); banner = null; } }, 15000);
+    hideTimer = setTimeout(() => { if (banner) { banner.remove(); banner = null; } }, st.say ? 15000 : 8000);
   }
   ch.onmessage = (e) => {
     const samples = Array.isArray(e.data) ? e.data : [];
@@ -511,10 +545,10 @@ function mountExposureAlert() {
       buf.push([t, Math.hypot(s.ax, s.ay, s.az)]);
     }
     const tEnd = buf.length ? buf[buf.length - 1][0] : 0;
-    while (buf.length && buf[0][0] < tEnd - SUSTAIN_S - 1) buf.shift();
+    while (buf.length && buf[0][0] < tEnd - KEEP_S) buf.shift();
     check();
   };
-  window.BeltGuardExposureAlert = { fire };                          // for a manual test from the console
+  window.BeltGuardExposureAlert = { fire: (i) => fire(STAGES[Math.max(0, Math.min(2, (i || 3) - 1))]) };   // console test
 }
 
 // ---------- Reset shift (dashboard top bar) ----------
