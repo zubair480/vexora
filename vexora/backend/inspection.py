@@ -177,6 +177,13 @@ def _norm(text: str) -> str:
     t = re.sub(r"(?<![a-z])(?:adler|aidler|eidler|idlar|idol|idoler)(s?)(?![a-z])", r"idler\1", t)
     # ...and "seized" as "ceased" ("Return idler ceased at Station 3", 18:10)
     t = re.sub(r"(?<![a-z])(?:ceased|ceesed|seas?ed|seased)(?![a-z])", "seized", t)
+    # ...and, next to a rotating part, as "deceased", "diseased", "ces", "cease", "sees", "seas it", "sized" (18:53:
+    # "Idler at Station 3, deceased." was ignored and took four tries). Only with a part named, so chat is untouched.
+    if re.search(r"(?<![a-z])(?:idler|roller|bearing|pulley|motor|gearbox|shaft|coupling|drum|wheel)s?(?![a-z])", t):
+        t = re.sub(r"(?<![a-z])(?:is\s+|it'?s\s+|its\s+)?(?:deceased|diseased|decease|disease|deseased|deceased|"
+                   r"ceases?|ceas|ces|cees|c's|seize|seizes|seized|sees(?:\s+it)?|seas(?:\s+it)?|sized|siezed|seised|"
+                   r"seeds|ceazed|seazed)(?![a-z'])", " is seized", t)
+        t = re.sub(r"(?<![a-z])is\s+is seized", "is seized", t)
     return re.sub(r"\s+", " ", t).strip()
 
 

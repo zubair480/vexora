@@ -9,7 +9,14 @@
 // message, the page's address, storage) can change them.
 const ADDRESS = 'wss://api.deepgram.com/v1/listen';
 const QUERY = 'model=nova-3&language=en&encoding=opus&sample_rate=16000&channels=1'
-  + '&interim_results=true&smart_format=true&endpointing=100&mip_opt_out=true';
+  + '&interim_results=true&smart_format=true&endpointing=100&mip_opt_out=true'
+  + '&keyterm=idler&keyterm=seized&keyterm=Vexora&keyterm=return%20idler&keyterm=station%20three'
+  + '&keyterm=conveyor&keyterm=isolated&keyterm=locked%20out&keyterm=guard'
+  + '&utterance_end_ms=3000';
+// utterance_end_ms=3000         a 3 s gap between words ends the line (UtteranceEnd), even in a noisy room where
+//                               speech_final never comes; PAUSE_MS below is the local backup (Vexora 19:05)
+// keyterm=...                   Nova-3 key-term prompting (Vexora 18:58): the band mic in a noisy room heard "idler at
+//                               station 3 is seized" as "Adler", "ceased", "deceased", "Iglare Air ... he sees"
 // model=nova-3 language=en      Deepgram's general model, English
 // encoding=opus sample_rate=16000 channels=1
 //                               the band's packets exactly as they arrive: nothing is decoded here
@@ -22,6 +29,7 @@ export const DEEPGRAM_ADDRESS = `${ADDRESS}?${QUERY}`;
 
 const KEEP_ALIVE_MS = 4000;       // Deepgram closes after 10 s without sound; it asks for a KeepAlive every 3 to 5 s
 const CLOSE_WAIT_MS = 1500;       // how long stop() waits for the last words
+const PAUSE_MS = 3000;            // a pause this long starts a new line (backup for UtteranceEnd)
 const LONG_LINE = 300;            // letters; a sentence that never pauses is cut here
 const MOST_TEXT = 2000;           // letters taken from one message of the service
 
@@ -45,6 +53,7 @@ export function deepgramLink({ key, WebSocket: Socket = globalThis.WebSocket, ke
   let spokenUntil = null;         // where the last word of those pieces ended, in seconds of sound sent
   let lastSent = 0;
   let keepAlive = 0;
+  let pauseTimer = 0;             // ends the line PAUSE_MS after the last word heard
   let closeTimer = 0;
 
   function send(data) {
@@ -61,6 +70,7 @@ export function deepgramLink({ key, WebSocket: Socket = globalThis.WebSocket, ke
   function end(problem) {
     clearInterval(keepAlive);
     clearTimeout(closeTimer);
+    clearTimeout(pauseTimer);
     const callbacks = on;
     const old = socket;
     socket = null;
@@ -86,6 +96,10 @@ export function deepgramLink({ key, WebSocket: Socket = globalThis.WebSocket, ke
     const best = message.channel?.alternatives?.[0];
     const piece = typeof best?.transcript === 'string' ? best.transcript : '';
     const pieceEnd = number(message.start + message.duration);
+    if (piece) {                                   // words heard: the line ends after PAUSE_MS without words
+      clearTimeout(pauseTimer);
+      pauseTimer = setTimeout(finish, PAUSE_MS + 300);
+    }
     if (!message.is_final) {
       // A first guess for the newest piece; it may still change.
       const live = joinText([...done, piece]);
@@ -102,6 +116,7 @@ export function deepgramLink({ key, WebSocket: Socket = globalThis.WebSocket, ke
   }
 
   function finish() {
+    clearTimeout(pauseTimer);
     const line = joinText(done);
     done = [];
     if (line) say(true, line, spokenUntil);
@@ -117,6 +132,7 @@ export function deepgramLink({ key, WebSocket: Socket = globalThis.WebSocket, ke
       return;
     }
     if (message?.type === 'Results') result(message);
+    else if (message?.type === 'UtteranceEnd') finish();   // 3 s without words: the line is finished
     else if (message?.type === 'Error') end('reported');
     else if (message?.type === 'Metadata' && stopping) {      // the last message after CloseStream
       finish();

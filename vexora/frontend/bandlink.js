@@ -453,10 +453,11 @@ function mountLiveWords() {
   // minutes, so a fault report ("Idler at station 3 is seized.") or a "Vexora, ..." command goes to the server as soon
   // as it is complete in the partial text: once across all dashboard tabs. The server dedupes work orders.
   const PART = /(idler|roller|bearing|pulley|belt|guard|skirt|scraper|chute|motor|gearbox)/i;
-  const FAULT = /(seiz|ceas|worn|crack|broke|damag|leak|nois|loose|missing|stuck|jamm|change needed|needs? (?:chang|replac)|fault)/i;
+  // Deepgram's versions of "seized" on the band mic: ceased, deceased, ces, sees it, sized (18:53)
+  const FAULT = /(seiz|ceas|deceas|diseas|c(?:e|ee)s|sees|seas|sized|worn|crack|broke|damag|leak|nois|loose|missing|stuck|jamm|change needed|needs? (?:chang|replac)|fault)/i;
   const WAKE = /^\s*(?:hey\s+|ok(?:ay)?\s+)?(?:vexora|vaxora|vexura|vexor|luxora|bexora|lexora|belt ?guard)\b/i;
   const PKEY = 'vexora.promoted';
-  let pending = { s: '', since: 0 };
+  let pending = { s: '', since: 0 }, pendingTimer = 0;
   function alreadySent(norm) {
     let map = {};
     try { map = JSON.parse(localStorage.getItem(PKEY) || '{}'); } catch (err) { map = {}; }
@@ -479,8 +480,11 @@ function mountLiveWords() {
     parts.slice(0, -1).filter(actionable).forEach(report);            // followed by more words: finished
     const last = parts[parts.length - 1] || '';
     if (actionable(last)) {                                           // the newest: finished once it stops changing
-      if (pending.s !== last) pending = { s: last, since: Date.now() };
-      else if (Date.now() - pending.since > 1200) report(last);
+      if (pending.s !== last) {
+        pending = { s: last, since: Date.now() };
+        clearTimeout(pendingTimer);                                    // you stopped talking: no more partials arrive,
+        pendingTimer = setTimeout(() => { if (pending.s === last) report(last); }, 1300);   // so send it on a timer
+      } else if (Date.now() - pending.since > 1200) report(last);
     }
   }
   ch.onmessage = (e) => {
