@@ -46,6 +46,14 @@ The pitch deck is **[vexora/pitch/vexora-pitch.html](vexora/pitch/vexora-pitch.h
 
 ## Run it
 
+One command (Windows, from the repo root): installs the packages, starts the server and opens the three pages in Chrome.
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\run.ps1
+```
+
+Or by hand:
+
 ```powershell
 cd vexora
 python -u backend/app.py            # FastAPI + SQLite on http://127.0.0.1:8765
