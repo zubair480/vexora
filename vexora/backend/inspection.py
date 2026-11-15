@@ -158,7 +158,8 @@ _DIGIT_ALT = "|".join(sorted(_DIGIT_WORDS, key=len, reverse=True))
 # "the belt guard is missing" names a conveyor part. Stripped before anything reads the words.
 _WAKE_RAW = re.compile(
     r"^\s*(?:(?:um+|uh+|er+|erm|so|okay|ok|hey|hi|hello|yo|right|alright)[\s,.!]+)*"
-    r"(?:(?:belt|bell|bel|built)[\s\-]?(?:guard|gard)s?|vex[\s\-]?or+a?h?|vexer+a|vexo[\s\-]?ra)\b[\s,.:;!?\-]*",
+    r"(?:(?:belt|bell|bel|built)[\s\-]?(?:guard|gard)s?|vex[\s\-]?or+a?h?|vexer+a|vexo[\s\-]?ra|[vblf][eiu]x+[ou]?r+a+h?)\b"
+    r"[\s,.:;!?\-]*",
     re.IGNORECASE)   # "Vexora" is the product name since 17:35; "BeltGuard" still works
 
 
@@ -174,6 +175,8 @@ def _norm(text: str) -> str:
     t = re.sub(r"[^a-z0-9#'\- ]+", " ", t)
     # Deepgram mishears "idler" on the band mic ("Adler change needed at station 3", 17:4x): read them as idler
     t = re.sub(r"(?<![a-z])(?:adler|aidler|eidler|idlar|idol|idoler)(s?)(?![a-z])", r"idler\1", t)
+    # ...and "seized" as "ceased" ("Return idler ceased at Station 3", 18:10)
+    t = re.sub(r"(?<![a-z])(?:ceased|ceesed|seas?ed|seased)(?![a-z])", "seized", t)
     return re.sub(r"\s+", " ", t).strip()
 
 
