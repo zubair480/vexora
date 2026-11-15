@@ -402,7 +402,10 @@ _CONDITIONS = [  # (regex, canonical condition, severity floor, reason)
      "Build-up causes mistracking and faster wear"),
 ]
 _CONDITION_REGEX = [(re.compile(r"(?<![a-z])(?:%s)(?![a-z])" % rx), c, s, r) for rx, c, s, r in _CONDITIONS]
-_REPLACE_WORDS = re.compile(r"(?<![a-z])(?:replac\w*|change\s*-?\s*out|swap\w*|renew\w*|new\s+one)(?![a-z])")
+_REPLACE_WORDS = re.compile(r"(?<![a-z])(?:replac\w*|change\s*-?\s*out|swap\w*|renew\w*|new\s+one|"
+                            # "idler change needed", "needs changing", "has to be changed" (not "change station")
+                            r"chang(?:e|ing)\s+(?:is\s+|was\s+)?(?:needed|required|due)|needs?\s+(?:to\s+be\s+)?chang(?:ed|ing)|"
+                            r"(?:has|have|had|got)\s+to\s+be\s+changed|(?:should|must)\s+be\s+changed)(?![a-z])")
 _ACTION_BY_CONDITION = {"seized": "replace", "cracked / broken": "replace", "worn": "replace", "collapsed": "replace",
                         "torn": "repair", "missing": "replace", "mistracking": "adjust", "material build-up": "clean",
                         "noisy": "inspect_further", "overheating": "inspect_further", "smoking / burning": "inspect_further",

@@ -14,6 +14,7 @@ import asyncio
 import collections
 import math
 import random
+import sys
 import time
 
 TIME_SCALE = 30.0                      # simulated seconds per real second (SIMULATED workers only)
@@ -487,6 +488,63 @@ def _patch_auto_confirm(app) -> None:
         print("[fleet] auto-confirm patch failed:", repr(e), flush=True)
 
 
+def _install_band_alert_route(app) -> None:
+    """S0: POST /api/band/alert {colour:"#F59E0B", pattern:"solid"|"blink", seconds:3} -> the band gets the existing
+    {"type":"command","cmd":"alert",...} (the dashboard drives amber -> orange -> red at 5/7/10 s of constant
+    vibration). Added to the running server from here because fleet.py hot-reloads and app.py does not. The route
+    goes BEFORE the static "/" mount (a route after it would never be reached); a reload replaces it."""
+    import re as _re
+    main = next((m for m in (sys.modules.get("__main__"), sys.modules.get("app"))
+                 if m is not None and getattr(m, "S", None) is app), None)
+    fapp = getattr(main, "app", None)
+    if fapp is None or not hasattr(fapp, "router"):
+        return
+    from starlette.responses import JSONResponse
+    from starlette.routing import Route
+    colour_re = _re.compile(r"^#[0-9A-Fa-f]{6}$")
+
+    async def api_band_alert(request):
+        host = (request.client.host if request.client else "") or ""
+        lo = getattr(main, "local_origin", None)
+        if host not in ("127.0.0.1", "::1", "localhost") or (lo is not None and not lo(request)):
+            return JSONResponse({"ok": False, "error": "loopback only"}, status_code=403)
+        try:
+            data = await request.json()
+        except Exception:
+            data = {}
+        data = data if isinstance(data, dict) else {}
+        colour = str(data.get("colour") or data.get("color") or "#F59E0B")
+        pattern = str(data.get("pattern") or "solid")
+        try:
+            seconds = float(data.get("seconds") if data.get("seconds") is not None else 3)
+        except (TypeError, ValueError):
+            seconds = -1.0
+        if not colour_re.match(colour) or pattern not in ("solid", "blink") or not (0.2 <= seconds <= 30):
+            return JSONResponse({"ok": False, "error": "colour must be #RRGGBB, pattern solid|blink, "
+                                 "seconds 0.2-30"}, status_code=400)
+        b = getattr(app, "bridge", None)
+        bm = sys.modules.get("band")
+        connected = (getattr(app, "connection", None) or {}).get("state") == "connected"
+        if b is None or getattr(b, "band", None) is None or not connected:
+            return JSONResponse({"ok": False, "error": "no band connected"}, status_code=409)
+        cmd = {"type": "command", "cmd": "alert", "colour": colour, "pattern": pattern, "seconds": seconds}
+        try:
+            if bm is not None and isinstance(b, bm.IngestBridge):
+                b.send_cmd(cmd)                      # the Band link page sets the LED
+            else:                                    # Python link: pause audio, flash, resume
+                app.led_key = None
+                asyncio.get_running_loop().create_task(asyncio.to_thread(b.alert, colour, seconds))
+        except Exception as e:
+            return JSONResponse({"ok": False, "error": "send failed: %s" % e}, status_code=409)
+        return JSONResponse({"ok": True})
+
+    routes = fapp.router.routes
+    routes[:] = [r for r in routes if getattr(r, "path", None) != "/api/band/alert"]
+    idx = next((i for i, r in enumerate(routes) if type(r).__name__ == "Mount" and getattr(r, "path", None) in ("", "/")),
+               len(routes))
+    routes.insert(idx, Route("/api/band/alert", api_band_alert, methods=["POST"]))
+
+
 class Fleet:
     def __init__(self, app) -> None:
         self.app = app
@@ -500,6 +558,10 @@ class Fleet:
                 print("[fleet] dropping sustained patches failed:", repr(e), flush=True)
             if all(hasattr(type(app), m) for m in ("on_detector", "end_active_session", "ask_confirmation")):
                 _patch_auto_confirm(app)
+            try:
+                _install_band_alert_route(app)
+            except Exception as e:
+                print("[fleet] band alert route not installed:", repr(e), flush=True)
         self.alerts = collections.deque(maxlen=60)
         self.story = collections.deque(maxlen=120)
         self._stations = None

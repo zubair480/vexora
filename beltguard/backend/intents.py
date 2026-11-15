@@ -111,6 +111,7 @@ _MINUTE_WORDS = {"five": 5, "ten": 10, "fifteen": 15, "twenty": 20, "thirty": 30
 _LENIENT_SOURCES = {"typed", "user", "keyboard", "text"}
 
 _GENERIC_PARTS = {"Belt", "Idler", "Pulley", "Bearing", "Guard", "Chute", "Drive motor"}
+_AMBIGUOUS_PARTS = {"Belt", "Guard"}      # "my belt is loose", "security guard": these need a place on the band mic
 # Answers to "Was that the hammer drill, 20 seconds? Say yes or no" need no wake word while the question is open.
 _ANSWER_NO = re.compile(r"^(?:no|nope|nah|negative|wrong)(?![a-z])|wasn'?t|was not|not (?:a|the|my) tool")
 _ANSWER_YES = re.compile(r"^(?:yes|yeah|yep|yup|correct|affirmative|that'?s right|that'?s correct|it was)(?![a-z])")
@@ -129,7 +130,8 @@ def _strict_band_report(text: str) -> Optional[dict]:
         return None
     rules = inspection._rules_extract(text)
     component = rules.get("component")
-    if not component or (component in _GENERIC_PARTS and not rules.get("mentions_place")):
+    # "idler change needed": idler/pulley/bearing/chute are conveyor-only words; "belt"/"guard" still need a place
+    if not component or (component in _AMBIGUOUS_PARTS and not rules.get("mentions_place")):
         return None
     return rules
 
