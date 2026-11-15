@@ -52,7 +52,7 @@ def test_happy_path_explicit_request(client):
     assert cal["google_link"].startswith("https://calendar.google.com/")
     assert "HEAD-PULLEY-7" in cal["google_link"]
     assert cal["ics_path"] == "/api/workorder/WO-0001/event.ics"
-    assert record["ref"] == "WO-0001" and record["system"] == "beltguard"
+    assert record["ref"] == "WO-0001" and record["system"] == "vexora"
 
 
 # ---------------------------------------------------------------- 2. no body
@@ -236,7 +236,7 @@ def test_event_ics(client):
     assert lines[0] == "BEGIN:VCALENDAR" and "BEGIN:VEVENT" in lines and "END:VEVENT" in lines
     assert "DTSTART:20310601T070000Z" in lines
     assert "DTEND:20310601T083000Z" in lines
-    assert f"UID:{record['id']}@beltguard" in lines
+    assert f"UID:{record['id']}@vexora" in lines
     description = next(line for line in lines if line.startswith("DESCRIPTION:"))
     assert record["id"] in description
     assert "Lagging worn\\, belt slipping\\; noisy" in description

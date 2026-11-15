@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>BeltGuard — Work order</title>
+<title>Vexora — Work order</title>
 <style>
   :root {
     --bg: #F7F6F2;
@@ -145,7 +145,7 @@
 <div class="wrap">
   <header>
     <div class="mark" aria-hidden="true">B</div>
-    <h1>BeltGuard — Work order</h1>
+    <h1>Vexora — Work order</h1>
   </header>
 
   <div class="grid">
@@ -453,6 +453,21 @@
   syncButton();
   loadRecent();
 })();
+</script>
+<script>
+  // Prefill from the URL: Vexora's control room opens this page with a voice work order's details.
+  (function () {
+    function prefill() {
+      try {
+        var q = new URLSearchParams(location.search);
+        ["approved_by", "conveyor_id", "station_id", "asset_id", "problem", "task", "priority", "repair_minutes", "technician"]
+          .forEach(function (k) { var el = document.getElementById(k); if (el && q.get(k)) el.value = q.get(k); });
+      } catch (e) { /* no prefill */ }
+    }
+    prefill();                                          // now, and again after the page's own start-up code
+    document.addEventListener("DOMContentLoaded", prefill);
+    window.addEventListener("load", function () { prefill(); setTimeout(prefill, 300); });
+  })();
 </script>
 </body>
 </html>

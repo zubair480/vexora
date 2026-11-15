@@ -126,3 +126,7 @@
 [app] loaded inspection.py
 [app] loaded inspection.py
 [app] loaded intents.py
+[wo_live] Ali's work-order flow mounted: ['/api/workorder/run', '/api/workorder', '/api/workorder/{wo_id}', '/api/workorder/{wo_id}/event.ics', '/workorder']
+[wo_live] installed: /api/work_orders/{wo_id}/pdf, /api/work_orders/recent, watcher on
+[wo_live] Ali's work-order flow mounted: ['/api/workorder/run', '/api/workorder', '/api/workorder/{wo_id}', '/api/workorder/{wo_id}/event.ics', '/workorder']
+[wo_live] installed: /api/work_orders/{wo_id}/pdf, /api/work_orders/recent, watcher on

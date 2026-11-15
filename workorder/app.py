@@ -64,7 +64,7 @@ def event_ics(wo_id: str) -> Response:
                     headers={"Content-Disposition": f'attachment; filename="{wo_id}.ics"'})
 
 
-app = FastAPI(title="BeltGuard work-order flow")
+app = FastAPI(title="Vexora work-order flow")
 app.add_middleware(CORSMiddleware, allow_origin_regex=r"http://(localhost|127\.0\.0\.1)(:\d+)?",
                    allow_methods=["*"], allow_headers=["*"])
 app.include_router(router)

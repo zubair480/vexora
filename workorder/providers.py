@@ -1,6 +1,6 @@
 """Where the work order and the calendar entry are created. Swap a provider without touching the flow.
 
-Work order:  `local` (default: BeltGuard's own store) or `odoo` (Odoo JSON-2 API, a maintenance request).
+Work order:  `local` (default: Vexora's own store) or `odoo` (Odoo JSON-2 API, a maintenance request).
 Calendar:    `link` (default: an .ics file and an "Add to Google Calendar" link; a person adds it).
 
 Choose with env `WORKORDER_PROVIDER`. Odoo needs `ODOO_URL`, `ODOO_API_KEY` and optionally `ODOO_DB`.
@@ -39,8 +39,8 @@ def describe(wo_ref: str, req: dict) -> str:
 
 # ---------------------------------------------------------------- work orders
 class LocalProvider:
-    """The work order lives in BeltGuard's own database; its id is the reference."""
-    name = "beltguard"
+    """The work order lives in Vexora's own database; its id is the reference."""
+    name = "vexora"
 
     def create(self, wo_id: str, req: dict, begin: datetime, end: datetime) -> dict:
         return {"ref": wo_id, "system": self.name, "url": None}
@@ -110,8 +110,8 @@ def ics(wo_id: str, wo_ref: str, req: dict, begin: datetime, end: datetime) -> s
         return text.replace("\\", "\\\\").replace(";", "\\;").replace(",", "\\,").replace("\n", "\\n")
     stamp = "%Y%m%dT%H%M%SZ"
     return "\r\n".join([
-        "BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//BeltGuard//Work order//EN", "BEGIN:VEVENT",
-        f"UID:{wo_id}@beltguard", f"DTSTAMP:{_utc(datetime.now(timezone.utc), stamp)}",
+        "BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//Vexora//Work order//EN", "BEGIN:VEVENT",
+        f"UID:{wo_id}@vexora", f"DTSTAMP:{_utc(datetime.now(timezone.utc), stamp)}",
         f"DTSTART:{_utc(begin, stamp)}", f"DTEND:{_utc(end, stamp)}",
         f"SUMMARY:{esc(req['technician'] + ': ' + title_of(req))}",
         f"DESCRIPTION:{esc(describe(wo_ref, req))}",

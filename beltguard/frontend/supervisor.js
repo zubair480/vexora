@@ -525,9 +525,21 @@ function renderWorkOrders() {
     const fresh = woFresh.has(w.id) && t - woFresh.get(w.id) < 2400;
     const sub = [w.title, w.station, w.priority ? w.priority + " priority" : "", hhmm(w.ts)].filter(Boolean).join(" · ");
     return '<li class="wo-row' + (fresh ? " new" : "") + '"><div class="wo-main"><span>New work order <b class="mono">' + esc(w.id) +
-      "</b> from " + esc(w.worker) + '</span><span class="muted">·</span><a href="' + esc(w.url) + '" target="_blank" rel="noopener">Open PDF</a></div>' +
+      "</b> from " + esc(w.worker) + '</span><span class="muted">·</span><a href="' + esc(w.url) + '" target="_blank" rel="noopener">Open PDF</a>' +
+      '<span class="muted">·</span><a href="' + esc(runWorkOrderUrl(w)) + '" target="_blank" rel="noopener">Run work order</a></div>' +
       '<div class="wo-sub" title="' + esc(sub) + '">' + esc(sub) + "</div></li>";
   }).join("");
+}
+// Ali's work-order flow (merged from main, mounted at /workorder): open it prefilled from the voice work order.
+function runWorkOrderUrl(w) {
+  const pr = String(w.priority || "").toLowerCase();
+  const q = new URLSearchParams({
+    conveyor_id: "CV-102", station_id: w.station_id || w.station || "", asset_id: w.asset || w.title || "",
+    problem: (w.title || "Work order") + " (Vexora " + w.id + ", reported by " + (w.worker || "W-01") + ")",
+    task: w.title || "", priority: ["low", "medium", "high"].includes(pr) ? pr : "high",
+    technician: w.worker || "W-01",
+  });
+  return "/workorder?" + q.toString();
 }
 let toastTimer = 0;
 function toast(text) {

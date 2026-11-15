@@ -270,6 +270,11 @@ def install(S) -> dict:
     pdf_ep, list_ep = _routes(S)
     _put_route(fapp, PDF_PATH, pdf_ep, "work_order_pdf")
     _put_route(fapp, LIST_PATH, list_ep, "work_orders_recent")
+    try:                                                 # Ali's work-order flow (merged from main), S0 17:40
+        import workorder_live
+        _log("Ali's work-order flow mounted:", importlib.reload(workorder_live).install(fapp))
+    except Exception as e:
+        _log("Ali's work-order flow NOT mounted:", repr(e))
     _patch_snapshot(S)
     if not hasattr(S, "_wo_pdf_since"):                  # announce only work orders created from now on
         last = _rows(S, "SELECT MAX(ts) AS ts FROM work_orders")
