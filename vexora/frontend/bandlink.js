@@ -449,11 +449,46 @@ function mountLiveWords() {
     if (li.parentElement !== list || list.lastElementChild !== li) list.appendChild(li);   // always the last row
     return li;
   }
+  // Act on finished sentences inside the live words (S0 18:31). In a noisy room Deepgram can hold a sentence open for
+  // minutes, so a fault report ("Idler at station 3 is seized.") or a "Vexora, ..." command goes to the server as soon
+  // as it is complete in the partial text: once across all dashboard tabs. The server dedupes work orders.
+  const PART = /(idler|roller|bearing|pulley|belt|guard|skirt|scraper|chute|motor|gearbox)/i;
+  const FAULT = /(seiz|ceas|worn|crack|broke|damag|leak|nois|loose|missing|stuck|jamm|change needed|needs? (?:chang|replac)|fault)/i;
+  const WAKE = /^\s*(?:hey\s+|ok(?:ay)?\s+)?(?:vexora|vaxora|vexura|vexor|luxora|bexora|lexora|belt ?guard)\b/i;
+  const PKEY = 'vexora.promoted';
+  let pending = { s: '', since: 0 };
+  function alreadySent(norm) {
+    let map = {};
+    try { map = JSON.parse(localStorage.getItem(PKEY) || '{}'); } catch (err) { map = {}; }
+    const now = Date.now();
+    for (const k of Object.keys(map)) if (now - map[k] > 15 * 60 * 1000) delete map[k];
+    if (map[norm]) return true;
+    map[norm] = now;
+    try { localStorage.setItem(PKEY, JSON.stringify(map)); } catch (err) { /* no storage: the server still dedupes */ }
+    return false;
+  }
+  function report(sentence) {
+    const norm = sentence.toLowerCase().replace(/[^a-z0-9 ]+/g, ' ').replace(/\s+/g, ' ').trim();
+    if (!norm || alreadySent(norm)) return;
+    fetch('/api/report', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ text: sentence, source: 'band-mic' }) }).catch(() => {});
+  }
+  function promote(text) {
+    const parts = text.split(/(?<=[.!?])\s+/).map((p) => p.trim()).filter(Boolean);
+    const actionable = (p) => /[.!?]$/.test(p) && ((PART.test(p) && FAULT.test(p)) || WAKE.test(p));
+    parts.slice(0, -1).filter(actionable).forEach(report);            // followed by more words: finished
+    const last = parts[parts.length - 1] || '';
+    if (actionable(last)) {                                           // the newest: finished once it stops changing
+      if (pending.s !== last) pending = { s: last, since: Date.now() };
+      else if (Date.now() - pending.since > 1200) report(last);
+    }
+  }
   ch.onmessage = (e) => {
     const m = e.data || {};
     const text = String(m.text || '').trim();
     clearTimeout(clearTimer);
     if (!text || m.final) { drop(); return; }
+    try { promote(text); } catch (err) { /* never break the live words */ }
     const li = row();
     if (!li) return;
     li.querySelector('.tx-words').textContent = '“' + text + '”';               // complete, never trimmed (user)
